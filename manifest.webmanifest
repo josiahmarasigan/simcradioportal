@@ -2,7 +2,7 @@
   "name": "SIMC Radiology Portal",
   "short_name": "SIMC Radiology",
   "description": "Siargao Island Medical Center – Radiology Division portal: results, requests, guidelines and the radiologist on duty.",
-  "id": "./",
+  "id": "/simcradioportal/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
