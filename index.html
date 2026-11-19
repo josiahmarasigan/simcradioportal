@@ -651,8 +651,18 @@
           <span id="dCount"></span>
           <button class="link" onclick="loadDocs()">↻ Refresh</button>
         </div>
-        <div class="row2"><button class="btn" id="dScan" onclick="docScanClick()">Scan folder now</button></div>
+        <div class="row2"><button class="btn" id="dScan" onclick="docScanClick()">Scan folder now</button><button class="btn alt" onclick="docUpToggle()">⬆ Upload document</button></div>
         <div id="dScanMsg" class="msg"></div>
+        <div id="dUpBox" class="ctbox hidden">
+          <b>Upload a new controlled document</b>
+          <p class="sub" style="margin:4px 0 0">The file is saved in the documents folder, numbered, and issued as Rev 00 straight away. For a new version of an existing document, open that document below and use “Upload new version”.</p>
+          <label>File * <span class="hint" style="display:inline">PDF, Word, Excel, PowerPoint or image</span></label>
+          <input type="file" id="dUpFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.png,.jpg,.jpeg" onchange="docUpPicked()">
+          <div class="grid2"><div><label>Title *</label><input type="text" id="dUpTitle" maxlength="200"></div>
+          <div><label>Document type</label><select id="dUpType"></select></div></div>
+          <div class="row2"><button class="btn" id="dUpBtn" onclick="docUpNew()">Upload and register</button></div>
+          <div id="dUpMsg" class="msg"></div>
+        </div>
         <div id="dList"></div>
       </div>
 
@@ -2255,6 +2265,11 @@
         ? '<div class="sec">Issue new revision</div><p class="sub" style="margin:6px 0 0">The source file was edited. Issuing a revision makes a new controlled copy (Rev ' + esc(nextRev(d.rev)) + ') and moves Rev ' + esc(d.rev) + ' to _OBSOLETE.</p>' +
           '<label>Reason / summary of changes</label><input type="text" data-rreason maxlength="300">' +
           '<div class="row2"><button class="btn" data-act="revise">Issue Rev ' + esc(nextRev(d.rev)) + '</button></div>' : '') +
+      (active ? '<div class="sec">Upload new version</div><p class="sub" style="margin:6px 0 0">Upload the updated file. It becomes Rev ' + esc(nextRev(d.rev)) +
+          ' immediately; Rev ' + esc(d.rev) + ' is moved to _OBSOLETE and renamed “OBSOLETE – …”, and staff see only the new revision.</p>' +
+          '<input type="file" data-vfile accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.png,.jpg,.jpeg">' +
+          '<label>Reason / summary of changes *</label><input type="text" data-vreason maxlength="300">' +
+          '<div class="row2"><button class="btn" data-act="upver">Upload as Rev ' + esc(nextRev(d.rev)) + '</button></div>' : '') +
       (active ? '<div class="sec">Withdraw</div><label>Reason for making obsolete</label><input type="text" data-oreason maxlength="300">' +
           '<div class="row2"><button class="btn alt" data-act="obsolete">Make obsolete</button></div>' : '') +
       '<div class="msg" data-msg></div>';
@@ -2293,6 +2308,17 @@
         data.clearFlag = !!(q('[data-clear]') && q('[data-clear]').checked);
         b.disabled = true; run('docSave', token, d.code, data).then(done).catch(fail);
       }
+      if (act === 'upver') {
+        var vf = q('[data-vfile]').files[0], vr = (q('[data-vreason]').value || '').trim();
+        if (!vf) return say('Choose the file for the new version.');
+        if (!vr) return say('Give the reason / summary of changes.');
+        if (!sure[act]) { sure[act] = 1; b.textContent = 'Tap again to issue Rev ' + nextRev(d.rev); return; }
+        b.disabled = true; b.textContent = 'Uploading…';
+        docReadFile(vf).then(function (b64) { return run('docUpload', token, { mode: 'revise', code: d.code, name: vf.name, b64: b64, reason: vr }); })
+          .then(function (r) { b.textContent = 'Upload as Rev ' + nextRev(d.rev); sure[act] = 0; done(r); })
+          .catch(function (e) { b.disabled = false; sure[act] = 0; b.textContent = 'Upload as Rev ' + nextRev(d.rev); say((e && e.message) || 'Upload failed. Please try again.'); });
+        return;
+      }
       if (act === 'revise' || act === 'obsolete') {
         var reason = (q(act === 'revise' ? '[data-rreason]' : '[data-oreason]').value || '').trim();
         if (act === 'obsolete' && !reason) return say('Give a reason for making it obsolete.');
@@ -2300,6 +2326,43 @@
         b.disabled = true; run('docAction', token, d.code, act === 'revise' ? 'revise' : 'obsolete', reason).then(done).catch(fail);
       }
     });
+  }
+
+  /* ---- upload into the documents folder ---- */
+  var DOC_UP_MAX_MB = 20;
+  function docReadFile(file) {
+    return new Promise(function (res, rej) {
+      if (file.size > DOC_UP_MAX_MB * 1024 * 1024) return rej(new Error('The file is larger than ' + DOC_UP_MAX_MB + ' MB.'));
+      var fr = new FileReader();
+      fr.onload = function () { res(String(fr.result).split(',')[1] || ''); };
+      fr.onerror = function () { rej(new Error('The file could not be read.')); };
+      fr.readAsDataURL(file);
+    });
+  }
+  function docUpToggle() {
+    var bx = $('dUpBox'); bx.classList.toggle('hidden');
+    if (!bx.classList.contains('hidden')) {
+      var t = (DOCMETA && DOCMETA.types) || [];
+      $('dUpType').innerHTML = '<option value="">Guess from the title</option>' + t.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+      setMsg('dUpMsg', '');
+    }
+  }
+  function docUpPicked() {
+    var f = $('dUpFile').files[0]; if (!f) return;
+    $('dUpTitle').value = f.name.replace(/\.[A-Za-z0-9]{2,5}$/, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function docUpNew() {
+    var f = $('dUpFile').files[0], b = $('dUpBtn'), title = $('dUpTitle').value.trim();
+    if (!f) return setMsg('dUpMsg', 'Choose a file.');
+    if (!title) return setMsg('dUpMsg', 'Enter the title.');
+    b.disabled = true; b.textContent = 'Uploading…'; setMsg('dUpMsg', '');
+    docReadFile(f).then(function (b64) { return run('docUpload', token, { mode: 'new', name: f.name, b64: b64, title: title, type: $('dUpType').value }); })
+      .then(function (r) {
+        b.disabled = false; b.textContent = 'Upload and register';
+        if (r.expired) return expired();
+        setMsg('dUpMsg', r.msg, r.ok);
+        if (r.ok) { $('dUpFile').value = ''; $('dUpTitle').value = ''; loadDocs(); }
+      }).catch(function (e) { b.disabled = false; b.textContent = 'Upload and register'; setMsg('dUpMsg', (e && e.message) || 'Upload failed. Please try again.'); });
   }
 
   function nextRev(r) { var n = Number(r); return isFinite(n) && r !== '' ? ('0' + (n + 1)).slice(-2) : '01'; }
