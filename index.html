@@ -251,6 +251,47 @@
   .confirm { margin-top:10px; border:2px solid #d97706; border-radius:10px; padding:12px 14px; background:color-mix(in srgb,#d97706 8%,var(--card)); }
   .confirm p { margin:6px 0 0; font-size:14px; }
   .adt:disabled { opacity:.85; background:var(--card); }
+  /* CT referrals */
+  .ctr { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:4px; font-size:14px; }
+  .ctr label { display:flex; align-items:center; gap:6px; font-weight:400; margin:4px 0; font-size:14px; cursor:pointer; }
+  .ctsec { font-weight:700; font-size:14px; margin-top:18px; padding:8px 10px; border-radius:8px; background:color-mix(in srgb,var(--brand) 10%,transparent); color:var(--ink); }
+  .ctnote > .sub:first-child { display:block; font-size:12px; margin-top:8px; }
+  .ctok, .ctwarn { margin-top:8px; padding:9px 12px; border-radius:8px; font-size:13.5px; line-height:1.45; }
+  .ctok { background:color-mix(in srgb,#16a34a 12%,transparent); }
+  .ctwarn { background:color-mix(in srgb,#d97706 16%,transparent); }
+  .ct3 { display:grid; grid-template-columns:repeat(3,1fr); gap:0 16px; }
+  @media (max-width:760px) { .ct3 { grid-template-columns:1fr; } }
+  .ctg { font-weight:700; font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-top:12px; }
+  .ctsub { padding-left:26px; margin-top:-4px; }
+  .ctbox { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:10px; }
+  .ctsc { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:1px dashed var(--line); padding:2px 0; font-size:14px; }
+  .ctvit { display:grid; grid-template-columns:repeat(6,1fr); gap:0 10px; }
+  @media (max-width:760px) { .ctvit { grid-template-columns:repeat(3,1fr); } }
+  .ctstep { margin-top:10px; padding:8px 12px; border-left:3px solid var(--line); font-size:14px; }
+  .ctpec { margin-top:12px; padding:10px 12px; border-radius:10px; font-size:14px; line-height:1.45; background:color-mix(in srgb,#64748b 14%,transparent); }
+  .ctpec.k_high { background:#dc2626; color:#fff; }
+  .ctpec.k_midR { background:color-mix(in srgb,#d97706 22%,transparent); }
+  .ctpec.k_midN { background:color-mix(in srgb,#d97706 22%,transparent); }
+  .ctpec.k_low { background:color-mix(in srgb,#16a34a 18%,transparent); }
+  .pill.Awaitingradiologist { background:#dc2626; color:#fff; }
+  .pill.Notapproved { background:color-mix(in srgb,#dc2626 18%,transparent); color:#dc2626; }
+  .pill.Deferred { background:color-mix(in srgb,#d97706 18%,transparent); color:#d97706; }
+  .pill.Scanned { background:color-mix(in srgb,#2563eb 18%,transparent); color:#2563eb; }
+  #printArea .ctp { font:10.5px/1.35 Arial, sans-serif; color:#000; }
+  #printArea .ctp .cth { display:flex; align-items:center; gap:10px; font-size:12px; }
+  #printArea .ctp .cth img { height:46px; }
+  #printArea .ctp h2 { font-size:14px; text-align:center; margin:6px 0 0; }
+  #printArea .ctp .cts { text-align:center; font-size:10px; }
+  #printArea .ctp .ctr2 { font-size:9.5px; margin:4px 0; color:#333; }
+  #printArea .ctp table { width:100%; border-collapse:collapse; }
+  #printArea .ctp th { background:#e5e7eb; text-align:left; padding:3px 6px; font-size:10.5px; border:1px solid #000; }
+  #printArea .ctp td { border:1px solid #000; padding:3px 6px; vertical-align:top; }
+  #printArea .ctp tr { page-break-inside:avoid; break-inside:avoid; }
+  #printArea .ctp tbody { page-break-inside:avoid; break-inside:avoid; }
+  #printArea .ctp .c3 { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  #printArea .ctp .pb { font-size:12px; }
+  #printArea .ctp .pr { margin-top:4px; padding-top:3px; border-top:1px solid #000; }
+  #printArea .ctp .ctf { font-size:9.5px; font-style:italic; margin-top:4px; }
   #printArea { display:none; }
   @media print {
     html, body.printing-file { margin:0 !important; padding:0 !important; background:#fff !important; height:auto !important; }
@@ -348,6 +389,8 @@
           <button class="chip" id="stPrNew" onclick="schedView('prnew')"><span class="cl">🔍 Request peer review</span></button>
           <button class="chip" id="stRpNew" onclick="schedView('rpnew')"><span class="cl">🖨 Request reprint</span></button>
           <button class="chip" id="stExNew" onclick="schedView('exnew')"><span class="cl">⚡ Expedite a case</span></button>
+          <button class="chip" id="stCtNew" onclick="schedView('ctnew')"><span class="cl">🌙 After-hours CT referral</span></button>
+          <button class="chip" id="stCtPed" onclick="schedView('ctped')"><span class="cl">🧒 Pediatric head CT (PECARN)</span></button>
           <button class="chip" id="stIncNew" onclick="schedView('incnew')"><span class="cl">⚠ Report incident</span></button>
         </div></div>
         <div class="tgroup" data-g="mine"><div class="tgt" id="tg_mine">My requests</div><div class="schedbar">
@@ -355,6 +398,7 @@
           <button class="chip" id="stPrMine" onclick="schedView('prmine')"><span class="cl">My peer reviews</span></button>
           <button class="chip" id="stRpMine" onclick="schedView('rpmine')"><span class="cl">My reprints</span><span id="rpMineBadge" class="badge ok hidden"></span></button>
           <button class="chip" id="stExMine" onclick="schedView('exmine')"><span class="cl">My follow-ups</span></button>
+          <button class="chip" id="stCtMine" onclick="schedView('ctmine')"><span class="cl">My CT referrals</span></button>
           <button class="chip" id="stIncMine" onclick="schedView('incmine')"><span class="cl">My incident reports</span></button>
         </div></div>
         <div class="tgroup" data-g="res"><div class="tgt" id="tg_res">Resources</div><div class="schedbar">
@@ -363,6 +407,7 @@
         <div class="tgroup" data-g="adm"><div class="tgt" id="tg_adm">Admin &amp; radiology</div><div class="schedbar">
           <button class="chip hidden" id="stDuty" onclick="schedView('duty')"><span class="cl">🗓 Duty schedule</span></button>
           <button class="chip hidden" id="stDown" onclick="schedView('down')"><span class="cl">🛠 Machine downtime</span><span id="dtBadge" class="badge hidden"></span></button>
+          <button class="chip hidden" id="stCtQ" onclick="schedView('ctq')"><span class="cl">CT referral queue</span><span id="ctBadge" class="badge hidden"></span></button>
           <button class="chip hidden" id="stExQ" onclick="schedView('exq')"><span class="cl">Expedite queue</span><span id="exBadge" class="badge hidden"></span></button>
           <button class="chip hidden" id="stAdmin" onclick="schedView('admin')"><span class="cl">Scheduling console</span><span id="adminBadge" class="badge hidden"></span></button>
           <button class="chip hidden" id="stPrQueue" onclick="schedView('prqueue')"><span class="cl">Peer review queue</span><span id="prBadge" class="badge hidden"></span></button>
@@ -648,6 +693,27 @@
           <button class="link" onclick="loadExQueue()">↻ Refresh</button>
         </div>
         <div id="exList"></div>
+      </div>
+
+      <!-- CT REFERRALS: after-hours (Annex T) and pediatric head CT (PECARN). One form, moved into whichever view is open. -->
+      <div id="vCtNew" class="hidden" style="margin-top:6px"></div>
+      <div id="vCtPed" class="hidden" style="margin-top:6px"></div>
+      <div id="ctForm" class="hidden"></div>
+      <div id="vCtMine" class="hidden">
+        <div class="meta"><span id="ctmCount"></span><button class="link" onclick="loadCtMine()">↻ Refresh</button></div>
+        <div id="ctmList"></div>
+      </div>
+      <div id="vCtQ" class="hidden">
+        <div class="meta">
+          <select id="ctqFilter" onchange="loadCtQ()" style="width:auto">
+            <option value="Open">Open (awaiting + approved)</option><option value="Awaiting">Awaiting radiologist</option><option value="Approved">Approved – to scan</option>
+            <option value="Decided">Decided / scanned</option><option value="Review">For monthly review</option><option value="All">All</option>
+          </select>
+          <span id="ctqMonthBox" class="hidden"><input type="month" id="ctqMonth" onchange="loadCtQ()" style="width:auto"></span>
+          <button class="link" onclick="loadCtQ()">↻ Refresh</button>
+        </div>
+        <div id="ctqStats"></div>
+        <div id="ctqList"></div>
       </div>
 
       <!-- MACHINE DOWNTIME (admin) -->
@@ -1032,11 +1098,14 @@
   }
 
   var PRM = null, PR_SEL = null, PR_SRC = 'listed', UID = 0, QSEQ = 0, ASEQ = 0;
-  var VIEWS = ['New', 'Mine', 'Admin', 'PrNew', 'PrMine', 'PrQueue', 'RpNew', 'RpMine', 'RpQueue', 'IncNew', 'IncMine', 'Capa', 'Guide', 'Docs', 'Duty', 'ExNew', 'ExMine', 'ExQ', 'Down'];
+  var VIEWS = ['New', 'Mine', 'Admin', 'PrNew', 'PrMine', 'PrQueue', 'RpNew', 'RpMine', 'RpQueue', 'IncNew', 'IncMine', 'Capa', 'Guide', 'Docs', 'Duty', 'ExNew', 'ExMine', 'ExQ', 'Down', 'CtNew', 'CtPed', 'CtMine', 'CtQ'];
 
   function schedInit() {
-    var sOn = CONF.schedulerEnabled === true, pOn = CONF.peerReviewEnabled === true, rOn = !!(CONF.reprint && CONF.reprint.enabled), cOn = !!(CONF.capa && CONF.capa.enabled), dOn = !!(CONF.docs && CONF.docs.enabled), yOn = !!(CONF.duty && CONF.duty.enabled), xOn = !!(CONF.expedite && CONF.expedite.enabled), tOn = !!CONF.downtimeEnabled;
-    $('schedCard').classList.toggle('hidden', !(sOn || pOn || rOn || cOn || dOn || yOn || xOn));
+    var sOn = CONF.schedulerEnabled === true, pOn = CONF.peerReviewEnabled === true, rOn = !!(CONF.reprint && CONF.reprint.enabled), cOn = !!(CONF.capa && CONF.capa.enabled), dOn = !!(CONF.docs && CONF.docs.enabled), yOn = !!(CONF.duty && CONF.duty.enabled), xOn = !!(CONF.expedite && CONF.expedite.enabled), tOn = !!CONF.downtimeEnabled, ctOn = !!(CONF.ctReferral && CONF.ctReferral.enabled);
+    $('schedCard').classList.toggle('hidden', !(sOn || pOn || rOn || cOn || dOn || yOn || xOn || ctOn));
+    $('stCtNew').classList.toggle('hidden', !ctOn); $('stCtPed').classList.toggle('hidden', !(ctOn && CONF.ctReferral.pediatric !== false));
+    $('stCtMine').classList.toggle('hidden', !ctOn); $('stCtQ').classList.add('hidden'); $('ctBadge').classList.add('hidden');
+    if (!$('ctqMonth').value) { var cm = new Date(); $('ctqMonth').value = cm.getFullYear() + '-' + pad(cm.getMonth() + 1); }
     $('stNew').classList.toggle('hidden', !sOn); $('stMine').classList.toggle('hidden', !sOn);
     $('stAdmin').classList.toggle('hidden', !(sOn && IS_ADMIN));
     $('stPrNew').classList.toggle('hidden', !pOn); $('stPrMine').classList.toggle('hidden', !pOn);
@@ -1092,6 +1161,7 @@
       if (yOn) $('stDuty').classList.toggle('hidden', !r.dutyTab);
       if (xOn && IS_ADMIN) setExBadge({ fresh: bd.ex || 0 });
       if (tOn && IS_ADMIN) setDtBadge(bd.dt || 0);
+      if (r.ctQueue) { $('stCtQ').classList.remove('hidden'); setCtBadge(bd.ctr || 0); }
     }).catch(function () {});
   }
 
@@ -1117,6 +1187,10 @@
     if (v === 'exmine') loadExMine();
     if (v === 'exq') loadExQueue();
     if (v === 'down') loadDt();
+    if (v === 'ctnew') ctOpen('after');
+    if (v === 'ctped') ctOpen('ped');
+    if (v === 'ctmine') loadCtMine();
+    if (v === 'ctq') loadCtQ();
   }
 
   function setMsg(id, text, ok) { var m = $(id); m.textContent = text || ''; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
@@ -2879,6 +2953,471 @@
     }).catch(function () { b.disabled = false; });
   }
   /* ================= /EXPEDITE ================= */
+
+
+  /* ================= CT REFERRALS: after-hours urgent CT (Annex T) & pediatric head CT (PECARN) ================= */
+  var CTM = null, CT_MODE = 'after', CT_BUILT = false, CTSEQ = 0;
+  function ctConf() { return CONF.ctReferral || {}; }
+  function ctStore(k, v) { try { if (v === undefined) return localStorage.getItem('ct_' + k) || ''; localStorage.setItem('ct_' + k, v); } catch (e) { return ''; } }
+  function ctCb(group, item, extra) { return '<label class="crit"><input type="checkbox" data-g="' + group + '" value="' + esc(item[0]) + '"' + (extra || '') + '><span>' + esc(item[1]) + '</span></label>'; }
+  function ctRadio(name, vals, labels) { return '<div class="ctr">' + vals.map(function (v, i) { return '<label><input type="radio" name="' + name + '" value="' + esc(v) + '"> ' + esc(labels ? labels[i] : v) + '</label>'; }).join('') + '</div>'; }
+  function ctVals(g) { return Array.prototype.map.call(document.querySelectorAll('#ctForm input[data-g="' + g + '"]:checked'), function (x) { return x.value; }); }
+  function ctRad(name) { var x = document.querySelector('#ctForm input[name="' + name + '"]:checked'); return x ? x.value : ''; }
+  function ctSetRad(name, v) { Array.prototype.forEach.call(document.querySelectorAll('#ctForm input[name="' + name + '"]'), function (x) { x.checked = x.value === v; }); }
+  function ctTick(g, v, on) { var x = document.querySelector('#ctForm input[data-g="' + g + '"][value="' + v + '"]'); if (x) x.checked = !!on; }
+
+  function ctBuild() {
+    if (CT_BUILT) return; CT_BUILT = true;
+    var c = ctConf(), I = c.ind, P = c.pec;
+    var screen = c.screen.map(function (s) {
+      return '<div class="ctsc"><span>' + esc(s[1]) + '</span>' + ctRadio('ct_sc_' + s[0], s[0] === 'pregnant' ? ['Yes', 'No', 'N/A'] : ['Yes', 'No']) + '</div>';
+    }).join('');
+    var h =
+      '<div id="ctSched" class="ctnote"></div>' +
+      '<div class="ctsec">I. Patient information <span class="hint" style="display:inline">· two identifiers required</span></div>' +
+      '<div class="grid2">' +
+        '<div><label>Patient full name *</label><input type="text" id="ct_patient" maxlength="120"></div>' +
+        '<div><label>Hospital no.</label><input type="text" id="ct_hosp" maxlength="40"></div>' +
+        '<div><label>Date of birth *</label><input type="date" id="ct_dob"></div>' +
+        '<div><label>Age <span class="hint" style="display:inline">(only if date of birth unknown, e.g. 7 y, 18 mo)</span></label><input type="text" id="ct_age" maxlength="30"></div>' +
+        '<div><label>Sex *</label>' + ctRadio('ct_sex', ['M', 'F'], ['Male', 'Female']) + '</div>' +
+        '<div><label>Weight (kg) <span id="ct_wreq"></span></label><input type="number" id="ct_weight" min="0.3" max="400" step="0.1" inputmode="decimal"></div>' +
+        '<div><label>Location *</label>' + ctRadio('ct_loc', ['ER', 'Ward']) + '</div>' +
+        '<div id="ct_wardBox" class="hidden"><label>Ward *</label><input type="text" id="ct_ward" maxlength="60"></div>' +
+      '</div>' +
+      '<div class="ctsec">II. Clinical information</div>' +
+      '<label id="ct_reasonL">Chief complaint / reason CT cannot wait until scheduled hours *</label><textarea id="ct_reason" rows="2" maxlength="1000"></textarea>' +
+      '<div class="ctvit">' +
+        '<div><label>GCS *</label><input type="number" id="ct_gcs" min="3" max="15" inputmode="numeric"></div>' +
+        '<div><label>BP</label><input type="text" id="ct_bp" maxlength="20" placeholder="120/80"></div>' +
+        '<div><label>HR</label><input type="number" id="ct_hr" inputmode="numeric"></div>' +
+        '<div><label>RR</label><input type="number" id="ct_rr" inputmode="numeric"></div>' +
+        '<div><label>SpO₂ %</label><input type="number" id="ct_spo2" inputmode="numeric"></div>' +
+        '<div><label>Time of injury / onset</label><input type="text" id="ct_onset" maxlength="40" placeholder="e.g. 9:40 PM"></div>' +
+      '</div>' +
+      '<label>Pertinent history, examination and labs</label><textarea id="ct_hist" rows="2" maxlength="2000"></textarea>' +
+      '<div id="ct_p3">' +
+        '<div class="ctsec">III. Urgent indication <span class="hint" style="display:inline">· check all that apply, at least one</span></div>' +
+        '<div class="ct3">' +
+          '<div><div class="ctg">Trauma</div>' + I.trauma.map(function (x) { return ctCb('trauma', x); }).join('') +
+            '<label>FAST</label><select id="ct_fast"><option value="">—</option>' + c.fast.map(function (f) { return '<option>' + esc(f) + '</option>'; }).join('') + '</select></div>' +
+          '<div><div class="ctg">Neurologic</div>' + I.neuro.map(function (x) {
+              return ctCb('neuro', x) + (x[0] === 'n_adult' ? '<div id="ct_adultBox" class="ctsub hidden">' + I.adultHead.map(function (y) { return ctCb('adultHead', y); }).join('') + '</div>' : '');
+            }).join('') + '</div>' +
+          '<div><div class="ctg">Other urgent</div>' + I.other.map(function (x) { return ctCb('other', x); }).join('') +
+            '<input type="text" id="ct_otherText" class="hidden" maxlength="200" placeholder="Other urgent indication"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ctsec">IV. Proposed CT study and contrast safety <span class="hint" style="display:inline">· written consent is required for every CT (POL-001 §1.3)</span></div>' +
+      '<div class="grid2"><div><label>Study *</label>' + c.studies.map(function (s) { return ctCb('study', [s, s]); }).join('') +
+        '<input type="text" id="ct_studyOther" class="hidden" maxlength="120" placeholder="Other CT study"></div>' +
+        '<div><label>Contrast *</label>' + ctRadio('ct_contrast', ['Plain', 'With contrast']) + '</div></div>' +
+      '<div id="ct_scBox" class="ctbox hidden"><b>Contrast screening</b>' + screen +
+        '<div class="grid2"><div><label>Latest creatinine</label><input type="text" id="ct_creat" maxlength="30"></div><div><label>Date</label><input type="date" id="ct_creatDate"></div>' +
+        '<div><label>Contrast given by nurse</label><input type="text" id="ct_nurse" maxlength="80"></div><div><label>Observer (ER physician or ER nurse)</label><input type="text" id="ct_observer" maxlength="80"></div></div>' +
+        '<label class="crit"><input type="checkbox" id="ct_iv"><span>IV access confirmed *</span></label>' +
+        '<div id="ct_scWarn" class="ctwarn hidden">Any “Yes” above → discuss with the duty radiologist before contrast.</div></div>' +
+      '<label class="crit"><input type="checkbox" id="ct_consent"><span><b>Written consent signed and attached *</b></span></label>' +
+      '<div id="ct_p5" class="hidden">' +
+        '<div class="ctsec">V. Pediatric head trauma – PECARN screening <span class="hint" style="display:inline">· every patient under 18 with head trauma (POL-001 §1.9)</span></div>' +
+        '<p class="sub" style="margin:6px 0 0">Go through the steps in order. The result box shows the decision as you tick.</p>' +
+        '<div class="ctstep"><b>Step 1 – Does PECARN apply? All three must be ticked.</b>' + P.step1.map(function (x) { return ctCb('p1', x); }).join('') + '</div>' +
+        '<div class="ctstep" id="ct_s2"><b>Step 2 – Exclusions. Tick any that apply.</b>' + P.excl.map(function (x) { return ctCb('px', x); }).join('') + '</div>' +
+        '<div class="ctstep" id="ct_s3"><b>Step 3 – Age group</b>' + ctRadio('ct_grp', ['A', 'B'], ['Under 2 years (column A)', '2 years and older (column B)']) + '<span class="hint" id="ct_grpHint"></span></div>' +
+        '<div class="ctstep" id="ct_s4"><b>Step 4 – High-risk signs</b>' +
+          '<div data-col="A">' + P.highA.map(function (x) { return ctCb('ph', x); }).join('') + '</div>' +
+          '<div data-col="B">' + P.highB.map(function (x) { return ctCb('ph', x); }).join('') + '</div></div>' +
+        '<div class="ctstep" id="ct_s5"><b>Step 5 – Intermediate-risk signs</b>' +
+          '<div data-col="A">' + P.midA.map(function (x) { return ctCb('pm', x); }).join('') + '</div>' +
+          '<div data-col="B">' + P.midB.map(function (x) { return ctCb('pm', x); }).join('') + '</div>' +
+          '<div id="ct_reasons" class="ctsub hidden"><b>Reason for CT at intermediate risk (referring physician)</b>' + P.reasons.map(function (x) { return ctCb('pr', x); }).join('') + '</div></div>' +
+        '<div id="ct_pec" class="ctpec"></div>' +
+        '<details class="info"><summary>Definitions</summary><ul><li><b>Altered mental status:</b> agitation, somnolence, repetitive questioning, or slow response to verbal communication.</li>' +
+          '<li><b>Severe mechanism:</b> motor vehicle crash with ejection, death of another passenger or rollover; pedestrian or cyclist without a helmet struck by a motor vehicle; fall from more than 0.9 m (3 ft) if under 2, or more than 1.5 m (5 ft) if 2 and older; head struck by a high-impact object.</li>' +
+          '<li>Adapted from Kuppermann N, et al. Lancet 2009;374:1160–70 (PECARN).</li></ul></details>' +
+      '</div>' +
+      '<div class="ctsec">VI. Referring physician declaration</div>' +
+      '<div class="grid2">' +
+        '<div><label>Name *</label><input type="text" id="ct_phys" maxlength="100"></div>' +
+        '<div><label>Department</label><input type="text" id="ct_dept" maxlength="80"></div>' +
+        '<div><label>Role *</label>' + ctRadio('ct_role', ['ER doctor', 'Attending physician (inpatient)']) + '</div>' +
+        '<div><label>Callback number / local *</label><input type="text" id="ct_cb" maxlength="40"></div>' +
+      '</div>' +
+      '<label class="crit"><input type="checkbox" id="ct_declare"><span id="ct_declTxt"></span></label>' +
+      '<button class="btn" id="ct_btn" onclick="ctSubmit()">Send to the duty radiologist</button>' +
+      '<div id="ct_msg" class="msg"></div><div id="ct_done"></div>';
+    $('ctForm').innerHTML = h;
+    var f = $('ctForm');
+    // only boxes that change what the form shows (not plain text fields): a repaint while a button is being pressed can make the tap miss
+    f.addEventListener('change', function (e) { var t = e.target; if (t.type === 'checkbox' || t.type === 'radio' || /^ct_(dob|age|gcs)$/.test(t.id)) ctUpdate(); });
+    f.addEventListener('input', function (e) { if (/^ct_(dob|age|gcs)$/.test(e.target.id)) ctUpdate(); });
+    $('ct_phys').value = ctStore('phys'); $('ct_dept').value = ctStore('dept'); $('ct_cb').value = ctStore('cb'); if (ctStore('role')) ctSetRad('ct_role', ctStore('role'));
+    $('ct_dob').max = ymdLocal(new Date()); $('ct_creatDate').max = ymdLocal(new Date());
+  }
+
+  /** Age in months from the form (null = unknown). */
+  function ctAgeMonths() {
+    var dob = $('ct_dob').value;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+      var t = new Date(), b = dob.split('-').map(Number), m = (t.getFullYear() - b[0]) * 12 + (t.getMonth() + 1 - b[1]); if (t.getDate() < b[2]) m--;
+      return m >= 0 ? m : null;
+    }
+    var a = /^\s*(\d+(?:\.\d+)?)\s*(d|days?|w|wks?|weeks?|m|mos?|months?|y|yrs?|years?)?\b/i.exec($('ct_age').value || '');
+    if (!a) return null;
+    var n = +a[1], u = (a[2] || 'y').toLowerCase()[0];
+    return u === 'd' ? Math.floor(n / 30.4) : u === 'w' ? Math.floor(n / 4.35) : u === 'm' ? Math.floor(n) : Math.floor(n * 12);
+  }
+
+  /** Same rule as the server (ctrPecarn_): stop at the first step that gives a result. */
+  function ctPecarn() {
+    var s1 = ctVals('p1'), ex = ctVals('px'), g = ctRad('ct_grp');
+    if (s1.length < 3) return { key: 'na1', stop: 1 };
+    if (ex.length) return { key: 'na2', stop: 2 };
+    if (g !== 'A' && g !== 'B') return { key: '', stop: 3 };
+    var col = function (gr) { return Array.prototype.filter.call(document.querySelectorAll('#ctForm [data-col="' + g + '"] input[data-g="' + gr + '"]:checked'), function () { return true; }).length; };
+    if (col('ph')) return { key: 'high', stop: 4 };
+    if (col('pm')) return { key: ctVals('pr').length ? 'midR' : 'midN', stop: 5 };
+    return { key: 'low', stop: 5 };
+  }
+
+  function ctUpdate() {
+    if (!CT_BUILT) return;
+    var ped = CT_MODE === 'ped', months = ctAgeMonths(), minor = months !== null && months < 216, gcs = +$('ct_gcs').value || 0;
+    $('ct_age').disabled = !!$('ct_dob').value;
+    if ($('ct_dob').value && months !== null) $('ct_age').value = months < 24 ? months + ' mo' : Math.floor(months / 12) + ' y';
+    $('ct_wreq').textContent = minor ? '*' : '';
+    $('ct_wardBox').classList.toggle('hidden', ctRad('ct_loc') !== 'Ward');
+    $('ct_adultBox').classList.toggle('hidden', ctVals('neuro').indexOf('n_adult') === -1);
+    $('ct_otherText').classList.toggle('hidden', ctVals('other').indexOf('o_other') === -1);
+    $('ct_studyOther').classList.toggle('hidden', ctVals('study').indexOf('Other') === -1);
+    var withC = ctRad('ct_contrast') === 'With contrast';
+    $('ct_scBox').classList.toggle('hidden', !withC);
+    $('ct_scWarn').classList.toggle('hidden', !ctConf().screen.some(function (s) { return ctRad('ct_sc_' + s[0]) === 'Yes'; }));
+    // Part V: always on the pediatric form; on the after-hours form when "Child under 18 with head trauma" is ticked
+    var pec = ped || ctVals('neuro').indexOf('n_child') !== -1;
+    $('ct_p5').classList.toggle('hidden', !pec);
+    if (!pec) return;
+    // fill in what the form already knows (the doctor can still change it)
+    if (months !== null) { ctTick('p1', 'u18', minor); ctSetRad('ct_grp', months < 24 ? 'A' : 'B'); }
+    if ($('ct_gcs').value) { if (gcs >= 14) ctTick('p1', 'gcs1415', true); else ctTick('p1', 'gcs1415', false); }
+    Array.prototype.forEach.call(document.querySelectorAll('#ctForm input[name="ct_grp"]'), function (x) { x.disabled = months !== null; });
+    $('ct_grpHint').textContent = months !== null ? 'Set from the patient\'s age.' : 'Enter the date of birth or age, or choose here.';
+    var g = ctRad('ct_grp');
+    Array.prototype.forEach.call(document.querySelectorAll('#ctForm [data-col]'), function (d) { d.classList.toggle('hidden', d.getAttribute('data-col') !== g); });
+    ['ha_gcs14', 'hb_gcs14'].forEach(function (k) { var x = document.querySelector('#ctForm input[value="' + k + '"]'); if (!x) return; x.disabled = !!$('ct_gcs').value; if ($('ct_gcs').value) x.checked = gcs === 14; });
+    var r = ctPecarn(), c = ctConf();
+    $('ct_s2').classList.toggle('hidden', r.stop < 2); $('ct_s3').classList.toggle('hidden', r.stop < 3);
+    $('ct_s4').classList.toggle('hidden', r.stop < 4 || !g); $('ct_s5').classList.toggle('hidden', r.stop < 5 || r.key === 'high');
+    $('ct_reasons').classList.toggle('hidden', !(r.key === 'midR' || r.key === 'midN'));
+    var box = $('ct_pec'), bc = 'ctpec ' + (r.key ? 'k_' + r.key : '');
+    if (box.className !== bc) box.className = bc;
+    var bh = r.key ? '<b>PECARN result: ' + esc(c.pecResults[r.key]) + '</b><div>' + esc(c.pecAdvice[r.key]) + '</div>' : '<b>PECARN result:</b> choose the age group in Step 3.';
+    if (box.getAttribute('data-h') !== bh) { box.setAttribute('data-h', bh); box.innerHTML = bh; }
+  }
+
+  function ctOpen(mode) {
+    CT_MODE = mode === 'ped' ? 'ped' : 'after';
+    ctBuild();
+    var host = $(CT_MODE === 'ped' ? 'vCtPed' : 'vCtNew'); host.appendChild($('ctForm')); $('ctForm').classList.remove('hidden');
+    var ped = CT_MODE === 'ped', c = ctConf();
+    $('ct_p3').classList.toggle('hidden', ped);
+    $('ct_reasonL').textContent = ped ? 'Chief complaint / mechanism of injury *' : 'Chief complaint / reason CT cannot wait until scheduled hours *';
+    if (ped) ctTick('study', 'CT Brain', true);
+    $('ct_declTxt').textContent = ped
+      ? 'I certify that the information above is complete and correct, that I applied the PECARN rule, and that written consent has been obtained.'
+      : 'I certify that this CT is urgent and cannot wait until scheduled hours, that the information above is complete and correct, and that written consent has been obtained.';
+    $('ct_msg').textContent = ''; $('ct_done').innerHTML = '';
+    var s = $('ctSched');
+    s.innerHTML = '<span class="sub">' + esc(c.formCode || '') + '</span>' + (!ped && c.policyNote ? '<div class="ctwarn">' + esc(c.policyNote) + '</div>' : '') + '<div class="sub">Checking the CT schedule…</div>';
+    ctUpdate();
+    run('ctrMeta', token).then(function (m) {
+      if (m.expired) return expired();
+      if (!m.ok) { s.innerHTML = '<p class="sub err">' + esc(m.msg) + '</p>'; return; }
+      CTM = m;
+      if (!$('ct_phys').value) $('ct_phys').value = (CONF.prefix ? CONF.prefix + ' ' : '') + (m.me || '');
+      var sc = m.schedule || {}, html = '<span class="sub">' + esc(c.formCode || '') + '</span>' + (!ped && c.policyNote ? '<div class="ctwarn">' + esc(c.policyNote) + '</div>' : '');
+      if (!ped) html += sc.running
+        ? '<div class="ctwarn">A CT schedule is running now (' + esc(to12(sc.start)) + '–' + esc(to12(sc.end)) + '). Use this form only when no CT schedule is running. For a child with head trauma use “Pediatric head CT (PECARN)”; otherwise use the regular scan request.</div>'
+        : '<div class="ctok">No CT schedule is running now' + (sc.next ? ' · next scheduled CT day: ' + esc(niceDate(sc.next)) : '') + '. After-hours CT is for urgent ER and approved urgent inpatient cases only – no OPD requests. The scan proceeds only after the duty radiologist approves it.</div>';
+      else html += '<div class="ctok">' + (sc.running ? 'CT is running now (' + esc(to12(sc.start)) + '–' + esc(to12(sc.end)) + ').' : 'No CT schedule is running now – this request goes through the after-hours rules (POL-001 §1.6).') +
+        ' The duty radiologist screens every pediatric head CT (Process 2 step 9).</div>';
+      html += ctDutyHtml(m.onDuty, 'Radiologist on duty now');
+      s.innerHTML = html;
+    }).catch(function () { s.querySelector('.sub:last-child') && (s.querySelector('.sub:last-child').textContent = ''); });
+  }
+
+  function ctDutyHtml(list, title) {
+    if (!list || !list.length) return '<div class="sub" style="margin-top:6px">' + esc(title) + ': nobody in the roster right now – all radiologists will be emailed.</div>';
+    return '<div class="sub" style="margin-top:6px"><b style="color:var(--ink)">' + esc(title) + ':</b></div>' + list.map(function (p) {
+      var tel = (p.phone || '').replace(/[^\d+]/g, '');
+      return '<div class="contact" style="align-items:center"><span style="font-weight:600">' + esc(p.name) + '</span>' +
+        (tel ? '<a href="tel:' + esc(tel) + '" class="pri">📞 Call</a><a href="sms:' + esc(tel) + '">📱 SMS</a>' : '') +
+        (p.link ? '<a href="' + esc(safeHref(p.link)) + '" target="_blank" rel="noopener">💬 Chat</a>' : '') + '</div>';
+    }).join('');
+  }
+
+  function ctCollect() {
+    var sc = {}; ctConf().screen.forEach(function (s) { sc[s[0]] = ctRad('ct_sc_' + s[0]); });
+    var g = ctRad('ct_grp');
+    var colVals = function (gr) { return Array.prototype.map.call(document.querySelectorAll('#ctForm [data-col="' + g + '"] input[data-g="' + gr + '"]:checked'), function (x) { return x.value; }); };
+    return {
+      pathway: CT_MODE, patient: $('ct_patient').value, hospNo: $('ct_hosp').value, dob: $('ct_dob').value, ageText: $('ct_age').value, sex: ctRad('ct_sex'),
+      weight: $('ct_weight').value, location: ctRad('ct_loc'), ward: $('ct_ward').value,
+      reason: $('ct_reason').value, gcs: $('ct_gcs').value, bp: $('ct_bp').value, hr: $('ct_hr').value, rr: $('ct_rr').value, spo2: $('ct_spo2').value, onset: $('ct_onset').value, history: $('ct_hist').value,
+      trauma: ctVals('trauma'), fast: $('ct_fast').value, neuro: ctVals('neuro'), adultHead: ctVals('adultHead'), other: ctVals('other'), otherText: $('ct_otherText').value,
+      studies: ctVals('study'), studyOther: $('ct_studyOther').value, contrast: ctRad('ct_contrast'), screen: sc,
+      creat: $('ct_creat').value, creatDate: $('ct_creatDate').value, iv: $('ct_iv').checked, nurse: $('ct_nurse').value, observer: $('ct_observer').value, consent: $('ct_consent').checked,
+      pecarn: { step1: ctVals('p1'), excl: ctVals('px'), group: g, high: colVals('ph'), mid: colVals('pm'), reasons: ctVals('pr') },
+      physician: $('ct_phys').value, dept: $('ct_dept').value, role: ctRad('ct_role'), callback: $('ct_cb').value, declare: $('ct_declare').checked
+    };
+  }
+
+  function ctSubmit() {
+    var b = $('ct_btn'), d = ctCollect(); setMsg('ct_msg', ''); $('ct_done').innerHTML = '';
+    if (!d.patient.trim()) { $('ct_patient').focus(); return setMsg('ct_msg', 'Enter the patient\'s full name.'); }
+    if (!d.declare) return setMsg('ct_msg', 'Part VI: tick the declaration.');
+    b.disabled = true; b.textContent = 'Sending…';
+    run('submitCtReferral', token, d).then(function (r) {
+      b.disabled = false; b.textContent = 'Send to the duty radiologist';
+      if (r.expired) return expired();
+      setMsg('ct_msg', r.msg, r.ok);
+      if (!r.ok) return;
+      ctStore('phys', d.physician); ctStore('dept', d.dept); ctStore('cb', d.callback); ctStore('role', d.role);
+      $('ct_done').innerHTML = (r.pecResult ? '<div class="ctpec k_' + esc(ctKeyOf(r.pecResult)) + '"><b>PECARN result: ' + esc(r.pecResult) + '</b><div>' + esc(r.pecAdvice) + '</div></div>' : '') +
+        ctDutyHtml(r.onDuty, 'For an urgent case, also call the radiologist on duty') +
+        '<div class="row2"><button class="btn alt" onclick="ctReset()">Start a new referral</button><button class="btn alt" onclick="schedView(\'ctmine\')">Go to My CT referrals</button></div>';
+      $('ct_btn').classList.add('hidden');
+      $('ct_done').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (CTM && CTM.role && CTM.role.queue) loadCtQ(true);
+    }).catch(function (e) { b.disabled = false; b.textContent = 'Send to the duty radiologist'; setMsg('ct_msg', 'Could not send: ' + ((e && e.message) || e)); });
+  }
+  function ctKeyOf(res) { var R = ctConf().pecResults || {}; for (var k in R) if (R[k] === res && k !== 'na2') return k; return ''; }
+  function ctReset() {
+    Array.prototype.forEach.call(document.querySelectorAll('#ctForm input, #ctForm textarea, #ctForm select'), function (x) {
+      if (/^ct_(phys|dept|cb)$/.test(x.id) || x.name === 'ct_role') return;
+      if (x.type === 'checkbox' || x.type === 'radio') x.checked = false; else x.value = ''; x.disabled = false;
+    });
+    $('ct_btn').classList.remove('hidden'); $('ct_msg').textContent = ''; $('ct_done').innerHTML = '';
+    ctOpen(CT_MODE); window.scrollTo(0, $('schedCard').offsetTop);
+  }
+
+  /* ---------- showing a referral ---------- */
+  function ctPill(st) { return '<span class="pill ' + cls(st) + '">' + esc(st) + '</span>'; }
+  function ctLab(ids, list) { return (list || []).filter(function (x) { return (ids || []).indexOf(x[0]) !== -1; }).map(function (x) { return x[1]; }); }
+  function ctDetail(o) {
+    var c = ctConf(), row = function (k, v) { return v ? '<div class="d"><b style="color:var(--ink)">' + esc(k) + ':</b> ' + v + '</div>' : ''; };
+    var vit = ['GCS ' + o.gcs, o.bp ? 'BP ' + o.bp : '', o.hr !== '' ? 'HR ' + o.hr : '', o.rr !== '' ? 'RR ' + o.rr : '', o.spo2 !== '' ? 'SpO₂ ' + o.spo2 : '', o.onset ? 'onset ' + o.onset : ''].filter(Boolean).join(' · ');
+    var sc = o.contrast === 'With contrast' ? (o.flags && o.flags.length ? '<span class="err">⚠ YES: ' + esc(o.flags.join(', ')) + '</span>' : 'all No') +
+      (o.creat ? ' · creatinine ' + esc(o.creat) + (o.creatDate ? ' (' + esc(o.creatDate) + ')' : '') : '') + (o.nurse ? ' · nurse ' + esc(o.nurse) : '') + (o.observer ? ' · observer ' + esc(o.observer) : '') : '';
+    var h = row('Patient', esc(o.patient) + ' · ' + esc(o.age) + ' ' + esc(o.sex) + (o.dob ? ' · DOB ' + esc(o.dob) : '') + (o.hospNo ? ' · Hosp. no. ' + esc(o.hospNo) : '') +
+        ' · ' + (o.location === 'Ward' ? 'Ward ' + esc(o.ward) : 'ER') + (o.weight !== '' && o.weight != null ? ' · ' + esc(o.weight) + ' kg' : '')) +
+      row(o.pathway === 'ped' ? 'Complaint' : 'Why it cannot wait', esc(o.reason)) + row('Vitals', esc(vit)) + row('History', esc(o.history || '')) +
+      row('Indication', esc(o.indText || '')) + row('Study', esc(o.studyText || '') + ' – ' + esc(o.contrast) + (o.consent ? ' · consent signed ✓' : '')) + row('Contrast screening', sc);
+    if (o.pecRequired) {
+      var g = o.pecarn && o.pecarn.group;
+      h += '<div class="ctpec k_' + esc(o.pecKey) + '" style="margin-top:8px"><b>PECARN: ' + esc(o.pecResult) + '</b>' + (g ? ' · ' + (g === 'A' ? 'under 2 years' : '2 years and older') : '') +
+        '<div>' + esc(o.pecDetail || '') + '</div><div>' + esc(o.pecAdvice || '') + '</div></div>';
+    }
+    h += row('Referring', esc(o.physician) + ' (' + esc(o.role) + (o.dept ? ', ' + esc(o.dept) : '') + ') · callback <a href="tel:' + esc(String(o.callback || '').replace(/[^\d+]/g, '')) + '">' + esc(o.callback) + '</a>' +
+      (o.rname && o.rname !== o.physician ? ' · sent by ' + esc(o.rname) : '')) +
+      row('Sent', esc(when(o.submitted)) + ' · CT schedule running: ' + esc(o.schedRunning || '') + (o.notified ? ' · notified: ' + esc(o.notified) : ''));
+    if (o.decision) h += row('Radiologist decision', '<b>' + esc(o.decision) + '</b> by ' + esc(o.decidedBy) + ' · ' + esc(when(o.decidedAt)) + ' · via ' + esc(o.via) + (o.decisionReason ? '<br>' + esc(o.decisionReason) : ''));
+    if (o.scan) { var s = o.scan; h += row('Scan record', esc(s.techRole) + ' ' + esc(s.tech) + ' · ' + esc(to12(s.start)) + '–' + esc(to12(s.end)) + ' · contrast ' + esc(s.contrastGiven) +
+      (s.contrastGiven === 'Yes' ? ' (30-min monitoring ' + (s.monitored ? '✓' : '✗') + ')' : '') + ' · images via ' + esc(s.images) + ' · critical result ' + (s.critical === 'Yes' ? 'called to ' + esc(s.criticalTo) + ' at ' + esc(to12(s.criticalTime)) : 'N/A') +
+      ' · logbook ' + (s.logbook ? '✓' : '✗') + ' · recorded by ' + esc(s.by)); }
+    if (o.review) h += row('Monthly review', esc(o.review) + (o.reviewNote ? ' – ' + esc(o.reviewNote) : '') + ' · ' + esc(o.reviewedBy) + ' · ' + esc(when(o.reviewedAt)));
+    return h;
+  }
+  function ctHead(o) {
+    return '<div class="rh"><b>' + esc(o.patient) + ' · ' + esc(o.studyText || '') + '</b><span class="pills">' +
+      (o.pecKey === 'high' && o.status === 'Awaiting radiologist' ? '<span class="pill Urgent">STAT</span> ' : '') + ctPill(o.status) + '</span></div>' +
+      '<div class="d">' + esc(o.id) + ' · ' + esc(o.pathwayName) + (o.pecRequired ? ' · PECARN ' + esc(o.pecResult) : '') + ' · ' + esc(when(o.submitted)) + '</div>';
+  }
+
+  /* ---------- my referrals ---------- */
+  function loadCtMine() {
+    var list = $('ctmList'); $('ctmCount').textContent = 'Loading…'; list.innerHTML = '';
+    run('myCtReferrals', token).then(function (r) {
+      if (r.expired) return expired();
+      if (curView !== 'ctmine') return;
+      $('ctmCount').textContent = r.items.length ? r.items.length + ' referral' + (r.items.length === 1 ? '' : 's') : '';
+      if (!r.items.length) { list.innerHTML = '<p class="sub" style="margin-top:12px">You have not sent any CT referrals.</p>'; return; }
+      r.items.forEach(function (o) {
+        var el = document.createElement('details'); el.className = 'req prq';
+        el.innerHTML = '<summary><div style="flex:1;min-width:0">' + ctHead(o) + (o.decision && o.decisionReason ? '<div class="d">Radiologist: ' + esc(o.decisionReason) + '</div>' : '') + '</div></summary>' + ctDetail(o);
+        var bar = document.createElement('div'), m = document.createElement('div'); bar.className = 'row2'; m.className = 'msg';
+        var pb = document.createElement('button'); pb.className = 'btn alt'; pb.textContent = '🖨 Print form'; pb.onclick = function () { ctPrint(o); }; bar.appendChild(pb);
+        if (o.status === 'Awaiting radiologist') bar.appendChild(rpButton('Cancel referral', true, 'Tap again to cancel', function (b) {
+          b.disabled = true;
+          run('cancelCtReferral', token, o.id).then(function (x) { b.disabled = false; if (x.expired) return expired(); if (!x.ok) { m.textContent = x.msg; m.className = 'msg err'; return; } loadCtMine(); });
+        }));
+        el.appendChild(bar); el.appendChild(m);
+        list.appendChild(el);
+      });
+    }).catch(function (e) { if (curView === 'ctmine') { $('ctmCount').textContent = ''; list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; } });
+  }
+
+  /* ---------- radiologist / technologist / review queue ---------- */
+  function setCtBadge(n) { var b = $('ctBadge'); b.textContent = n || 0; b.classList.toggle('hidden', !n); }
+  function loadCtQ(quiet) {
+    var seq = quiet === true ? CTSEQ : ++CTSEQ, list = $('ctqList'), f = $('ctqFilter').value;
+    $('ctqMonthBox').classList.toggle('hidden', f !== 'Review' && f !== 'All');
+    if (quiet !== true) { list.innerHTML = '<p class="sub" style="margin-top:12px">Loading…</p>'; $('ctqStats').innerHTML = ''; }
+    run('ctrQueue', token, f, (f === 'Review' || f === 'All') ? $('ctqMonth').value : '').then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { if (quiet !== true) list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      setCtBadge(r.role.rad ? r.counts.awaiting : r.counts.approved);
+      if (quiet === true || seq !== CTSEQ) return;
+      var st = r.stats;
+      $('ctqStats').innerHTML = st ? '<div class="ctbox"><b>Monthly review – ' + esc(st.month) + '</b><div class="d">' +
+        [st.total + ' referrals', st.afterHours + ' after-hours', st.pediatric + ' pediatric (PECARN)', st.approved + ' approved', st.notApproved + ' not approved', st.deferred + ' deferred', st.scanned + ' scanned',
+         st.reviewed + ' reviewed', st.inappropriate + ' not appropriate'].join(' · ') + '</div>' +
+        '<div class="d">PECARN audit (POL-001 §1.9): <b class="' + (st.veryLowScanned ? 'err' : '') + '">' + st.veryLowScanned + ' scanned in the very-low-risk group</b> · ' +
+        '<b class="' + (st.missingPecarn ? 'err' : '') + '">' + st.missingPecarn + ' child head CT without a PECARN result</b></div></div>' : '';
+      list.innerHTML = '';
+      if (!r.items.length) { list.innerHTML = '<p class="sub" style="margin-top:12px">Nothing here.</p>'; return; }
+      r.items.forEach(function (o) { list.appendChild(ctCard(o, r.role)); });
+    }).catch(function (e) { if (quiet !== true) list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+
+  function ctCard(o, role) {
+    var el = document.createElement('div'); el.className = 'req';
+    el.innerHTML = ctHead(o) + '<details class="info" ' + (o.status === 'Awaiting radiologist' || o.status === 'Approved' ? 'open' : '') + '><summary>Full referral</summary>' + ctDetail(o) + '</details>';
+    var box = document.createElement('div'); el.appendChild(box);
+    var m = document.createElement('div'); m.className = 'msg';
+    var say = function (t, ok) { m.textContent = t || ''; m.className = 'msg ' + (ok ? 'ok' : 'err'); };
+    var send = function (b, fn, args, label) {
+      b.disabled = true; say('');
+      run.apply(null, [fn, token].concat(args)).then(function (x) {
+        b.disabled = false; if (x.expired) return expired();
+        say(x.msg, x.ok); if (x.ok) setTimeout(function () { loadCtQ(); }, 900);
+      }).catch(function (e) { b.disabled = false; say('Could not save: ' + ((e && e.message) || e)); });
+    };
+    var uid = 'c' + (++UID);
+    // Part VII – radiologist decision
+    if (o.status === 'Awaiting radiologist' && role.rad) {
+      var warn = o.pecKey === 'low' || o.pecKey === 'midN';
+      box.innerHTML = '<div class="sec">Duty radiologist decision (Part VII)</div>' +
+        (warn ? '<div class="ctwarn">' + esc(o.pecAdvice) + ' To approve anyway, write the reason (direct discussion with the referring physician, or the Chief of Medical Service decision).</div>' : '') +
+        (o.flags && o.flags.length ? '<div class="ctwarn">Contrast screening has a “Yes” (' + esc(o.flags.join(', ')) + ') – discuss before contrast.</div>' : '') +
+        '<div class="ctr"><label><input type="radio" name="' + uid + 'd" value="Approved"> APPROVED – urgent indication met</label>' +
+        '<label><input type="radio" name="' + uid + 'd" value="Not approved"> NOT APPROVED – advise observation / not indicated</label>' +
+        '<label><input type="radio" name="' + uid + 'd" value="Deferred"> DEFERRED to next scheduled CT day</label></div>' +
+        '<label>Reason / instructions</label><textarea rows="2" data-why maxlength="2000"></textarea>' +
+        '<label>Approval given by</label><select data-via><option>Radiology portal</option><option>Phone</option><option>In person</option></select>';
+      var db = document.createElement('button'); db.className = 'btn'; db.textContent = 'Save decision';
+      db.onclick = function () {
+        var dec = (box.querySelector('input[name="' + uid + 'd"]:checked') || {}).value;
+        if (!dec) return say('Choose approved, not approved or deferred.');
+        send(db, 'ctrDecide', [o.id, dec, box.querySelector('[data-why]').value, box.querySelector('[data-via]').value]);
+      };
+      box.appendChild(db);
+    } else if (o.status === 'Awaiting radiologist') {
+      box.innerHTML = '<p class="sub" style="margin-top:8px">Waiting for the duty radiologist (' + esc(o.notified || '') + ').</p>';
+    }
+    // scan record – CT technologist
+    if ((o.status === 'Approved' || o.status === 'Scanned') && (role.staff || role.rad)) {
+      var s = o.scan || {}, d = document.createElement('details'); d.className = 'info'; if (o.status === 'Approved') d.open = true;
+      d.innerHTML = '<summary>' + (o.status === 'Scanned' ? 'Edit scan record' : 'Record the scan (CT technologist)') + '</summary>' +
+        '<div class="grid2"><div><label>Technologist *</label><input type="text" data-k="tech" maxlength="80"></div>' +
+        '<div><label>Role *</label><select data-k="techRole"><option value="">Select…</option><option>Head CT Technologist</option><option>Trainee</option></select></div>' +
+        '<div><label>Scan start *</label><input type="time" data-k="start"></div><div><label>Scan end *</label><input type="time" data-k="end"></div>' +
+        '<div><label>Contrast given *</label><select data-k="contrastGiven"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>' +
+        '<div><label>Images sent via *</label><select data-k="images"><option value="">Select…</option><option>Authorized Google Drive</option><option>Messenger, details redacted</option></select></div>' +
+        '<div><label>Critical result called *</label><select data-k="critical"><option value="">Select…</option><option>N/A</option><option>Yes</option></select></div>' +
+        '<div><label>Called to / time</label><div class="row2" style="margin:0"><input type="text" data-k="criticalTo" maxlength="80" placeholder="Name"><input type="time" data-k="criticalTime"></div></div></div>' +
+        '<label class="crit"><input type="checkbox" data-k="monitored"><span>30-minute monitoring done (if contrast given)</span></label>' +
+        '<label class="crit"><input type="checkbox" data-k="logbook"><span>Entered in CT logbook</span></label>';
+      ['tech', 'techRole', 'start', 'end', 'contrastGiven', 'images', 'critical', 'criticalTo', 'criticalTime'].forEach(function (k) { if (s[k]) d.querySelector('[data-k="' + k + '"]').value = s[k]; });
+      d.querySelector('[data-k="monitored"]').checked = !!s.monitored; d.querySelector('[data-k="logbook"]').checked = !!s.logbook;
+      if (o.contrast !== 'With contrast' && !s.contrastGiven) d.querySelector('[data-k="contrastGiven"]').value = 'No';
+      var sb = document.createElement('button'); sb.className = 'btn'; sb.textContent = 'Save scan record';
+      sb.onclick = function () {
+        var v = {}; Array.prototype.forEach.call(d.querySelectorAll('[data-k]'), function (x) { v[x.getAttribute('data-k')] = x.type === 'checkbox' ? x.checked : x.value; });
+        send(sb, 'ctrScan', [o.id, v]);
+      };
+      d.appendChild(sb); box.appendChild(d);
+    }
+    // monthly review – Head of Radiology
+    if (role.reviewer && o.status !== 'Awaiting radiologist' && o.status !== 'Cancelled') {
+      var rv = document.createElement('details'); rv.className = 'info';
+      rv.innerHTML = '<summary>' + (o.review ? 'Change monthly review' : 'Monthly review (Head of Radiology)') + '</summary>' +
+        '<div class="ctr"><label><input type="radio" name="' + uid + 'r" value="Appropriate"' + (o.review === 'Appropriate' ? ' checked' : '') + '> Appropriate</label>' +
+        '<label><input type="radio" name="' + uid + 'r" value="Not appropriate"' + (o.review === 'Not appropriate' ? ' checked' : '') + '> Not appropriate – feedback given</label></div>' +
+        '<label>Feedback / note</label><input type="text" data-rn maxlength="1000">';
+      rv.querySelector('[data-rn]').value = o.reviewNote || '';
+      var rb = document.createElement('button'); rb.className = 'btn alt'; rb.textContent = 'Save review';
+      rb.onclick = function () { var v = (rv.querySelector('input[name="' + uid + 'r"]:checked') || {}).value; if (!v) return say('Choose appropriate or not appropriate.'); send(rb, 'ctrReview', [o.id, v, rv.querySelector('[data-rn]').value]); };
+      rv.appendChild(rb); box.appendChild(rv);
+    }
+    var pb = document.createElement('button'); pb.className = 'btn alt'; pb.textContent = '🖨 Print form'; pb.onclick = function () { ctPrint(o); };
+    el.appendChild(pb); el.appendChild(m);
+    return el;
+  }
+
+  /* ---------- printable Annex T (for the CT logbook / signatures) ---------- */
+  function ctPrint(o) {
+    var c = ctConf(), I = c.ind, P = c.pec;
+    var bx = function (on, label) { return '<span class="pb">' + (on ? '☑' : '☐') + '</span> ' + esc(label); };
+    var list = function (ids, items) { return items.map(function (x) { return '<div>' + bx((ids || []).indexOf(x[0]) !== -1, x[1]) + '</div>'; }).join(''); };
+    var pc = o.pecarn || {}, s = o.scan || {}, d = o.decision || '';
+    var ln = function (v) { return '<u>&nbsp;' + esc(v == null || v === '' ? '' : v) + '&nbsp;</u>'; };
+    var h = '<div class="ctp">' +
+      '<div class="cth">' + (CONF.logoUrl ? '<img src="' + esc(CONF.logoUrl) + '" alt="">' : '') + '<div><b>SIARGAO ISLAND MEDICAL CENTER</b><br>Radiology Department</div></div>' +
+      '<h2>' + (o.pathway === 'ped' ? 'PEDIATRIC HEAD CT REQUEST' : 'AFTER-OFFICE-HOURS URGENT CT REFERRAL FORM') + '</h2><div class="cts">with Pediatric Head Trauma (PECARN) Screening</div>' +
+      '<div class="cts">' + esc(c.formCode || '') + '</div>' +
+      '<div class="ctr2">Referral ' + esc(o.id) + ' · sent through the radiology portal ' + esc(when(o.submitted)) + ' by ' + esc(o.rname) + ' · CT schedule running at the time: ' + esc(o.schedRunning || '') + '</div>' +
+      '<table><tr><th colspan="4">I. PATIENT INFORMATION</th></tr>' +
+      '<tr><td>Patient full name<br><b>' + esc(o.patient) + '</b></td><td>Date of birth / Age<br><b>' + esc(o.dob || '—') + ' / ' + esc(o.age) + '</b></td><td>Sex<br>' + bx(o.sex === 'M', 'M') + ' ' + bx(o.sex === 'F', 'F') + '</td><td>Hospital no.<br><b>' + esc(o.hospNo || '—') + '</b></td></tr>' +
+      '<tr><td>Location<br>' + bx(o.location === 'ER', 'ER') + ' ' + bx(o.location === 'Ward', 'Ward: ' + (o.ward || '')) + '</td><td>Weight (kg)<br><b>' + esc(o.weight === '' || o.weight == null ? '—' : o.weight) + '</b></td><td colspan="2">Date / time of request<br><b>' + esc(when(o.submitted)) + '</b></td></tr>' +
+      '<tr><th colspan="4">II. CLINICAL INFORMATION</th></tr>' +
+      '<tr><td colspan="4">' + (o.pathway === 'ped' ? 'Chief complaint / mechanism: ' : 'Chief complaint / reason CT cannot wait until scheduled hours: ') + '<b>' + esc(o.reason) + '</b><br>' +
+        'GCS ' + ln(o.gcs) + ' BP ' + ln(o.bp) + ' HR ' + ln(o.hr) + ' RR ' + ln(o.rr) + ' SpO₂ ' + ln(o.spo2) + ' Time of injury/onset ' + ln(o.onset) + '<br>Pertinent history, examination and labs: ' + esc(o.history || '') + '</td></tr>';
+    if (o.pathway !== 'ped') h += '<tr><th colspan="4">III. URGENT INDICATION</th></tr><tr><td colspan="4"><div class="c3">' +
+      '<div><b>TRAUMA</b>' + list(o.trauma, I.trauma) + '<div>FAST: ' + bx(o.fast === 'Positive', 'Positive') + ' ' + bx(o.fast === 'Negative', 'Negative') + ' ' + bx(o.fast === 'Not done', 'Not done') + '</div></div>' +
+      '<div><b>NEUROLOGIC</b>' + list(o.neuro, I.neuro) + '<div style="padding-left:14px">' + I.adultHead.map(function (x) { return bx((o.adultHead || []).indexOf(x[0]) !== -1, x[1]); }).join(' ') + '</div></div>' +
+      '<div><b>OTHER URGENT</b>' + list(o.other, I.other) + (o.otherText ? '<div>' + esc(o.otherText) + '</div>' : '') + '</div></div></td></tr>';
+    h += '<tr><th colspan="4">IV. PROPOSED CT STUDY AND CONTRAST SAFETY</th></tr><tr><td colspan="2"><b>Study</b>' +
+      c.studies.map(function (x) { return '<div>' + bx((o.studies || []).indexOf(x) !== -1, x === 'Other' ? 'Other: ' + (o.studyOther || '') : x) + '</div>'; }).join('') +
+      '<b>Contrast</b> ' + bx(o.contrast === 'Plain', 'Plain') + ' ' + bx(o.contrast === 'With contrast', 'With contrast') + '</td><td colspan="2"><b>Contrast screening</b>' +
+      c.screen.map(function (x) { var v = (o.screen || {})[x[0]] || ''; return '<div>' + esc(x[1]) + ' ' + bx(v === 'Yes', 'Yes') + ' ' + bx(v === 'No', 'No') + (x[0] === 'pregnant' ? ' ' + bx(v === 'N/A', 'N/A') : '') + '</div>'; }).join('') +
+      '<div>Latest creatinine: ' + ln(o.creat) + ' Date: ' + ln(o.creatDate) + '</div><div>' + bx(o.iv, 'IV access confirmed') + ' ' + bx(o.consent, 'Written consent signed and attached') + '</div>' +
+      '<div>Contrast given by nurse: ' + ln(o.nurse) + '</div><div>Observer: ' + ln(o.observer) + '</div></td></tr>';
+    if (o.pecRequired) {
+      var g = pc.group;
+      h += '<tr><th colspan="4">V. PEDIATRIC HEAD TRAUMA — PECARN SCREENING</th></tr><tr><td colspan="4">' +
+        '<div><b>Step 1</b> ' + P.step1.map(function (x) { return bx((pc.step1 || []).indexOf(x[0]) !== -1, x[1]); }).join(' &nbsp; ') + '</div>' +
+        '<div><b>Step 2 – Exclusions</b> ' + P.excl.map(function (x) { return bx((pc.excl || []).indexOf(x[0]) !== -1, x[1]); }).join(' &nbsp; ') + '</div>' +
+        '<div><b>Step 3</b> ' + bx(g === 'A', 'Under 2 years') + ' &nbsp; ' + bx(g === 'B', '2 years and older') + '</div>' +
+        '<div><b>Step 4 – High-risk (' + (g || '–') + ')</b> ' + (g ? (g === 'A' ? P.highA : P.highB).map(function (x) { return bx((pc.high || []).indexOf(x[0]) !== -1, x[1]); }).join(' &nbsp; ') : '') + '</div>' +
+        '<div><b>Step 5 – Intermediate-risk (' + (g || '–') + ')</b> ' + (g ? (g === 'A' ? P.midA : P.midB).map(function (x) { return bx((pc.mid || []).indexOf(x[0]) !== -1, x[1]); }).join(' &nbsp; ') : '') + '</div>' +
+        '<div><b>Reason for CT at intermediate risk</b> ' + P.reasons.map(function (x) { return bx((pc.reasons || []).indexOf(x[0]) !== -1, x[1]); }).join(' &nbsp; ') + '</div>' +
+        '<div class="pr"><b>PECARN RESULT:</b> ' + ['Does not apply', 'HIGH', 'INTERMEDIATE with reason', 'INTERMEDIATE, no reason', 'VERY LOW'].map(function (x) { return bx(o.pecResult === x, x); }).join(' &nbsp; ') + '</div></td></tr>';
+    }
+    h += '<tr><th colspan="4">VI. REFERRING PHYSICIAN DECLARATION</th></tr><tr><td colspan="4">' +
+      (o.pathway === 'ped' ? 'I certify that the information above is complete and correct, that I applied the PECARN rule, and that written consent has been obtained.' : 'I certify that this CT is urgent and cannot wait until scheduled hours, that the information above is complete and correct, and that written consent has been obtained.') +
+      '<br>Name ' + ln(o.physician) + ' Signature <u>' + '&nbsp;'.repeat(36) + '</u> Department ' + ln(o.dept) + '<br>' + bx(o.role === 'ER doctor', 'ER doctor') + ' ' + bx(o.role === 'Attending physician (inpatient)', 'Attending physician (inpatient)') +
+      ' &nbsp; Callback ' + ln(o.callback) + ' &nbsp; Date / time ' + ln(when(o.submitted)) + '</td></tr>' +
+      '<tr><th colspan="4">VII. RADIOLOGY USE ONLY</th></tr><tr><td colspan="2"><b>Duty radiologist decision</b>' +
+      '<div>' + bx(d === 'Approved', 'APPROVED — urgent indication met') + '</div><div>' + bx(d === 'Not approved', 'NOT APPROVED — advise observation / not indicated') + '</div><div>' + bx(d === 'Deferred', 'DEFERRED to next scheduled CT day') + '</div>' +
+      '<div>Reason / instructions: ' + esc(o.decisionReason || '') + '</div><div>Radiologist ' + ln(o.decidedBy) + '</div><div>Approval given by: ' + bx(o.via === 'In person', 'in person') + ' ' + bx(o.via === 'Phone', 'phone') + ' ' + bx(o.via === 'Radiology portal', 'radiology portal') +
+      '</div><div>Time approved ' + ln(o.decidedAt ? when(o.decidedAt) : '') + '</div></td><td colspan="2"><b>Scan record (CT technologist)</b>' +
+      '<div>' + bx(s.techRole === 'Head CT Technologist', 'Head CT Technologist') + ' ' + bx(s.techRole === 'Trainee', 'Trainee (only after radiologist approval)') + '</div><div>Name ' + ln(s.tech) + '</div>' +
+      '<div>Scan start ' + ln(s.start ? to12(s.start) : '') + ' end ' + ln(s.end ? to12(s.end) : '') + '</div><div>Contrast given ' + bx(s.contrastGiven === 'Yes', 'Yes') + ' ' + bx(s.contrastGiven === 'No', 'No') + ' &nbsp; ' + bx(s.monitored, '30-min monitoring done') + '</div>' +
+      '<div>Images sent via ' + bx(s.images === 'Authorized Google Drive', 'authorized Google Drive') + ' ' + bx(s.images === 'Messenger, details redacted', 'Messenger, details redacted') + '</div>' +
+      '<div>Critical result called ' + bx(s.critical === 'N/A', 'N/A') + ' ' + bx(s.critical === 'Yes', 'Yes — to: ' + (s.criticalTo || '') + ' time: ' + (s.criticalTime ? to12(s.criticalTime) : '')) + '</div><div>' + bx(s.logbook, 'Entered in CT logbook') + '</div></td></tr>' +
+      '<tr><td colspan="4"><b>Monthly review (Head of Radiology):</b> ' + bx(o.review === 'Appropriate', 'Appropriate') + ' ' + bx(o.review === 'Not appropriate', 'Not appropriate — feedback given') + (o.reviewNote ? ' – ' + esc(o.reviewNote) : '') + ' &nbsp; Initials / date ' + ln(o.reviewedBy ? o.reviewedBy + ' ' + when(o.reviewedAt) : '') + '</td></tr></table>' +
+      '<p class="ctf">Incomplete forms may be deferred. Keep this original with the CT logbook for the monthly after-hours CT review (POL-001 §1.6, §1.9).</p></div>';
+    // each section (heading + its rows) stays on one page
+    h = h.split('<tr><th colspan="4">').join('</tbody><tbody><tr><th colspan="4">').replace('<table></tbody>', '<table>').replace('</table>', '</tbody></table>');
+    var area = $('printArea'); area.innerHTML = h;
+    document.body.classList.add('printing-file');
+    var done = function () { document.body.classList.remove('printing-file'); area.innerHTML = ''; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(function () { window.print(); setTimeout(done, 1500); }, 300);
+    run('logDownload', token, 'ct-referral', o.id, 'print').catch(function () {});
+  }
+  /* ================= /CT REFERRALS ================= */
 
 
   /* ================= IN-APP BROWSER GUARD (Messenger, Facebook, Instagram, Viber…) ================= */
