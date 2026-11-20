@@ -1129,12 +1129,13 @@
     if (ed && XR_SIG && !XR_SIG.name) h += '<div class="ctwarn">Set up your report signature before finalizing. <button class="link" onclick="xrClose(); setTimeout(function(){ xrSigToggle(true); }, 300)">✍ Set up now</button></div>';
     h += '<label>X-ray report</label><textarea id="xrF" rows="16" ' + (ed ? '' : 'readonly') + ' placeholder="e.g. Both lung fields are clear.&#10;Heart is not enlarged. …"></textarea>' +
       '<label class="crit"><input type="checkbox" id="xrCrit" ' + (ed ? '' : 'disabled') + '><span>Critical finding (communicate per POL-002 §2.3)</span></label>';
-    if (ed) h += '<div class="xrbtns"><button class="btn alt" onclick="xrDraft(false)">Save draft</button><button class="btn alt" onclick="xrPreview()">👁 Preview PDF</button></div>' +
+    if (ed) h += '<div class="xrbtns"><button class="btn alt" onclick="xrDraft(false)">Save draft</button><button class="btn alt" onclick="xrPreview()">👁 Preview</button></div>' +
       '<button class="btn" id="xrFin" onclick="xrFinal()">Finalize &amp; sign report</button><div class="sub" id="xrSaved" style="margin:4px 0 0"></div>';
     else if (o.canTakeOver) h += '<button class="btn alt" onclick="xrOpenStudy(\'' + esc(o.acc) + '\', true)">Take over this study</button>';
     else if (o.canAmend) h += '<div class="sub" style="margin-top:8px">Finalized by ' + esc(o.finalName) + ' · ' + esc(when(o.finalAt)) + (o.reportName ? ' · ' + esc(o.reportName) : '') + '</div>' +
       '<label>Reason for amendment</label><input type="text" id="xrAmR" maxlength="300"><button class="btn alt" id="xrAmB" onclick="xrAmend()">Amend report</button>';
-    if (o.reportName && (o.status === 'Final' || o.status === 'Amending')) h += '<button class="btn alt" onclick="openFile({ id: XS.acc, name: XS.reportName }, { fn: \'xrReportFile\' })">📄 Open report PDF</button>';
+    if (o.reportName && (o.status === 'Final' || o.status === 'Amending')) h += '<div class="xrbtns"><button class="btn alt" onclick="openFile({ id: XS.acc, name: XS.reportName }, { fn: \'xrReportFile\' })">📄 Open report</button>' +
+      '<button class="btn alt" onclick="xrEditDoc()">✏️ Edit in Google Docs</button></div>';
     h += '<div class="msg" id="xrMsg2"></div>';
     $('xrSide').innerHTML = h;
     if ($('xrReasg')) {
@@ -1176,6 +1177,15 @@
     });
   }
   function xrRep() { return { findings: $('xrF').value, impression: '', critical: $('xrCrit').checked }; }
+  /** Opens the finalized report Doc in Google Docs (a new tab; the popup is opened first so phones don't block it). */
+  function xrEditDoc() {
+    var w = null; try { w = window.open('', '_blank'); } catch (e) {}
+    run('xrReportLink', token, XS.acc).then(function (r) {
+      if (!r.ok) { if (w) w.close(); return setMsg('xrMsg2', r.msg); }
+      if (w) w.location.href = r.url; else location.href = r.url;
+      setMsg('xrMsg2', 'Opened in Google Docs. You need edit access to the X-ray results folder; changes are kept in the Doc\'s version history.', true);
+    }).catch(function (e) { if (w) w.close(); setMsg('xrMsg2', (e && e.message) || 'Could not open.'); });
+  }
   function xrPreview() { openFile({ id: JSON.stringify({ acc: XS.acc, findings: $('xrF').value, critical: $('xrCrit').checked }), name: 'Preview – ' + XS.name }, { fn: 'xrPreview' }); }
   function xrDraft(auto) {
     if (!XS || !XS.canEdit) return Promise.resolve();
