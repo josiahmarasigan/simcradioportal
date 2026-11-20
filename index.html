@@ -314,6 +314,9 @@
   .xrinfo span { display:block; font-size:11.5px; color:var(--muted); } .xrinfo .wide { grid-column:1/-1; }
   .xrtpl { display:flex; gap:10px; align-items:center; margin-top:10px; } .xrtpl select { flex:1; margin:0; }
   .xrbtns { display:flex; gap:8px; } .xrbtns .btn { flex:1; }
+  .xrnext { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin-bottom:6px; } .xrnext .btn { width:auto; margin:0; padding-left:22px; padding-right:22px; }
+  .xrskip { width:auto; margin:0; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; cursor:pointer; }
+  .xrleft { font-size:12.5px; color:var(--muted); }
   .xrtoast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(100px); z-index:9500; background:#16a34a; color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; transition:transform .3s; max-width:90vw; }
   .xrtoast.show { transform:translateX(-50%) translateY(0); }
   @media (max-width:820px) {
@@ -816,6 +819,8 @@
       </div>
       <!-- X-RAY MINI-PACS: radiologist worklist (the study opens full screen) -->
       <div id="vXrRead" class="hidden">
+        <div class="xrnext"><button class="btn" id="xrStart" onclick="xrNext()">▶ Start reading</button>
+          <label class="crit" style="margin:0"><input type="checkbox" id="xrAuto" onchange="xrAutoSet(this.checked)"><span>Open the next X-ray automatically after I finalize</span></label></div>
         <div class="meta"><select id="xrScope" onchange="xrLoadWork()" style="width:auto"><option value="open">To read</option><option value="final">Finalized (7 days)</option><option value="mine">My finalized (7 days)</option></select>
           <button class="link" onclick="xrLoadWork()">↻ Refresh</button><button class="link" onclick="xrSigToggle()">✍ My report signature</button></div>
         <div id="xrSigBox" class="ctbox hidden">
@@ -3459,6 +3464,8 @@
   }
   function xrLoadWork(quiet) {
     if (!XR_SIG) xrLoadSig().catch(function () {});
+    $('xrAuto').checked = xrAutoOn();
+    if (quiet !== true) XR_SKIP = [];
     var seq = ++XRSEQ, list = $('xrWork'), sc = $('xrScope').value;
     if (quiet !== true) list.innerHTML = '<p class="sub">Loading…</p>';
     run('xrWorklist', token, sc, 7).then(function (r) {
@@ -3466,6 +3473,7 @@
       if (seq !== XRSEQ) return;
       if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
       xrSetBadge(r.counts.toRead);
+      $('xrStart').textContent = r.counts.toRead ? '▶ Start reading (' + r.counts.toRead + ')' : '▶ Start reading';
       if (!r.items.length) { list.innerHTML = '<p class="sub">' + (sc === 'open' ? 'Nothing to read. 🎉' : 'Nothing here.') + '</p>'; return; }
       list.innerHTML = '';
       r.items.forEach(function (o) {
@@ -3489,7 +3497,7 @@
     run('xrOpen', token, acc, takeOver === true).then(function (r) {
       if (r.expired) return expired();
       if (!r.ok) { $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button><span class="err">' + esc(r.msg) + '</span>'; return; }
-      XS = r.study; XS.dirty = false; XS.savedAt = 0;
+      XS = r.study; XS.dirty = false; XS.savedAt = 0; if (typeof r.left === 'number') XS.left = r.left;
       xrDrawStudy();
       xrShowImage(0);
       XS.imageIds.slice(1).forEach(function (id) { xrGetImg(id).catch(function () {}); });   // fetch the other views in the background
@@ -3499,7 +3507,9 @@
   function xrDrawStudy() {
     var o = XS, p = o.patient || {}, ed = o.canEdit;
     $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button>' +
-      '<div class="xrpt"><b>' + esc(o.name) + '</b> <span>' + esc(o.age) + ' ' + esc(o.sex) + ' · ' + esc(o.exam) + ' · ' + esc(o.acc) + '</span></div>' + xrPri(o.priority) + xrPill(o.status);
+      '<div class="xrpt"><b>' + esc(o.name) + '</b> <span>' + esc(o.age) + ' ' + esc(o.sex) + ' · ' + esc(o.exam) + ' · ' + esc(o.acc) + '</span></div>' + xrPri(o.priority) + xrPill(o.status) +
+      (typeof o.left === 'number' ? '<span class="xrleft">' + (o.left ? o.left + ' more to read' : 'last one') + '</span>' : '') +
+      (ed && o.status === 'Reading' ? '<button class="xrskip" onclick="xrSkip()" title="Leave this one for later and open the next">Skip ▶</button>' : '');
     $('xrStrip').innerHTML = o.imageIds.length > 1 ? o.imageIds.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="xrShowImage(' + i + ')">' + (i + 1) + '</button>'; }).join('') : '';
     var kv = function (k, v) { return v ? '<div><span>' + esc(k) + '</span>' + esc(v) + '</div>' : ''; };
     var h = '<div class="xrinfo">' + kv('ID no.', p.hospNo) + kv('Date of birth', p.dob) + kv('Civil status', p.civil) + kv('Location', o.location) +
@@ -3571,13 +3581,43 @@
       if (r.expired) return expired();
       if (!r.ok) { b.disabled = false; b.textContent = 'Finalize & sign report'; return setMsg('xrMsg2', r.msg); }
       XS.dirty = false; XS.canEdit = false;
-      xrToast(r.msg); xrClose(true);
+      xrToast(r.msg);
+      if (xrAutoOn()) xrNext(true); else xrClose(true);
     }).catch(function (e) { b.disabled = false; b.textContent = 'Finalize & sign report'; setMsg('xrMsg2', 'Could not finalize: ' + ((e && e.message) || e) + '. Your text is still here – try again.'); });
   }
   function xrAmend() {
     var why = $('xrAmR').value.trim(); if (why.length < 3) return setMsg('xrMsg2', 'Give the reason for the amendment.');
     $('xrAmB').disabled = true;
     run('xrAmend', token, XS.acc, why).then(function (r) { if (!r.ok) { $('xrAmB').disabled = false; return setMsg('xrMsg2', r.msg); } xrOpenStudy(XS.acc); });
+  }
+  /* ---- reading one study after another ---- */
+  var XR_SKIP = [];
+  function xrAutoOn() { try { return localStorage.getItem('xr_auto') !== '0'; } catch (e) { return true; } }
+  function xrAutoSet(on) { try { localStorage.setItem('xr_auto', on ? '1' : '0'); } catch (e) {} }
+  /** Opens the next X-ray to read (claims it). afterFinal = called right after finalizing the previous one. */
+  function xrNext(afterFinal) {
+    var ov = $('xrv'); ov.classList.remove('hidden'); document.body.classList.add('xrlock');
+    $('xrHead').innerHTML = '<b>' + (afterFinal ? 'Opening the next X-ray…' : 'Finding the next X-ray…') + '</b>'; $('xrSide').innerHTML = ''; $('xrStrip').innerHTML = '';
+    XS = null; xvInit(); xvClear('Loading…');
+    run('xrOpenNext', token, XR_SKIP).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button><span class="err">' + esc(r.msg) + '</span>'; return; }
+      if (r.done) {
+        xrToast((afterFinal ? '✓ Report finalized. ' : '') + (XR_SKIP.length ? 'No more new X-rays. ' + XR_SKIP.length + ' skipped – they are still in the worklist.' : r.msg));
+        XR_SKIP = []; xrClose(true); return;
+      }
+      XS = r.study; XS.dirty = false; XS.left = r.left;
+      if (XS.canEdit && !XTPL) run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; xrFillTpl(); } });
+      xrDrawStudy(); xrShowImage(0);
+      XS.imageIds.slice(1).forEach(function (id) { xrGetImg(id).catch(function () {}); });
+    }).catch(function (e) { $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button><span class="err">Could not open the next X-ray: ' + esc((e && e.message) || e) + '</span>'; });
+  }
+  /** Leave this study for later (draft kept, back in the worklist) and open the next one. */
+  function xrSkip() {
+    var s = XS; if (!s) return;
+    XR_SKIP.push(s.acc);
+    var go = function () { run('xrRelease', token, s.acc).catch(function () {}).then(function () { xrNext(); }); };
+    if (s.canEdit && s.dirty) xrDraft(true).then(go, go); else go();
   }
   function xrClose(skipSave) {
     var s = XS;
