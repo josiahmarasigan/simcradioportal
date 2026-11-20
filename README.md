@@ -18,3 +18,11 @@ Nothing from Google is shown inside a frame, so phones signed in to several Goog
 * Deploy → Manage deployments → edit the existing deployment → **Who has access: Anyone** → Version: New version → Deploy.
   (Keep the same deployment so the `/exec` link stays the same. If you make a NEW deployment, paste its link into `index.html`.)
 * In the CONFIG sheet, set **APP_URL** to this site's address.
+
+## Ultrasound / CT reporting (PACS → 📝 US / CT tab)
+- Each radiologist gets three folders automatically (Generated, Ultrasound, CT scan), tracked in the RAD_FOLDERS sheet.
+  New radiologists get theirs on the next "Set up/update sheets" or "🩻 Portal → Create radiologist folders now".
+- The report generator saves Google Docs into the radiologist's **Generated** folder.
+- In the PACS page the radiologist edits Findings / Impression (one item per line), saves, previews, and finalizes.
+  Finalizing moves the Doc to their Ultrasound or CT scan folder, which the portal already searches.
+- Templates are shared with X-ray ("Save as my template"), filtered by modality.

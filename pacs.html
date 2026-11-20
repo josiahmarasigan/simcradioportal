@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SIMC X-ray PACS</title>
+<title>SIMC Radiology PACS</title>
 <meta name="theme-color" content="#10344e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.ico" sizes="any">
@@ -391,6 +391,15 @@
   .pback { color:#fff; text-decoration:none; font-size:14px; opacity:.9; padding:8px 4px; }
   .pwrap { max-width:1100px; margin:0 auto; padding:16px; }
   .pcard { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  #rptv { position:fixed; inset:0; z-index:9000; display:flex; flex-direction:column; background:var(--bg); } #rptv.hidden { display:none; }
+  #rptv .xrtop select { width:auto; margin:0; }
+  .rptscroll { flex:1; overflow:auto; } .rptbody { max-width:920px; margin:0 auto; padding:14px 16px 40px; }
+  .rptbody textarea { font-size:15px; line-height:1.5; }
+  .rpthdr { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px; background:var(--card); }
+  .rpthdr td { border:1px solid var(--line); padding:4px 6px; } .rpthdr td.k { color:var(--muted); font-weight:600; white-space:nowrap; }
+  .rpttext { white-space:pre-wrap; font:inherit; font-size:13.5px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; max-height:50vh; overflow:auto; }
+  .pill.rptUS { background:color-mix(in srgb,#0f766e 16%,transparent); color:#0f766e; } .pill.rptCT { background:color-mix(in srgb,#7c3aed 16%,transparent); color:#7c3aed; }
+  @media (max-width:600px) { .rpthdr { font-size:11.5px; } }
   #gate { max-width:460px; margin:60px auto; text-align:center; }
   .pcard input, .pcard select, .pcard textarea { box-sizing:border-box; max-width:100%; } .xrg3 > div { min-width:0; }
   @media (max-width:600px) { .pwrap { padding:10px; } .pcard { padding:12px; } }
@@ -406,10 +415,11 @@
 </script>
 <div class="pbar">
   <img src="icons/icon-192.png" alt="">
-  <div class="pt">SIMC X-ray PACS<small id="pWho">Radiology Division</small></div>
+  <div class="pt">SIMC Radiology PACS<small id="pWho">Radiology Division</small></div>
   <div class="ptabs">
     <button id="tabUp" class="hidden" onclick="schedView('xrup')">📤 Upload</button>
-    <button id="tabRead" class="hidden" onclick="schedView('xrread')">🩻 Reading <span id="xrBadge" class="badge hidden"></span></button>
+    <button id="tabRead" class="hidden" onclick="schedView('xrread')">🩻 X-ray <span id="xrBadge" class="badge hidden"></span></button>
+    <button id="tabRpt" class="hidden" onclick="schedView('rpt')">📝 US / CT <span id="rptBadge" class="badge hidden"></span></button>
   </div>
   <a class="pback" href="index.html" id="pBack">← Portal</a>
 </div>
@@ -471,7 +481,23 @@
         </div>
         <div id="xrWork"></div>
       </div>
+      <div id="vRpt" class="hidden pcard">
+        <div class="xrnext">
+          <select id="rptScope" onchange="rptLoad()" style="width:auto;margin:0"><option value="pending">To finalize (generated)</option><option value="final">Finalized (recent)</option></select>
+          <select id="rptMod" onchange="rptLoad()" style="width:auto;margin:0"><option value="">Ultrasound + CT</option><option value="Ultrasound">Ultrasound</option><option value="CT">CT</option></select>
+          <select id="rptWho" class="hidden" onchange="rptLoad()" style="width:auto;margin:0"></select>
+          <button class="link" onclick="rptLoad()">↻ Refresh</button>
+          <a id="rptDicom" class="link hidden" target="_blank" rel="noopener">📂 CT DICOM uploads</a>
+        </div>
+        <label class="crit" style="margin:0 0 4px"><input type="checkbox" id="rptAuto" onchange="lsSet('rpt_auto', this.checked ? '1' : '0')"><span>Open the next report automatically after I finalize</span></label>
+        <div id="rptList"></div>
+      </div>
 
+</div>
+<!-- Ultrasound / CT report editor (full screen) -->
+<div id="rptv" class="hidden">
+  <div class="xrtop" id="rptHead"></div>
+  <div class="rptscroll"><div class="rptbody" id="rptBody"></div></div>
 </div>
 <!-- X-ray reading screen (full screen) -->
 <div id="xrv" class="hidden">
@@ -1160,7 +1186,7 @@
   function xrFillTpl() {
     var s = $('xrTpl'); if (!s || !XTPL) return;
     var ex = XS ? XS.exam.toLowerCase() : '';
-    var sorted = XTPL.slice().sort(function (a, b) { return (b.exam && ex.indexOf(b.exam.toLowerCase()) !== -1) - (a.exam && ex.indexOf(a.exam.toLowerCase()) !== -1); });
+    var sorted = XTPL.filter(function (t) { return !t.modality || t.modality === 'X-ray'; }).sort(function (a, b) { return (b.exam && ex.indexOf(b.exam.toLowerCase()) !== -1) - (a.exam && ex.indexOf(a.exam.toLowerCase()) !== -1); });
     s.innerHTML = '<option value="">Insert template…</option>' + sorted.map(function (t, i) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
   }
   function xrUseTpl() {
@@ -1351,20 +1377,184 @@
   }
   /* ================= /X-RAY MINI-PACS ================= */
 
+  /* ================= ULTRASOUND / CT REPORTS (generated Doc → edit → finalize) ================= */
+  var RPT = { meta: null, list: [], cur: null, sure: 0, t: null };
+  function rptAutoOn() { return lsGet('rpt_auto') !== '0'; }
+  function rptInit() {
+    $('rptAuto').checked = rptAutoOn();
+    if (RPT.meta) return rptLoad();
+    $('rptList').innerHTML = '<p class="sub">Loading…</p>';
+    run('rptMeta', token).then(function (m) {
+      if (m.expired) return expired();
+      if (!m.ok) { $('rptList').innerHTML = '<p class="sub err">' + esc(m.msg) + '</p>'; return; }
+      RPT.meta = m;
+      if (m.admin) {
+        $('rptWho').classList.remove('hidden');
+        $('rptWho').innerHTML = (m.rad ? '<option value="">My reports</option>' : '') + m.rads.map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
+      }
+      if (m.dicomUrl) { $('rptDicom').href = m.dicomUrl; $('rptDicom').classList.remove('hidden'); }
+      if (!XTPL) run('xrTemplates', token).then(function (t) { if (t.ok) XTPL = t.items; });
+      rptLoad();
+    }).catch(function (e) { $('rptList').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function rptLoad() {
+    var list = $('rptList'), scope = $('rptScope').value, mod = $('rptMod').value, who = $('rptWho').classList.contains('hidden') ? '' : $('rptWho').value;
+    list.innerHTML = '<p class="sub">Loading…</p>';
+    run('rptList', token, scope, who).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      RPT.list = r.items.filter(function (x) { return !mod || x.modality === mod; });
+      if (scope === 'pending') { var b = $('rptBadge'); b.textContent = r.count || 0; b.classList.toggle('hidden', !r.count || !r.mine); }
+      if (!RPT.list.length) { list.innerHTML = '<p class="sub">' + (scope === 'pending' ? 'No generated reports waiting. 🎉' : 'Nothing finalized recently.') + '</p>'; return; }
+      list.innerHTML = '';
+      RPT.list.forEach(function (x) {
+        var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
+        el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + '</div></div>' +
+          '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>';
+        el.onclick = function () { rptOpenDoc(x.id); };
+        list.appendChild(el);
+      });
+    }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function rptOpenDoc(id) {
+    var ov = $('rptv'); ov.classList.remove('hidden'); document.body.classList.add('xrlock');
+    $('rptHead').innerHTML = '<b>Opening…</b>'; $('rptBody').innerHTML = '<p class="sub">Reading the report…</p>';
+    RPT.cur = null; RPT.sure = 0;
+    run('rptOpen', token, id).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button><span class="err">' + esc(r.msg) + '</span>' + (r.url ? ' <a class="link" target="_blank" rel="noopener" href="' + esc(r.url) + '">Open in Drive</a>' : ''); $('rptBody').innerHTML = ''; return; }
+      RPT.cur = r; r.dirty = false; rptDraw();
+    }).catch(function (e) { $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button><span class="err">Could not open: ' + esc((e && e.message) || e) + '</span>'; });
+  }
+  function rptDraw() {
+    var r = RPT.cur, ed = r.canEdit, m = RPT.meta || {};
+    var idx = RPT.list.map(function (x) { return x.id; }).indexOf(r.id), left = idx === -1 ? null : RPT.list.length - idx - 1;
+    $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button>' +
+      '<div class="xrpt"><b>' + esc(r.name) + '</b>' + (left !== null && !r.final ? ' <span>' + (left ? left + ' more after this' : 'last one') + '</span>' : '') + '</div>' +
+      (r.final ? '<span class="pill xrFinal">Finalized · ' + esc(r.modality) + '</span>' : '<select id="rptDest" title="Finalized folder"><option value="Ultrasound">Ultrasound</option><option value="CT">CT scan</option></select>') +
+      '<button class="xrskip" onclick="rptEditDoc()">✏️ Open in Google Docs</button>';
+    if ($('rptDest')) $('rptDest').value = r.modality;
+    var h = '';
+    if (r.header && r.header.length) h += '<table class="rpthdr">' + r.header.map(function (row) { return '<tr>' + row.map(function (c, i) { return '<td' + (/:\s*$|^(id no|name|age|sex|address|exam|requesting|indication|date|patient location|civil)/i.test(c) ? ' class="k"' : '') + '>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+    if (!r.parsed) {
+      h += '<div class="ctwarn">This report has no "FINDINGS" and "IMPRESSION" headings, so it can’t be edited here. Edit it in Google Docs' + (ed ? ', then press Finalize.' : '.') + '</div>' +
+        '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
+    } else {
+      if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button></div>';
+      h += '<label>Findings <span class="hint" style="display:inline">one item per line</span></label><textarea id="rptF" rows="12" ' + (ed ? '' : 'readonly') + '></textarea>' +
+        '<label>Impression <span class="hint" style="display:inline">one item per line</span></label><textarea id="rptI" rows="5" ' + (ed ? '' : 'readonly') + '></textarea>';
+    }
+    if (ed) {
+      h += '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button></div>' +
+        '<button class="btn" id="rptFin" onclick="rptFinal()">Finalize &amp; move to the ' + esc(r.modality) + ' folder</button><div class="sub" id="rptSaved" style="margin:4px 0 0"></div>';
+      var others = (m.rads || []).filter(function (x) { return x.email !== m.me; });
+      if (others.length) h += '<div class="xrasgrow"><span>Send to another radiologist</span><select id="rptSend"><option value="">—</option>' + others.map(function (x) { return '<option value="' + esc(x.email) + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>';
+    } else h += '<div class="xrbtns"><button class="btn alt" onclick="rptPreview()">📄 View report</button></div>' + (r.final ? '' : '<p class="sub">Only the assigned radiologist can edit and finalize this report.</p>');
+    h += '<div class="msg" id="rptMsg"></div>';
+    $('rptBody').innerHTML = h;
+    if (r.parsed) { $('rptF').value = r.findings.join('\n'); $('rptI').value = r.impression.join('\n'); }
+    if (ed && r.parsed) {
+      var mark = function () { r.dirty = true; $('rptSaved').textContent = 'Unsaved changes'; clearTimeout(RPT.t); RPT.t = setTimeout(function () { if (RPT.cur === r && r.dirty) rptSaveDraft(true); }, 20000); };
+      $('rptF').addEventListener('input', mark); $('rptI').addEventListener('input', mark);
+      rptFillTpl();
+    }
+    if ($('rptDest')) $('rptDest').onchange = function () { r.modality = this.value; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; rptFillTpl(); };
+    if ($('rptSend')) $('rptSend').onchange = function () {
+      var to = this.value; if (!to) return; this.disabled = true;
+      var go = function () { run('rptAssign', token, r.id, to).then(function (x) { xrToast(x.msg); if (x.ok) { rptClose(true); } else $('rptSend').disabled = false; }); };
+      if (r.dirty) rptSaveDraft(true).then(go, go); else go();
+    };
+  }
+  function rptFillTpl() {
+    var s = $('rptTpl'); if (!s) return;
+    if (!XTPL) { run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; rptFillTpl(); } }); return; }
+    var mod = RPT.cur.modality;
+    s.innerHTML = '<option value="">Insert ' + esc(mod) + ' template…</option>' + XTPL.map(function (t, i) { return t.modality === mod ? '<option value="' + i + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>' : ''; }).join('');
+  }
+  function rptUseTpl() {
+    var t = XTPL[+$('rptTpl').value]; $('rptTpl').value = ''; if (!t) return;
+    var f = $('rptF'), i = $('rptI'), rep = !(f.value.trim() || i.value.trim()) || confirmReplace();
+    if (rep) { f.value = t.findings; i.value = t.impression; }
+    else { if (t.findings) f.value = f.value.replace(/\s+$/, '') + '\n' + t.findings; if (t.impression) i.value = i.value.replace(/\s+$/, '') + '\n' + t.impression; }
+    f.dispatchEvent(new Event('input')); f.focus();
+  }
+  function rptSaveTpl() {
+    var r = RPT.cur, n = window.prompt('Name of your ' + r.modality + ' template (only you will see it):', ''); if (!n) return;
+    run('xrSaveTemplate', token, n, '', $('rptF').value, $('rptI').value, r.modality).then(function (x) {
+      setMsg('rptMsg', x.msg, x.ok); if (x.ok) run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; rptFillTpl(); } });
+    });
+  }
+  function rptEdits() { return { findings: $('rptF') ? $('rptF').value.split('\n') : null, impression: $('rptI') ? $('rptI').value.split('\n') : null }; }
+  function rptSaveDraft(auto) {
+    var r = RPT.cur; if (!r || !r.canEdit || !r.parsed) return Promise.resolve();
+    r.dirty = false; clearTimeout(RPT.t); if ($('rptSaved')) $('rptSaved').textContent = 'Saving to the Doc…';
+    var e = rptEdits();
+    return run('rptSave', token, r.id, e).then(function (x) {
+      if (RPT.cur !== r) return;
+      if (x.expired) return expired();
+      if (!x.ok) { r.dirty = true; setMsg('rptMsg', x.msg); $('rptSaved').textContent = ''; return; }
+      $('rptSaved').textContent = (auto ? 'Saved automatically ' : 'Saved ') + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }).catch(function () { r.dirty = true; if ($('rptSaved')) $('rptSaved').textContent = 'Not saved – check the connection'; });
+  }
+  function rptPreview() {
+    var r = RPT.cur, e = rptEdits();
+    if (r.canEdit) { r.dirty = false; clearTimeout(RPT.t); if ($('rptSaved')) $('rptSaved').textContent = 'Saved with the preview'; }
+    openFile({ id: JSON.stringify({ id: r.id, findings: e.findings, impression: e.impression, edit: !!(r.canEdit && r.parsed) }), name: r.name }, { fn: 'rptPreview' });
+  }
+  function rptFinal() {
+    var r = RPT.cur, b = $('rptFin'), e = rptEdits();
+    if (r.parsed && !String(e.impression.join('')).trim()) return setMsg('rptMsg', 'Write the impression.');
+    if (XR_SIG && !XR_SIG.name && r.parsed) { /* signature is only used if the template has {{SIGNATURE}} – not required here */ }
+    if (!RPT.sure) { RPT.sure = 1; b.textContent = 'Tap again to finalize'; setTimeout(function () { RPT.sure = 0; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; }, 5000); return; }
+    RPT.sure = 0; b.disabled = true; b.textContent = 'Finalizing…'; clearTimeout(RPT.t);
+    run('rptFinalize', token, r.id, { modality: r.modality, findings: r.parsed ? e.findings : null, impression: r.parsed ? e.impression : null }).then(function (x) {
+      if (x.expired) return expired();
+      if (!x.ok) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; return setMsg('rptMsg', x.msg); }
+      xrToast('✓ ' + x.msg);
+      var i = RPT.list.map(function (y) { return y.id; }).indexOf(r.id); if (i !== -1) RPT.list.splice(i, 1);
+      if (rptAutoOn() && $('rptScope').value === 'pending' && RPT.list[i] ) { r.dirty = false; rptOpenDoc(RPT.list[i].id); }
+      else if (rptAutoOn() && $('rptScope').value === 'pending' && RPT.list.length) { rptOpenDoc(RPT.list[0].id); }
+      else { if (rptAutoOn() && $('rptScope').value === 'pending') xrToast('✓ ' + x.msg + ' All caught up.'); rptClose(true); }
+    }).catch(function (e2) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; setMsg('rptMsg', 'Could not finalize: ' + ((e2 && e2.message) || e2) + '. Your text is still here – try again.'); });
+  }
+  function rptEditDoc() {
+    var r = RPT.cur; if (!r) return;
+    var w = null; try { w = window.open('', '_blank'); } catch (e) {}
+    var go = function () { run('rptEditLink', token, r.id).then(function (x) {
+      if (!x.ok) { if (w) w.close(); return setMsg('rptMsg', x.msg); }
+      if (w) w.location.href = x.url; else location.href = x.url;
+      setMsg('rptMsg', 'Opened in Google Docs (needs edit access to the folder in Drive). Come back here and tap "↻" in the list, or reopen the report, to see your changes.', true);
+    }); };
+    if (r.dirty) rptSaveDraft(true).then(go, go); else go();
+  }
+  function rptClose(skipSave) {
+    var r = RPT.cur;
+    var finish = function () { RPT.cur = null; $('rptv').classList.add('hidden'); document.body.classList.remove('xrlock'); if (curView === 'rpt') rptLoad(); };
+    if (!skipSave && r && r.canEdit && r.dirty) rptSaveDraft(true).then(finish, finish); else finish();
+  }
+  document.addEventListener('keydown', function (e) {
+    if ($('rptv').classList.contains('hidden')) return;
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); rptSaveDraft(false); }
+    else if (e.key === 'Escape' && !/textarea|input|select/i.test(e.target.tagName)) rptClose();
+  });
+  /* ================= /ULTRASOUND / CT REPORTS ================= */
+
   /* ---------- page start: same login as the portal ---------- */
   function gate(text, showBtn) {
     $('gate').classList.remove('hidden'); $('gateMsg').textContent = text; $('gateBtn').style.display = showBtn ? '' : 'none';
-    ['vXrUp', 'vXrRead'].forEach(function (id) { $(id).classList.add('hidden'); });
+    ['vXrUp', 'vXrRead', 'vRpt'].forEach(function (id) { $(id).classList.add('hidden'); });
   }
-  function expired() { gate('Your session has ended. Log in again in the portal, then open the X-ray PACS.', true); }
+  function expired() { gate('Your session has ended. Log in again in the portal, then open the PACS.', true); }
   function schedView(v) {
-    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if (v === 'xrread' && !(XR_ROLE.rad || XR_ROLE.admin)) v = 'xrup';
+    var rd = XR_ROLE.rad || XR_ROLE.admin;
+    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt') && !rd) v = 'xrup';
     curView = v;
-    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread');
-    $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread');
+    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt');
+    $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt');
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
     if (v === 'xrup') { xrUpInit(); xrLoadTech(); }
     if (v === 'xrread') xrLoadWork();
+    if (v === 'rpt') rptInit();
   }
   (function start() {
     token = getTok();
@@ -1376,7 +1566,7 @@
       XR_META = m; XR_ROLE = m.role;
       $('gate').classList.add('hidden');
       $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '');
-      $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin));
+      $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       var want = ''; try { want = sessionStorage.getItem('pacs_tab') || ''; } catch (e) {}
       schedView(want || (m.role.rad ? 'xrread' : 'xrup'));
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
