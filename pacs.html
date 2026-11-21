@@ -424,6 +424,10 @@
   .upseg { margin:0 0 14px; max-width:420px; }
   .ctbar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:12px; } .ctbar i { display:block; height:100%; width:0; background:var(--brand); transition:width .3s; }
   #ctList .xrrow, #rptList .xrrow { gap:10px; } #ctSum { margin-top:8px; } button.ctgen { width:auto; margin:0; padding:7px 12px; font-size:13.5px; white-space:nowrap; } select.ctre { width:auto; max-width:170px; margin:0; padding:4px 6px; font-size:13px; }
+  .dlbox { position:fixed; right:16px; bottom:16px; z-index:9500; width:340px; max-width:calc(100vw - 32px); background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 10px 30px rgba(0,0,0,.25); font-size:13.5px; line-height:1.45; }
+  .dlbox .link { display:block; margin-top:6px; } .dlbox .ctbar { margin:8px 0 6px; }
+  .xrdl { display:inline-flex; align-items:center; gap:4px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:600; color:var(--brand); background:transparent; white-space:nowrap; cursor:pointer; }
+  .xrdl:hover { background:color-mix(in srgb,var(--brand) 10%,transparent); }
   #gate { max-width:460px; margin:60px auto; text-align:center; }
   .pcard input, .pcard select, .pcard textarea { box-sizing:border-box; max-width:100%; } .xrg3 > div { min-width:0; }
   @media (max-width:600px) { .pwrap { padding:10px; } .pcard { padding:12px; } }
@@ -1196,8 +1200,9 @@
           : o.status === 'To read' ? ' · → ' + (o.assignedTo === r.me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) : '';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
           ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') + '</div></div>' +
-          xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>';
+          xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>' + (o.images ? '<span class="xrdl" role="button" tabindex="0" title="Download the images">⬇ Download</span>' : '');
         el.onclick = function () { xrOpenStudy(o.acc); };
+        if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('xr', o.acc, e); };
         list.appendChild(el);
       });
     }).catch(function (e) { if (quiet !== true) list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -1224,6 +1229,7 @@
     $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button>' +
       '<div class="xrpt"><b>' + esc(o.name) + '</b> <span>' + esc(o.age) + ' ' + esc(o.sex) + ' · ' + esc(o.exam) + ' · ' + esc(o.acc) + '</span></div>' + xrPri(o.priority) + xrPill(o.status) +
       (typeof o.left === 'number' ? '<span class="xrleft">' + (o.left ? o.left + ' more to read' : 'last one') + '</span>' : '') +
+      (o.imageIds && o.imageIds.length ? '<button class="xrskip" onclick="dlStudy(\'xr\', XS.acc)" title="Download the images">⬇ Download</button>' : '') +
       (ed && o.status === 'Reading' ? '<button class="xrskip" onclick="xrSkip()" title="Leave this one for later and open the next">Skip ▶</button>' : '');
     $('xrStrip').innerHTML = o.imageIds.length > 1 ? o.imageIds.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="xrShowImage(' + i + ')">' + (i + 1) + '</button>'; }).join('') : '';
     var kv = function (k, v) { return v ? '<div><span>' + esc(k) + '</span>' + esc(v) + '</div>' : ''; };
@@ -1726,6 +1732,120 @@
   function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
   /* ================= /FORMATTING BAR ================= */
 
+  /* ================= ⬇ DOWNLOAD A STUDY (CT DICOM folder or X-ray images → one .zip) ================= */
+  var DL = { on: false, cancel: false };
+  /* a small .zip writer: files are stored as they are (DICOM and JPEG barely compress), CRC-32 checked, UTF-8 names */
+  var CRC_T = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(parts) { var c = 0xFFFFFFFF; parts.forEach(function (u) { for (var i = 0; i < u.length; i++) c = CRC_T[(c ^ u[i]) & 255] ^ (c >>> 8); }); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zipBlob(files) {   // files: [{ name, parts: [Uint8Array…] }]
+    var out = [], central = [], off = 0, now = new Date(), enc = new TextEncoder();
+    var dt = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF, dd = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), size = f.parts.reduce(function (a, u) { return a + u.length; }, 0), crc = crc32(f.parts);
+      var h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, dt, true); h.setUint16(12, dd, true);
+      h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+      out.push(new Uint8Array(h.buffer), name); f.parts.forEach(function (u) { out.push(u); });
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, dt, true); c.setUint16(14, dd, true);
+      c.setUint32(16, crc, true); c.setUint32(20, size, true); c.setUint32(24, size, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + size;
+    });
+    var cs = central.reduce(function (a, u) { return a + u.length; }, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+    return new Blob(out.concat(central, [new Uint8Array(e.buffer)]), { type: 'application/zip' });
+  }
+  function b64u8(b) { var s = atob(b), u = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+  function saveBlob(blob, name) {
+    var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 60000);
+  }
+  function dlPanel(html, done) {
+    var p = $('dlBox'); if (!p) { p = document.createElement('div'); p.id = 'dlBox'; p.className = 'dlbox'; document.body.appendChild(p); }
+    p.innerHTML = html + (done ? '<button type="button" class="link" onclick="this.parentNode.remove()">Close</button>' : '<button type="button" class="link" onclick="DL.cancel=true">Cancel</button>');
+    p.classList.remove('hidden');
+  }
+  function dlStop() { DL.on = false; window.removeEventListener('beforeunload', dlWarn); }
+  function dlWarn(e) { e.preventDefault(); e.returnValue = 'A study is still downloading.'; return e.returnValue; }
+  /** ⬇ a study. kind 'ct' (CT upload id) or 'xr' (accession) */
+  function dlStudy(kind, id, ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+    if (DL.on) return xrToast('A download is already running – wait for it or cancel it.');
+    DL = { on: true, cancel: false }; window.addEventListener('beforeunload', dlWarn);
+    dlPanel('⬇ Getting the file list…');
+    var fail = function (m) { dlStop(); dlPanel('<span class="err">Download stopped: ' + esc(m) + '</span>', true); };
+    if (kind === 'xr') {
+      run('xrImageList', token, id).then(function (r) {
+        if (r.expired) { dlStop(); return expired(); }
+        if (!r.ok) return fail(r.msg);
+        var got = [], i = 0;
+        var next = function () {
+          if (DL.cancel) return fail('cancelled.');
+          if (i >= r.images.length) {
+            dlStop();
+            var one = got.length === 1, ext1 = one ? got[0].name.replace(/^.*(\.\w+)$/, '$1') : '.zip';
+            if (one) saveBlob(new Blob(got[0].parts, { type: ext1 === '.png' ? 'image/png' : 'image/jpeg' }), r.name + ext1);
+            else saveBlob(zipBlob(got), r.name + '.zip');
+            return dlPanel('✓ Saved <b>' + esc(r.name) + ext1 + '</b> (' + got.length + ' image' + (got.length === 1 ? '' : 's') + ') to your Downloads.', true);
+          }
+          dlPanel('⬇ ' + esc(r.name) + ' · image ' + (i + 1) + ' of ' + r.images.length + '…');
+          run('xrImage', token, id, r.images[i]).then(function (x) {
+            if (!x.ok) return fail(x.msg);
+            var ext = /png/.test(x.mime || '') ? '.png' : '.jpg';
+            got.push({ name: 'image ' + (i + 1) + ext, parts: [b64u8(x.b64)] }); i++; next();
+          }).catch(function (e) { fail((e && e.message) || String(e)); });
+        };
+        next();
+      }).catch(function (e) { fail((e && e.message) || String(e)); });
+      return;
+    }
+    run('ctdFiles', token, id).then(function (r) {
+      if (r.expired) { dlStop(); return expired(); }
+      if (!r.ok) return fail(r.msg);
+      if (r.total > 1.5 * 1073741824 && !window.confirm('This study is ' + ctdMB(r.total) + '. Download it anyway? (It needs that much free memory.)')) return fail('cancelled.');
+      var parts = {}, tasks = [], cur = null, BATCH = 3 * 1048576, BIG = 3 * 1048576, CH = 4 * 1048576, done = 0, doneB = 0, active = 0, err = null, t0 = Date.now();
+      r.files.forEach(function (f) {
+        parts[f.id] = [];
+        if (f.size > BIG) { for (var o = 0; o < f.size; o += CH) tasks.push({ big: f, off: o, len: Math.min(CH, f.size - o), last: o + CH >= f.size }); return; }
+        if (!cur || cur.bytes + f.size > BATCH || cur.list.length >= 40) { cur = { list: [], bytes: 0 }; tasks.push(cur); }
+        cur.list.push(f); cur.bytes += f.size;
+      });
+      var bigChunks = {};   // pieces of big files arrive in any order
+      var prog = function () {
+        var pct = r.total ? Math.round(doneB / r.total * 100) : 0, secs = (Date.now() - t0) / 1000, left = doneB ? (r.total - doneB) / (doneB / secs) : 0;
+        dlPanel('⬇ <b>' + esc(r.name) + '</b><div class="ctbar"><i style="width:' + pct + '%"></i></div>' + done + ' of ' + r.files.length + ' files · ' + ctdMB(doneB) + ' of ' + ctdMB(r.total) +
+          (secs > 5 && left > 1 ? ' · about ' + (left > 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s') + ' left' : ''));
+      };
+      var finish = function () {
+        dlStop();
+        r.files.forEach(function (f) { if (bigChunks[f.id]) parts[f.id] = Object.keys(bigChunks[f.id]).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return bigChunks[f.id][k]; }); });
+        var blob = zipBlob(r.files.map(function (f) { return { name: f.path, parts: parts[f.id] }; }));
+        saveBlob(blob, r.name + '.zip');
+        dlPanel('✓ Saved <b>' + esc(r.name) + '.zip</b> (' + r.files.length + ' files, ' + ctdMB(blob.size) + ') to your Downloads. Unzip it and open the folder in your DICOM viewer.', true);
+      };
+      var pump = function () {
+        if (err || DL.cancel) { if (!active) fail(err || 'cancelled.'); return; }
+        if (!tasks.length && !active) return finish();
+        while (active < 3 && tasks.length) go(tasks.shift());
+      };
+      var go = function (t) {
+        active++; t.tries = t.tries || 0;
+        var retry = function (m) { active--; if (++t.tries <= 3 && !DL.cancel) { setTimeout(function () { tasks.unshift(t); pump(); }, 1500 * t.tries); } else { err = m; pump(); } };
+        var p = t.big ? run('ctdGetChunk', token, id, t.big.id, t.off, t.len) : run('ctdGetFiles', token, id, t.list.map(function (f) { return f.id; }));
+        p.then(function (x) {
+          if (x.expired) { err = 'your session ended'; active--; return pump(); }
+          if (!x.ok) return retry(x.msg);
+          if (t.big) { (bigChunks[t.big.id] = bigChunks[t.big.id] || {})[t.off] = b64u8(x.b64); doneB += t.len; if (t.last) done++; }
+          else { x.files.forEach(function (g) { parts[g.id] = [b64u8(g.b64)]; }); done += t.list.length; doneB += t.bytes; }
+          active--; prog(); pump();
+        }).catch(function (e) { retry((e && e.message) || String(e)); });
+      };
+      prog(); pump();
+    }).catch(function (e) { fail((e && e.message) || String(e)); });
+  }
+  /* ================= /DOWNLOAD ================= */
+
   /* ================= CT DICOM UPLOAD ================= */
   var CTD = { files: [], skipped: 0, tags: null, job: null, paused: false, busy: false, wake: null };
   function upMode(v) {
@@ -2034,7 +2154,8 @@
       ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') +
       '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
       '</div></div>' + st +
-      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Images</a>' +
+      (x.files ? '<button class="xrdl" onclick="dlStudy(\'ct\', \'' + esc(x.id) + '\', event)" title="Download the CT images (DICOM) as one .zip">⬇ Download</button>' : '') +
+      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Drive</a>' +
       (x.reportId && typeof rptOpenDoc === 'function' && (XR_ROLE.rad || XR_ROLE.admin) && curView === 'rpt' ? '<button class="link" style="white-space:nowrap" onclick="rptOpenDoc(\'' + esc(x.reportId) + '\')">📝 Report</button>' : '') +
       ((x.status === 'Complete' || x.status === 'Incomplete') && !x.reportId ? '<button class="btn ctgen" onclick="ctdMake(\'' + esc(x.id) + '\', this, ' + (x.hasInd ? 1 : 0) + ', \'' + esc(x.contrast || '') + '\')">📝 Generate report</button>' : '') +
       ((x.mine || XR_ROLE.admin) && !x.reportFinal && x.status !== 'Removed' ? '<select class="ctre" onchange="ctdRe(\'' + esc(x.id) + '\', this)" title="Change the radiologist"><option value="">Change radiologist…</option>' +
@@ -2114,8 +2235,10 @@
       RPT.list.forEach(function (x) {
         var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
         el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + '</div></div>' +
-          '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>';
+          '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>' +
+          (x.upload ? '<span class="xrdl" role="button" tabindex="0" title="Download the CT images (DICOM)">⬇ Download</span>' : '');
         el.onclick = function () { rptOpenDoc(x.id); };
+        if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('ct', x.upload, e); };
         list.appendChild(el);
       });
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -2136,6 +2259,7 @@
     $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button>' +
       '<div class="xrpt"><b>' + esc(r.name) + '</b>' + (left !== null && !r.final ? ' <span>' + (left ? left + ' more after this' : 'last one') + '</span>' : '') + '</div>' +
       (r.final ? '<span class="pill xrFinal">Finalized · ' + esc(r.modality) + '</span>' : '<select id="rptDest" title="Finalized folder"><option value="Ultrasound">Ultrasound</option><option value="CT">CT scan</option></select>') +
+      (r.uploadId ? '<button class="xrskip" onclick="dlStudy(\'ct\', RPT.cur.uploadId)" title="Download the CT images (DICOM) as one .zip">⬇ Download CT</button>' : '') +
       (r.imagesUrl ? '<a class="xrskip" target="_blank" rel="noopener" href="' + esc(r.imagesUrl) + '">📂 CT images</a>' : '') +
       '<button class="xrskip" onclick="rptEditDoc()">✏️ Open in Google Docs</button>';
     if ($('rptDest')) $('rptDest').value = r.modality;
