@@ -304,6 +304,15 @@
   .xrstrip { display:flex; gap:4px; margin-left:auto; } .xrstrip button { min-width:34px; }
   .xrstage { position:relative; flex:1; min-height:0; overflow:hidden; touch-action:none; cursor:grab; }
   .xrstage canvas { display:block; }
+  #xrOver { position:absolute; left:0; top:0; pointer-events:none; }
+  .xvctr { position:absolute; left:10px; top:10px; z-index:3; width:260px; max-width:calc(100% - 20px); background:rgba(15,23,42,.92); color:#e2e8f0; border:1px solid #334155; border-radius:10px; padding:10px 12px; font-size:13px; box-shadow:0 6px 20px rgba(0,0,0,.35); }
+  .xvctrH { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; } .xvctrH b { font-size:14px; }
+  .xvx { background:none; border:0; color:#94a3b8; font-size:16px; cursor:pointer; padding:0 4px; }
+  .xvctrS { color:#cbd5e1; line-height:1.4; } .xvctrS i { color:#fbbf24; font-style:normal; font-weight:700; }
+  .xvctrR { margin-top:6px; font-size:13px; line-height:1.45; } .xvctrR .big { font-size:22px; font-weight:800; color:#fff; } .xvctrR .hi { color:#fca5a5; } .xvctrR .ok { color:#86efac; }
+  .xvctrB { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; } .xvctrB button { flex:1; min-width:0; padding:7px 8px; border-radius:7px; border:1px solid #475569; background:#1e293b; color:#e2e8f0; font-size:12.5px; cursor:pointer; }
+  .xvctrB button#xvCtrIns { background:#0f766e; border-color:#0f766e; color:#fff; font-weight:700; }
+  .xrstage.ctr { cursor:crosshair; }
   .xrsmsg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:15px; }
   .xrside { width:min(440px,40vw); overflow:auto; padding:12px 14px 24px; border-left:1px solid var(--line); background:var(--card); }
   .xrside textarea { font-size:15px; line-height:1.45; }
@@ -569,10 +578,18 @@
         <button onclick="xvTool('in')" title="Zoom in (+)">＋</button><button onclick="xvTool('out')" title="Zoom out (−)">−</button>
         <button id="xvWl" onclick="xvTool('wl')" title="Drag to adjust brightness / contrast (or right-drag any time)">☀ W/L</button>
         <button id="xvInv" onclick="xvTool('inv')" title="Invert (I)">Invert</button><button onclick="xvTool('rot')" title="Rotate (R)">⟳</button><button onclick="xvTool('flip')" title="Flip">⇋</button>
+        <button id="xvCtrBtn" onclick="xvTool('ctr')" title="Cardiothoracic ratio (C): tap the 2 heart borders, then the 2 inner chest walls">📏 CTR</button>
         <button onclick="xvTool('reset')" title="Reset">Reset</button><span id="xrZoom"></span><span id="xrWL"></span>
         <span class="xrstrip" id="xrStrip"></span>
       </div>
-      <div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div></div>
+      <div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><canvas id="xrOver"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div>
+        <div id="xvCtr" class="xvctr hidden">
+          <div class="xvctrH"><b>Cardiothoracic ratio</b><button type="button" class="xvx" onclick="xvCtrOff()" title="Close (C)">✕</button></div>
+          <div id="xvCtrStep" class="xvctrS"></div>
+          <div id="xvCtrRes" class="xvctrR hidden"></div>
+          <div class="xvctrB"><button type="button" id="xvCtrIns" class="hidden" onclick="xvCtrInsert()">Insert into report</button><button type="button" onclick="xvCtrClear()">Start again</button></div>
+        </div>
+      </div>
     </div>
     <div class="xrside" id="xrSide"></div>
   </div>
@@ -1377,15 +1394,22 @@
   function xvInit() {
     if (XV) { XV.img = null; return; }
     var cv = $('xrCanvas'), wrap = $('xrStage');
-    XV = { cv: cv, wrap: wrap, img: null, s: 1, x: 0, y: 0, rot: 0, flip: false, inv: false, b: 100, c: 100, wl: false, ptr: {} };
-    var resize = function () { var r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr); cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px'; xvDraw(); };
+    XV = { cv: cv, wrap: wrap, img: null, s: 1, x: 0, y: 0, rot: 0, flip: false, inv: false, b: 100, c: 100, wl: false, ptr: {}, ctr: null };
+    var ov = $('xrOver');
+    var resize = function () { var r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = ov.width = Math.max(1, r.width * dpr); cv.height = ov.height = Math.max(1, r.height * dpr); cv.style.width = ov.style.width = r.width + 'px'; cv.style.height = ov.style.height = r.height + 'px'; xvDraw(); };
     window.addEventListener('resize', function () { if (!$('xrv').classList.contains('hidden')) resize(); });
     XV.resize = resize;
     cv.addEventListener('wheel', function (e) { e.preventDefault(); xvZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
     cv.addEventListener('dblclick', function () { xvReset(); });
     cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-    cv.addEventListener('pointerdown', function (e) { cv.setPointerCapture(e.pointerId); XV.ptr[e.pointerId] = { x: e.offsetX, y: e.offsetY, btn: e.button }; });
-    cv.addEventListener('pointerup', function (e) { delete XV.ptr[e.pointerId]; XV.pinch = 0; });
+    cv.addEventListener('pointerdown', function (e) {
+      cv.setPointerCapture(e.pointerId); XV.ptr[e.pointerId] = { x: e.offsetX, y: e.offsetY, btn: e.button, x0: e.offsetX, y0: e.offsetY };
+      if (XV.ctr && e.button === 0 && Object.keys(XV.ptr).length === 1) XV.ptr[e.pointerId].pt = xvCtrHit(e.offsetX, e.offsetY);   // grab a point to move it
+    });
+    cv.addEventListener('pointerup', function (e) {
+      var p = XV.ptr[e.pointerId]; delete XV.ptr[e.pointerId]; XV.pinch = 0;
+      if (XV.ctr && p && p.btn === 0 && p.pt === -1 && Math.hypot(e.offsetX - p.x0, e.offsetY - p.y0) < 7 && XV.ctr.pts.length < 4) xvCtrAdd(e.offsetX, e.offsetY);   // a tap places the next point
+    });
     cv.addEventListener('pointercancel', function (e) { delete XV.ptr[e.pointerId]; XV.pinch = 0; });
     cv.addEventListener('pointermove', function (e) {
       var p = XV.ptr[e.pointerId]; if (!p) return;
@@ -1395,6 +1419,7 @@
         var d = Math.hypot(a.x - b.x, a.y - b.y); if (XV.pinch) xvZoom(d / XV.pinch, (a.x + b.x) / 2, (a.y + b.y) / 2); XV.pinch = d; return;
       }
       p.x = e.offsetX; p.y = e.offsetY;
+      if (XV.ctr && p.pt >= 0) { XV.ctr.pts[p.pt] = xvToImg(e.offsetX, e.offsetY); xvOver(); return; }   // moving a CTR point
       if (XV.wl || p.btn === 2) {   // window / level: left-right = contrast, up-down = brightness
         XV.c = Math.max(10, Math.min(400, XV.c + dx * 0.6)); XV.b = Math.max(10, Math.min(300, XV.b - dy * 0.4)); xvFilter();
       } else { var dpr = window.devicePixelRatio || 1; XV.x += dx * dpr; XV.y += dy * dpr; xvDraw(); }
@@ -1403,13 +1428,14 @@
       if ($('xrv').classList.contains('hidden')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); xrDraft(false); return; }
       if (isTyping(e.target)) return;
+      if (e.key === 'c') { xvTool('ctr'); return; }
       if (e.key === 'i') xvTool('inv'); else if (e.key === 'r') xvTool('rot'); else if (e.key === '0' || e.key === 'f') xvReset(); else if (e.key === '+' || e.key === '=') xvTool('in'); else if (e.key === '-') xvTool('out');
-      else if (e.key === 'Escape') xrClose();
+      else if (e.key === 'Escape') { if (XV.ctr) xvCtrOff(); else xrClose(); }
       else if (/^[1-9]$/.test(e.key) && XS && XS.imageIds.length > 1 && +e.key <= XS.imageIds.length) xrShowImage(+e.key - 1);
     });
     setTimeout(resize, 0);
   }
-  function xvClear(msg) { if (XV) { XV.img = null; XV.cv.getContext('2d').clearRect(0, 0, XV.cv.width, XV.cv.height); } $('xrStageMsg').textContent = msg || ''; $('xrStageMsg').classList.toggle('hidden', !msg); }
+  function xvClear(msg) { if (XV) { XV.img = null; XV.cv.getContext('2d').clearRect(0, 0, XV.cv.width, XV.cv.height); if (XV.ctr) xvCtrClear(); else xvOver(); } $('xrStageMsg').textContent = msg || ''; $('xrStageMsg').classList.toggle('hidden', !msg); }
   function xvReset() {
     if (!XV.img) return; XV.resize && XV.resize();
     var rot = XV.rot % 180 !== 0, w = rot ? XV.img.height : XV.img.width, h = rot ? XV.img.width : XV.img.height;
@@ -1425,6 +1451,7 @@
     var g = XV.cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, XV.cv.width, XV.cv.height);
     g.translate(XV.cv.width / 2 + XV.x, XV.cv.height / 2 + XV.y); g.rotate(XV.rot * Math.PI / 180); g.scale(XV.flip ? -XV.s : XV.s, XV.s);
     g.imageSmoothingQuality = 'high'; g.drawImage(XV.img, -XV.img.width / 2, -XV.img.height / 2);
+    xvOver();
     $('xrZoom').textContent = Math.round(XV.s * 100 / (window.devicePixelRatio || 1)) + '%';
   }
   function xvFilter() {   // CSS filters work on every browser (incl. Safari)
@@ -1442,6 +1469,88 @@
     else if (t === 'inv') { XV.inv = !XV.inv; xvFilter(); $('xvInv').classList.toggle('on', XV.inv); }
     else if (t === 'wl') { XV.wl = !XV.wl; $('xvWl').classList.toggle('on', XV.wl); }
     else if (t === 'reset') { XV.b = 100; XV.c = 100; XV.inv = false; XV.rot = 0; XV.flip = false; $('xvInv').classList.remove('on'); xvReset(); }
+    else if (t === 'ctr') { if (XV.ctr) xvCtrOff(); else xvCtrOn(); }
+  }
+
+  /* ---- cardiothoracic ratio: 4 taps, points can be dragged, ratio from the horizontal widths as displayed ---- */
+  var CTR_STEPS = ['the <i>right</i> heart border (widest point of the heart)', 'the <i>left</i> heart border', 'the <i>right</i> inner chest wall (widest point of the chest)', 'the <i>left</i> inner chest wall'];
+  function xvCtrOn() {
+    if (!XV.img) return xrToast('Open an image first.');
+    XV.ctr = { pts: [] }; $('xvCtr').classList.remove('hidden'); $('xvCtrBtn').classList.add('on'); XV.wrap.classList.add('ctr'); xvCtrPanel(); xvOver();
+  }
+  function xvCtrOff() { XV.ctr = null; $('xvCtr').classList.add('hidden'); $('xvCtrBtn').classList.remove('on'); XV.wrap.classList.remove('ctr'); xvOver(); }
+  function xvCtrClear() { if (XV.ctr) { XV.ctr.pts = []; xvCtrPanel(); } xvOver(); }
+  /** screen (CSS px) → image pixel, and back (follows zoom, pan, rotate and flip) */
+  function xvToImg(ox, oy) {
+    var dpr = window.devicePixelRatio || 1, x = ox * dpr - (XV.cv.width / 2 + XV.x), y = oy * dpr - (XV.cv.height / 2 + XV.y);
+    var a = -XV.rot * Math.PI / 180, rx = x * Math.cos(a) - y * Math.sin(a), ry = x * Math.sin(a) + y * Math.cos(a);
+    return { x: rx / (XV.flip ? -XV.s : XV.s) + XV.img.width / 2, y: ry / XV.s + XV.img.height / 2 };
+  }
+  function xvToScr(p) {   // → canvas px
+    var x = (p.x - XV.img.width / 2) * (XV.flip ? -XV.s : XV.s), y = (p.y - XV.img.height / 2) * XV.s, a = XV.rot * Math.PI / 180;
+    return { x: x * Math.cos(a) - y * Math.sin(a) + XV.cv.width / 2 + XV.x, y: x * Math.sin(a) + y * Math.cos(a) + XV.cv.height / 2 + XV.y };
+  }
+  function xvCtrHit(ox, oy) {
+    var dpr = window.devicePixelRatio || 1, best = -1, bd = 18 * dpr;
+    (XV.ctr ? XV.ctr.pts : []).forEach(function (p, i) { var q = xvToScr(p), d = Math.hypot(q.x - ox * dpr, q.y - oy * dpr); if (d < bd) { bd = d; best = i; } });
+    return best;
+  }
+  function xvCtrAdd(ox, oy) { XV.ctr.pts.push(xvToImg(ox, oy)); xvCtrPanel(); xvOver(); }
+  /** { heart, chest, ratio } – widths measured left-right on the image as it is shown */
+  function xvCtrCalc() {
+    var P = XV.ctr && XV.ctr.pts; if (!P || P.length < 4) return null;
+    var s = P.map(xvToScr), heart = Math.abs(s[1].x - s[0].x), chest = Math.abs(s[3].x - s[2].x);
+    if (!chest) return null;
+    return { heart: heart / XV.s, chest: chest / XV.s, ratio: heart / chest };
+  }
+  function xvCtrPanel() {
+    var n = XV.ctr ? XV.ctr.pts.length : 0, c = xvCtrCalc();
+    $('xvCtrStep').innerHTML = n < 4 ? '<b>' + (n + 1) + ' of 4:</b> tap ' + CTR_STEPS[n] + '.' + (n ? ' Drag a point to move it.' : ' Zoom and pan as usual.') : 'Drag any point to adjust.';
+    $('xvCtrRes').classList.toggle('hidden', !c); $('xvCtrIns').classList.toggle('hidden', !c);
+    if (c) {
+      var r = c.ratio.toFixed(2), big = c.ratio > 0.5;
+      $('xvCtrRes').innerHTML = '<span class="big ' + (big ? 'hi' : 'ok') + '">CTR ' + r + '</span> ' + (big ? '<span class="hi">&gt; 0.50</span>' : '<span class="ok">≤ 0.50</span>') +
+        '<br>Heart ' + Math.round(c.heart) + ' px ÷ chest ' + Math.round(c.chest) + ' px' +
+        '<br><span style="color:#94a3b8">Upper limit 0.50 on an adult PA film; AP and supine films magnify the heart.</span>';
+    }
+  }
+  function xvOver() {
+    var ov = $('xrOver'); if (!ov) return;
+    var g = ov.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, ov.width, ov.height);
+    if (!XV || !XV.img || !XV.ctr || !XV.ctr.pts.length) return;
+    var dpr = window.devicePixelRatio || 1, S = XV.ctr.pts.map(xvToScr), col = ['#22d3ee', '#22d3ee', '#fbbf24', '#fbbf24'];
+    g.lineWidth = 2 * dpr; g.font = (12 * dpr) + 'px system-ui, sans-serif';
+    [[0, 1], [2, 3]].forEach(function (pr) {
+      if (S[pr[1]]) {   // the measured width: a horizontal line at the pair's average height, with end ticks at each point
+        var a = S[pr[0]], b = S[pr[1]], y = (a.y + b.y) / 2;
+        g.strokeStyle = col[pr[0]]; g.setLineDash([]); g.beginPath(); g.moveTo(a.x, y); g.lineTo(b.x, y); g.stroke();
+        g.setLineDash([4 * dpr, 4 * dpr]); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(a.x, y); g.moveTo(b.x, b.y); g.lineTo(b.x, y); g.stroke(); g.setLineDash([]);
+      }
+    });
+    S.forEach(function (q, i) {
+      g.fillStyle = col[i]; g.strokeStyle = '#0f172a'; g.lineWidth = 2 * dpr;
+      g.beginPath(); g.arc(q.x, q.y, 6 * dpr, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; g.fillText(['R heart', 'L heart', 'R chest', 'L chest'][i], q.x + 9 * dpr, q.y - 8 * dpr);
+    });
+    var c = xvCtrCalc();
+    if (c) {
+      var t = 'CTR ' + c.ratio.toFixed(2), x = Math.min(S[2].x, S[3].x), y = Math.max(S[2].y, S[3].y) + 26 * dpr;
+      g.font = 'bold ' + (16 * dpr) + 'px system-ui, sans-serif'; var w = g.measureText(t).width;
+      g.fillStyle = 'rgba(15,23,42,.8)'; g.fillRect(x - 6 * dpr, y - 18 * dpr, w + 12 * dpr, 24 * dpr);
+      g.fillStyle = c.ratio > 0.5 ? '#fca5a5' : '#86efac'; g.fillText(t, x, y);
+    }
+    if (XV.ctr && $('xvCtr') && !$('xvCtr').classList.contains('hidden')) xvCtrPanel();
+  }
+  /** adds "Cardiothoracic ratio: 0.54." to the report (at the cursor if the report is being typed in, else at the end) */
+  function xvCtrInsert() {
+    var c = xvCtrCalc(), f = $('xrF'); if (!c || !f) return;
+    if (f.readOnly) return xrToast('This report is finalized.');
+    var line = 'Cardiothoracic ratio: ' + c.ratio.toFixed(2) + '.';
+    var sel = window.getSelection(), inBox = sel && sel.rangeCount && f.contains(sel.anchorNode);
+    if (inBox && f.isContentEditable) { f.focus(); document.execCommand('insertText', false, line); }
+    else { f.value = rtCat(f.value, line); f.focus(); rteCaretEnd(f); }
+    f.dispatchEvent(new Event('input', { bubbles: true }));
+    xrToast('Added to the report: ' + line);
   }
   /* ================= /X-RAY MINI-PACS ================= */
 
