@@ -399,6 +399,18 @@
   .rpttext { white-space:pre-wrap; font:inherit; font-size:13.5px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; max-height:50vh; overflow:auto; }
   .pill.rptUS { background:color-mix(in srgb,#0f766e 16%,transparent); color:#0f766e; } .pill.rptCT { background:color-mix(in srgb,#7c3aed 16%,transparent); color:#7c3aed; }
   @media (max-width:600px) { .rpthdr { font-size:11.5px; } }
+  .rte { border:1px solid var(--line); border-radius:9px; background:var(--bg); }
+  .rte:focus-within { outline:2px solid var(--brand); border-color:transparent; }
+  .rtebar { display:flex; flex-wrap:wrap; gap:2px; align-items:center; padding:4px; border-bottom:1px solid var(--line); background:var(--card); border-radius:9px 9px 0 0; position:sticky; top:0; z-index:2; }
+  .rtebar button { min-width:36px; height:34px; padding:0 9px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--ink); font-size:15px; line-height:1; }
+  .rtebar button:hover { background:color-mix(in srgb,var(--brand) 10%,transparent); }
+  .rtebar button.on { background:color-mix(in srgb,var(--brand) 18%,transparent); border-color:color-mix(in srgb,var(--brand) 45%,transparent); color:var(--brand-d,var(--brand)); }
+  .rtebar .sep { width:1px; height:22px; background:var(--line); margin:0 4px; }
+  .rtebar .rx { text-decoration:line-through; font-family:Georgia,serif; }
+  .rtebox { padding:11px 12px; font-size:15px; line-height:1.5; color:var(--ink); outline:none; overflow-wrap:anywhere; resize:vertical; overflow:auto; }
+  .rtebox:empty:before { content:attr(data-ph); color:var(--muted); white-space:pre-line; pointer-events:none; }
+  .rtebox ul, .rtebox ol { margin:2px 0; padding-left:26px; } .rtebox li { margin:1px 0; }
+  .rte.ro { background:var(--card); } .rte.ro .rtebox { min-height:0 !important; }
   #gate { max-width:460px; margin:60px auto; text-align:center; }
   .pcard input, .pcard select, .pcard textarea { box-sizing:border-box; max-width:100%; } .xrg3 > div { min-width:0; }
   @media (max-width:600px) { .pwrap { padding:10px; } .pcard { padding:12px; } }
@@ -1159,7 +1171,7 @@
     if (o.status === 'Amending' && o.amendReason) h += '<div class="ctwarn">Amending: ' + esc(o.amendReason) + '</div>';
     if (ed) h += '<div class="xrtpl"><select id="xrTpl" onchange="xrUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="xrSaveTpl()">Save as my template</button></div>';
     if (ed && XR_SIG && !XR_SIG.name) h += '<div class="ctwarn">Set up your report signature before finalizing. <button class="link" onclick="xrClose(); setTimeout(function(){ xrSigToggle(true); }, 300)">✍ Set up now</button></div>';
-    h += '<label>X-ray report</label><textarea id="xrF" rows="16" ' + (ed ? '' : 'readonly') + ' placeholder="e.g. Both lung fields are clear.&#10;Heart is not enlarged. …"></textarea>' +
+    h += '<label>X-ray report</label>' + rteHtml('xrF', 14, 'e.g. Both lung fields are clear.\nHeart is not enlarged. …', ed) +
       '<label class="crit"><input type="checkbox" id="xrCrit" ' + (ed ? '' : 'disabled') + '><span>Critical finding (communicate per POL-002 §2.3)</span></label>';
     if (ed) h += '<div class="xrbtns"><button class="btn alt" onclick="xrDraft(false)">Save draft</button><button class="btn alt" onclick="xrPreview()">👁 Preview</button></div>' +
       '<button class="btn" id="xrFin" onclick="xrFinal()">Finalize &amp; sign report</button><div class="sub" id="xrSaved" style="margin:4px 0 0"></div>';
@@ -1181,7 +1193,8 @@
         if (XS && XS.canEdit && XS.dirty) xrDraft(true).then(go, go); else go();
       };
     }
-    var rp = o.report || {}; $('xrF').value = (rp.findings || '') + (rp.impression ? (rp.findings ? '\n\n' : '') + rp.impression : ''); $('xrCrit').checked = !!o.critical;
+    rteInit('xrF', { plain: !(XR_META && XR_META.rich) });
+    var rp = o.report || {}; $('xrF').value = rtJoin(rp.findings, rp.impression); $('xrCrit').checked = !!o.critical;
     if (ed) {
       var mark = function () { XS.dirty = true; $('xrSaved').textContent = 'Unsaved changes'; clearTimeout(XS.t); XS.t = setTimeout(function () { if (XS && XS.dirty) xrDraft(true); }, 15000); };
       $('xrF').addEventListener('input', mark); $('xrCrit').addEventListener('change', mark);
@@ -1197,9 +1210,9 @@
   }
   function xrUseTpl() {
     var t = XTPL[+$('xrTpl').value]; $('xrTpl').value = ''; if (!t) return;
-    var f = $('xrF'), txt = t.findings + (t.impression ? (t.findings ? '\n' : '') + t.impression : '');
-    if (f.value.trim() && !confirmReplace()) f.value = f.value.replace(/\s+$/, '') + '\n' + txt; else f.value = txt;
-    f.dispatchEvent(new Event('input')); f.focus();
+    var f = $('xrF'), txt = rtCat(t.findings, t.impression);
+    if (f.value.trim() && !confirmReplace()) f.value = rtCat(f.value, txt); else f.value = txt;
+    f.dispatchEvent(new Event('input')); f.focus(); rteCaretEnd(f);
   }
   function confirmReplace() { return window.confirm('Replace the current text with the template? (Cancel adds it at the end instead.)'); }
   function xrSaveTpl() {
@@ -1340,7 +1353,7 @@
     document.addEventListener('keydown', function (e) {
       if ($('xrv').classList.contains('hidden')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); xrDraft(false); return; }
-      if (/textarea|input|select/i.test(e.target.tagName)) return;
+      if (isTyping(e.target)) return;
       if (e.key === 'i') xvTool('inv'); else if (e.key === 'r') xvTool('rot'); else if (e.key === '0' || e.key === 'f') xvReset(); else if (e.key === '+' || e.key === '=') xvTool('in'); else if (e.key === '-') xvTool('out');
       else if (e.key === 'Escape') xrClose();
       else if (/^[1-9]$/.test(e.key) && XS && XS.imageIds.length > 1 && +e.key <= XS.imageIds.length) xrShowImage(+e.key - 1);
@@ -1382,6 +1395,155 @@
     else if (t === 'reset') { XV.b = 100; XV.c = 100; XV.inv = false; XV.rot = 0; XV.flip = false; $('xvInv').classList.remove('on'); xvReset(); }
   }
   /* ================= /X-RAY MINI-PACS ================= */
+
+  /* ================= FORMATTING BAR (bold / italic / underline / bullets / numbering) =================
+   * A report box's value is the same as the server's: plain text (one paragraph per line),
+   * or <p>, <ul><li>, <ol><li> with <b>, <i>, <u> inside. Anything else is dropped. */
+  function rtIsRich(s) { return /^\s*<(p|ul|ol)[\s>]/i.test(String(s == null ? '' : s)); }
+  function rtDec(s) { return s.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, function (m, e) { return { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' }[e]; }); }
+  /** text → [{ t: 'p'|'ul'|'ol', runs: [{ s, b, i, u }] }]; plain lines become plainType (list types skip blank lines) */
+  function rtBlocks(s, plainType, plainBold) {
+    s = String(s == null ? '' : s).replace(/\r/g, '');
+    if (!rtIsRich(s)) return s.split('\n').filter(function (l) { return !plainType || plainType === 'p' || l.trim(); })
+      .map(function (l) { return { t: plainType || 'p', runs: l ? [{ s: l, b: !!plainBold, i: false, u: false }] : [] }; });
+    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, re = /<(\/?)(p|ul|ol|li|b|i|u|br)(?:\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
+    var nb = function () { cur = { t: list || 'p', runs: [] }; out.push(cur); };
+    while ((m = re.exec(s))) {
+      if (m[3] !== undefined) {
+        var txt = rtDec(m[3].replace(/\n/g, '')); if (!txt) continue; if (!cur) nb();
+        rtPush(cur.runs, { s: txt, b: b > 0, i: i > 0, u: u > 0 }); continue;
+      }
+      if (!m[2]) continue;
+      var d = m[1] === '/' ? -1 : 1, tg = m[2].toLowerCase();
+      if (tg === 'b') b = Math.max(0, b + d); else if (tg === 'i') i = Math.max(0, i + d); else if (tg === 'u') u = Math.max(0, u + d);
+      else if (tg === 'ul' || tg === 'ol') { list = d < 0 ? '' : tg; cur = null; }
+      else if (tg === 'p' || tg === 'li') { if (d < 0) cur = null; else nb(); }
+      else if (tg === 'br') { if (!cur) nb(); cur = null; }
+    }
+    return out;
+  }
+  function rtPush(runs, r) { var l = runs[runs.length - 1]; if (l && l.b === r.b && l.i === r.i && l.u === r.u) l.s += r.s; else if (r.s) runs.push(r); }
+  function rtRunsHtml(runs) { return runs.map(function (r) { var x = esc(r.s); if (r.u) x = '<u>' + x + '</u>'; if (r.i) x = '<i>' + x + '</i>'; if (r.b) x = '<b>' + x + '</b>'; return x; }).join(''); }
+  /** blocks → stored text (plain when there is no formatting at all) */
+  function rtStore(blocks) {
+    blocks = blocks.slice();
+    var empty = function (bk) { return !bk.runs.some(function (r) { return r.s.trim(); }); };
+    while (blocks.length && empty(blocks[blocks.length - 1])) blocks.pop();
+    while (blocks.length && empty(blocks[0])) blocks.shift();
+    if (blocks.every(function (bk) { return bk.t === 'p' && bk.runs.every(function (r) { return !r.b && !r.i && !r.u; }); }))
+      return blocks.map(function (bk) { return bk.runs.map(function (r) { return r.s; }).join(''); }).join('\n');
+    var h = '', open = '';
+    blocks.forEach(function (bk) {
+      var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p';
+      if (open && open !== t) { h += '</' + open + '>'; open = ''; }
+      if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
+      h += t === 'p' ? '<p>' + rtRunsHtml(bk.runs) + '</p>' : '<li>' + rtRunsHtml(bk.runs) + '</li>';
+    });
+    return open ? h + '</' + open + '>' : h;
+  }
+  /** a then b (no blank line between) */
+  function rtCat(a, b) {
+    a = String(a || ''); b = String(b || ''); if (!a.trim()) return b; if (!b.trim()) return a;
+    if (!rtIsRich(a) && !rtIsRich(b)) return a.replace(/\s+$/, '') + '\n' + b;
+    return rtStore(rtBlocks(a).concat(rtBlocks(b)));
+  }
+  /** findings, blank line, impression (as the server joins them) */
+  function rtJoin(a, b) {
+    a = String(a || ''); b = String(b || ''); if (!b) return a; if (!a) return b;
+    if (!rtIsRich(a) && !rtIsRich(b)) return a + '\n\n' + b;
+    return rtStore(rtBlocks(a).concat([{ t: 'p', runs: [] }], rtBlocks(b)));
+  }
+  /** plain text version (for old servers that do not know formatting) */
+  function rtPlainLines(s) { return rtBlocks(s).map(function (bk) { return bk.runs.map(function (r) { return r.s; }).join(''); }); }
+
+  /** markup for a report box; call rteInit(id) after it is in the page */
+  function rteHtml(id, rows, ph, ed) {
+    var B = function (cmd, lbl, tip) { return '<button type="button" data-cmd="' + cmd + '" title="' + tip + '" aria-label="' + tip + '">' + lbl + '</button>'; };
+    return '<div class="rte' + (ed ? '' : ' ro') + '" id="' + id + 'Wrap">' + (ed ? '<div class="rtebar" role="toolbar" aria-label="Formatting">' +
+      B('bold', '<b>B</b>', 'Bold (Ctrl+B)') + B('italic', '<i>I</i>', 'Italic (Ctrl+I)') + B('underline', '<u>U</u>', 'Underline (Ctrl+U)') + '<span class="sep"></span>' +
+      B('insertUnorderedList', '• List', 'Bullets') + B('insertOrderedList', '1. List', 'Numbering') + '<span class="sep"></span>' +
+      B('removeFormat', '<span class="rx">T</span>', 'Clear bold / italic / underline') + '</div>' : '') +
+      '<div class="rtebox" id="' + id + '" contenteditable="' + (ed ? 'true' : 'false') + '" role="textbox" aria-multiline="true" spellcheck="true" data-ph="' + esc(ph || '') + '" style="min-height:' + (rows * 1.5) + 'em"></div></div>';
+  }
+  /** turns the box into an editor with .value (get/set) like a textarea. opts.plain: no formatting (older server) */
+  function rteInit(id, opts) {
+    var el = $(id), wrap = $(id + 'Wrap'); opts = opts || {};
+    if (opts.plain && wrap.querySelector('.rtebar')) wrap.querySelector('.rtebar').classList.add('hidden');
+    Object.defineProperty(el, 'value', { configurable: true,
+      get: function () { var v = rtStore(rteRead(el)); return opts.plain ? rtPlainLines(v).join('\n').replace(/^\n+|\n+$/g, '') : v; },
+      set: function (v) { el.innerHTML = rteRender(v); } });
+    Object.defineProperty(el, 'readOnly', { configurable: true, get: function () { return el.contentEditable !== 'true'; } });
+    try { document.execCommand('defaultParagraphSeparator', false, 'div'); document.execCommand('styleWithCSS', false, false); } catch (e) {}
+    el.addEventListener('paste', function (e) {   // paste as plain text (no fonts/colours from other programs)
+      var t = (e.clipboardData || window.clipboardData).getData('text/plain'); if (t === undefined) return;
+      e.preventDefault(); document.execCommand('insertText', false, t.replace(/\r/g, ''));
+    });
+    el.addEventListener('input', function () { if (!el.textContent && !el.querySelector('li')) el.innerHTML = ''; rteState(); });
+    el.addEventListener('keyup', rteState); el.addEventListener('mouseup', rteState); el.addEventListener('focus', rteState);
+    if (wrap.querySelector('.rtebar')) {
+      wrap.querySelector('.rtebar').addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });   // keep the selection
+      wrap.querySelector('.rtebar').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b || opts.plain) return;
+        if (document.activeElement !== el) { el.focus(); rteCaretEnd(el); }
+        document.execCommand(b.getAttribute('data-cmd'), false, null);
+        el.dispatchEvent(new Event('input', { bubbles: true })); rteState();
+      });
+    }
+    return el;
+  }
+  function rteCaretEnd(el) { try { var r = document.createRange(); r.selectNodeContents(el); r.collapse(false); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+  /** lights up B / I / U / list buttons for the text at the cursor */
+  function rteState() {
+    var a = document.activeElement; if (!a || !a.classList || !a.classList.contains('rtebox')) return;
+    var bar = a.parentNode.querySelector('.rtebar'); if (!bar) return;
+    Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) {
+      var c = b.getAttribute('data-cmd'), on = false; if (c !== 'removeFormat') { try { on = document.queryCommandState(c); } catch (e) {} }
+      b.classList.toggle('on', !!on);
+    });
+  }
+  document.addEventListener('selectionchange', rteState);
+  function rteRender(v) {
+    var h = '', open = '';
+    rtBlocks(v).forEach(function (bk) {
+      var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p', inner = rtRunsHtml(bk.runs) || '<br>';
+      if (open && open !== t) { h += '</' + open + '>'; open = ''; }
+      if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
+      h += t === 'p' ? '<div>' + inner + '</div>' : '<li>' + inner + '</li>';
+    });
+    return open ? h + '</' + open + '>' : h;
+  }
+  /** what the browser made of the box → blocks */
+  function rteRead(root) {
+    var blocks = [], cur = null;
+    var nb = function (t) { cur = { t: t, runs: [] }; blocks.push(cur); return cur; };
+    var walk = function (n, st, listT) {
+      if (n.nodeType === 3) {
+        var s = n.nodeValue.replace(/[​﻿]/g, '').replace(/ /g, ' ').replace(/\n/g, ' ');
+        if (!s) return; if (!cur) nb(listT || 'p');
+        rtPush(cur.runs, { s: s, b: st.b, i: st.i, u: st.u }); return;
+      }
+      if (n.nodeType !== 1) return;
+      var tg = n.tagName, sty = n.style || {}, fw = String(sty.fontWeight || '');
+      var s2 = { b: st.b || tg === 'B' || tg === 'STRONG' || fw === 'bold' || +fw >= 600, i: st.i || tg === 'I' || tg === 'EM' || sty.fontStyle === 'italic',
+        u: st.u || tg === 'U' || /underline/.test(sty.textDecoration || sty.textDecorationLine || '') };
+      if (fw === 'normal' || fw === '400') s2.b = false;
+      if (tg === 'BR') { if (!cur) nb(listT || 'p'); cur = null; return; }
+      if (tg === 'UL' || tg === 'OL') { cur = null; Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, tg.toLowerCase()); }); cur = null; return; }
+      if (tg === 'LI') { nb(listT || 'ul'); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT || 'ul'); }); cur = null; return; }
+      if (/^(DIV|P|H[1-6]|BLOCKQUOTE|PRE)$/.test(tg)) {
+        var mine = cur && !cur.runs.length ? null : nb(listT || 'p');
+        Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT); });
+        if (mine && !mine.runs.length && blocks[blocks.length - 1] !== mine) blocks.splice(blocks.indexOf(mine), 1);   // a wrapper around a list, not an empty line
+        cur = null; return;
+      }
+      Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT); });
+    };
+    Array.prototype.forEach.call(root.childNodes, function (c) { walk(c, { b: false, i: false, u: false }, ''); });
+    blocks.forEach(function (bk) { if (bk.runs.length) { var l = bk.runs[bk.runs.length - 1]; l.s = l.s.replace(/\s+$/, ''); if (!l.s) bk.runs.pop(); } });
+    return blocks;
+  }
+  function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
+  /* ================= /FORMATTING BAR ================= */
 
   /* ================= ULTRASOUND / CT REPORTS (generated Doc → edit → finalize) ================= */
   var RPT = { meta: null, list: [], cur: null, sure: 0, t: null };
@@ -1447,8 +1609,8 @@
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
     } else {
       if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button></div>';
-      h += '<label>Findings <span class="hint" style="display:inline">one item per line</span></label><textarea id="rptF" rows="12" ' + (ed ? '' : 'readonly') + '></textarea>' +
-        '<label>Impression <span class="hint" style="display:inline">one item per line</span></label><textarea id="rptI" rows="5" ' + (ed ? '' : 'readonly') + '></textarea>';
+      h += '<label>Findings</label>' + rteHtml('rptF', 10, 'One finding per line', ed) +
+        '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed);
     }
     if (ed) {
       h += '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button></div>' +
@@ -1458,7 +1620,11 @@
     } else h += '<div class="xrbtns"><button class="btn alt" onclick="rptPreview()">📄 View report</button></div>' + (r.final ? '' : '<p class="sub">Only the assigned radiologist can edit and finalize this report.</p>');
     h += '<div class="msg" id="rptMsg"></div>';
     $('rptBody').innerHTML = h;
-    if (r.parsed) { $('rptF').value = r.findings.join('\n'); $('rptI').value = r.impression.join('\n'); }
+    r.rich = r.findingsRich !== undefined;   // older server: plain lines only
+    if (r.parsed) {
+      rteInit('rptF', { plain: !r.rich }); rteInit('rptI', { plain: !r.rich });
+      $('rptF').value = r.rich ? r.findingsRich : r.findings.join('\n'); $('rptI').value = r.rich ? r.impressionRich : r.impression.join('\n');
+    }
     if (ed && r.parsed) {
       var mark = function () { r.dirty = true; $('rptSaved').textContent = 'Unsaved changes'; clearTimeout(RPT.t); RPT.t = setTimeout(function () { if (RPT.cur === r && r.dirty) rptSaveDraft(true); }, 20000); };
       $('rptF').addEventListener('input', mark); $('rptI').addEventListener('input', mark);
@@ -1480,9 +1646,11 @@
   function rptUseTpl() {
     var t = XTPL[+$('rptTpl').value]; $('rptTpl').value = ''; if (!t) return;
     var f = $('rptF'), i = $('rptI'), rep = !(f.value.trim() || i.value.trim()) || confirmReplace();
-    if (rep) { f.value = t.findings; i.value = t.impression; }
-    else { if (t.findings) f.value = f.value.replace(/\s+$/, '') + '\n' + t.findings; if (t.impression) i.value = i.value.replace(/\s+$/, '') + '\n' + t.impression; }
-    f.dispatchEvent(new Event('input')); f.focus();
+    // a plain-text template takes the report's usual look: bullets for findings, bold numbering for the impression
+    var tf = rtIsRich(t.findings) || !RPT.cur.rich ? t.findings : rtStore(rtBlocks(t.findings, 'ul')), ti = rtIsRich(t.impression) || !RPT.cur.rich ? t.impression : rtStore(rtBlocks(t.impression, 'ol', true));
+    if (rep) { f.value = tf; i.value = ti; }
+    else { if (t.findings) f.value = rtCat(f.value, tf); if (t.impression) i.value = rtCat(i.value, ti); }
+    f.dispatchEvent(new Event('input')); f.focus(); rteCaretEnd(f);
   }
   function rptSaveTpl() {
     var r = RPT.cur, n = window.prompt('Name of your ' + r.modality + ' template (only you will see it):', ''); if (!n) return;
@@ -1490,7 +1658,11 @@
       setMsg('rptMsg', x.msg, x.ok); if (x.ok) run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; rptFillTpl(); } });
     });
   }
-  function rptEdits() { return { findings: $('rptF') ? $('rptF').value.split('\n') : null, impression: $('rptI') ? $('rptI').value.split('\n') : null }; }
+  function rptEdits() {
+    if (!$('rptF')) return { findings: null, impression: null };
+    var f = $('rptF').value, i = $('rptI').value;
+    return RPT.cur && RPT.cur.rich ? { findings: f, impression: i } : { findings: f.split('\n'), impression: i.split('\n') };
+  }
   function rptSaveDraft(auto) {
     var r = RPT.cur; if (!r || !r.canEdit || !r.parsed) return Promise.resolve();
     r.dirty = false; clearTimeout(RPT.t); if ($('rptSaved')) $('rptSaved').textContent = 'Saving to the Doc…';
@@ -1509,7 +1681,7 @@
   }
   function rptFinal() {
     var r = RPT.cur, b = $('rptFin'), e = rptEdits();
-    if (r.parsed && !String(e.impression.join('')).trim()) return setMsg('rptMsg', 'Write the impression.');
+    if (r.parsed && !rtPlainLines(Array.isArray(e.impression) ? e.impression.join('\n') : e.impression).join('').trim()) return setMsg('rptMsg', 'Write the impression.');
     if (XR_SIG && !XR_SIG.name && r.parsed) { /* signature is only used if the template has {{SIGNATURE}} – not required here */ }
     if (!RPT.sure) { RPT.sure = 1; b.textContent = 'Tap again to finalize'; setTimeout(function () { RPT.sure = 0; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; }, 5000); return; }
     RPT.sure = 0; b.disabled = true; b.textContent = 'Finalizing…'; clearTimeout(RPT.t);
@@ -1541,7 +1713,7 @@
   document.addEventListener('keydown', function (e) {
     if ($('rptv').classList.contains('hidden')) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); rptSaveDraft(false); }
-    else if (e.key === 'Escape' && !/textarea|input|select/i.test(e.target.tagName)) rptClose();
+    else if (e.key === 'Escape' && !isTyping(e.target)) rptClose();
   });
   /* ================= /ULTRASOUND / CT REPORTS ================= */
 
