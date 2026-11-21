@@ -880,6 +880,12 @@
   // ---- storage (remember-me = localStorage, otherwise sessionStorage) ----
   function getTok() { try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch (e) { return null; } }
   function setTok(t, remember) { try { (remember ? localStorage : sessionStorage).setItem(KEY, t); } catch (e) {} }
+  function deviceLabel() {   // e.g. "Android · Chrome (app)" – shown in the SESSIONS sheet so you can tell logins apart
+    var u = navigator.userAgent || '', os = /iPhone|iPad/.test(u) ? 'iPhone/iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac/.test(u) ? 'Mac' : 'Other';
+    var br = /Edg\//.test(u) ? 'Edge' : /CriOS|Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : /Firefox\//.test(u) ? 'Firefox' : 'Browser';
+    var app = false; try { app = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) {}
+    return os + ' · ' + br + (app ? ' (app)' : '');
+  }
   function clearTok() { try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {} }
 
   /* Calls to the server go through a small queue: at most RUN_MAX at a time (Google turns away
@@ -1039,7 +1045,7 @@
   function doLogin() {
     var b = $('lBtn'); b.disabled = true; msg('');
     var remember = $('remember').checked;
-    run('login', $('lEmail').value, $('lPass').value, remember).then(function (r) {
+    run('login', $('lEmail').value, $('lPass').value, remember, deviceLabel()).then(function (r) {
       b.disabled = false;
       if (!r.ok) return msg(r.msg);
       token = r.token; setTok(token, remember); $('lPass').value = ''; showApp(r.name, r.admin, r.pacs);

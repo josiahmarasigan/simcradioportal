@@ -410,10 +410,11 @@
   .rtebox { padding:11px 12px; font-size:15px; line-height:1.5; color:var(--ink); outline:none; overflow-wrap:anywhere; resize:vertical; overflow:auto; }
   .rtebox:empty:before { content:attr(data-ph); color:var(--muted); white-space:pre-line; pointer-events:none; }
   .rtebox ul, .rtebox ol { margin:2px 0; padding-left:26px; } .rtebox li { margin:1px 0; }
+  .rtebox .i1 { margin-left:2em; } .rtebox .i2 { margin-left:4em; } .rtebox .i3 { margin-left:6em; } .rtebox .i4 { margin-left:8em; }
   .rte.ro { background:var(--card); } .rte.ro .rtebox { min-height:0 !important; }
   .upseg { margin:0 0 14px; max-width:420px; }
   .ctbar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:12px; } .ctbar i { display:block; height:100%; width:0; background:var(--brand); transition:width .3s; }
-  #ctList .xrrow { gap:10px; } #ctSum { margin-top:8px; }
+  #ctList .xrrow, #rptList .xrrow { gap:10px; } #ctSum { margin-top:8px; } button.ctgen { width:auto; margin:0; padding:7px 12px; font-size:13.5px; white-space:nowrap; } select.ctre { width:auto; max-width:170px; margin:0; padding:4px 6px; font-size:13px; }
   #gate { max-width:460px; margin:60px auto; text-align:center; }
   .pcard input, .pcard select, .pcard textarea { box-sizing:border-box; max-width:100%; } .xrg3 > div { min-width:0; }
   @media (max-width:600px) { .pwrap { padding:10px; } .pcard { padding:12px; } }
@@ -496,10 +497,15 @@
               <div><label>Age <span class="hint" style="display:inline">(if no DOB)</span></label><input type="text" id="ctAge" maxlength="20" inputmode="numeric" placeholder="e.g. 45"></div>
               <div><label>Sex *</label><div class="seg" id="ctSexBar" data-v=""><button type="button" data-v="M" onclick="ctdSex('M')">M</button><button type="button" data-v="F" onclick="ctdSex('F')">F</button></div></div>
               <div><label>ID no. (hospital no.)</label><input type="text" id="ctHosp" maxlength="40" autocomplete="off"></div>
+              <div><label>Civil status</label><select id="ctCivil"><option value=""></option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option></select></div>
+              <div><label>Patient location</label><input type="text" id="ctLoc" maxlength="40" placeholder="e.g. ER, OPD, S1"></div>
+              <div class="xrw2"><label>Address</label><input type="text" id="ctAddr" maxlength="200" placeholder="e.g. Pilar, SDN"></div>
               <div class="xrw2"><label>CT examination *</label><input type="text" id="ctExam" list="ctExams" maxlength="100" placeholder="e.g. CT Brain / Cranial"><datalist id="ctExams"></datalist></div>
+              <div><label>Contrast *</label><div class="seg" id="ctConBar" data-v="plain"><button type="button" data-v="plain" class="on" onclick="ctdCon('plain')">Plain</button><button type="button" data-v="contrast" onclick="ctdCon('contrast')">Contrast</button><button type="button" data-v="both" onclick="ctdCon('both')">Plain + contrast</button></div></div>
               <div><label>Requesting physician</label><input type="text" id="ctPhys" maxlength="100" placeholder="e.g. Dr. Aguirre"></div>
+              <div class="xrw2"><label>Indication / clinical history *</label><input type="text" id="ctInd" maxlength="300" placeholder="e.g. Abdominal pain"></div>
               <div class="xrw2"><label>Note for the radiologist</label><input type="text" id="ctNotes" maxlength="500" placeholder="e.g. with contrast, plain + post-contrast series"></div>
-              <div><label>Tell radiologist</label><select id="ctAssign"></select></div>
+              <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="ctAssign"></select></div>
             </div>
             <div id="ctProg" class="hidden"><div class="ctbar"><i id="ctBarFill"></i></div><div class="sub" id="ctProgTxt" style="margin:6px 0 0"></div></div>
             <div class="xrbtns">
@@ -508,7 +514,7 @@
             </div>
             <button class="link" type="button" style="margin-top:6px" onclick="ctdClear()">Clear form</button>
             <div id="ctMsg" class="msg"></div>
-            <p class="hint" style="margin-top:4px">Each CT gets its own folder in the CT DICOM folder in Drive, with the sub-folders kept. Keep this page open until it says done. If the upload stops (Wi-Fi, refresh), choose the same folder again: only the missing files are sent.</p>
+            <p class="hint" style="margin-top:4px">When the upload is complete, a report draft (filled in from this form, with the normal template for the exam) goes to the radiologist’s list in 📝 US / CT. Each CT gets its own folder in the CT DICOM folder in Drive, with the sub-folders kept. Keep this page open until it says done. If the upload stops (Wi-Fi, refresh), choose the same folder again: only the missing files are sent.</p>
           </div>
           <div class="meta" style="margin-top:14px"><b style="color:var(--ink)">CT uploads</b>
             <select id="ctDays" onchange="ctdLoadList()" style="width:auto"><option value="1">Today</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option></select>
@@ -1449,18 +1455,18 @@
     s = String(s == null ? '' : s).replace(/\r/g, '');
     if (!rtIsRich(s)) return s.split('\n').filter(function (l) { return !plainType || plainType === 'p' || l.trim(); })
       .map(function (l) { return { t: plainType || 'p', runs: l ? [{ s: l, b: !!plainBold, i: false, u: false }] : [] }; });
-    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, re = /<(\/?)(p|ul|ol|li|b|i|u|br)(?:\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
-    var nb = function () { cur = { t: list || 'p', runs: [] }; out.push(cur); };
+    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, re = /<(\/?)(p|ul|ol|li|b|i|u|br)(\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
+    var nb = function (attrs) { var k = /\bclass\s*=\s*["'][^"']*\bi([1-4])\b/i.exec(attrs || ''); cur = { t: list || 'p', runs: [], ind: k ? +k[1] : 0 }; out.push(cur); };
     while ((m = re.exec(s))) {
-      if (m[3] !== undefined) {
-        var txt = rtDec(m[3].replace(/\n/g, '')); if (!txt) continue; if (!cur) nb();
+      if (m[4] !== undefined) {
+        var txt = rtDec(m[4].replace(/\n/g, '')); if (!txt) continue; if (!cur) nb();
         rtPush(cur.runs, { s: txt, b: b > 0, i: i > 0, u: u > 0 }); continue;
       }
       if (!m[2]) continue;
       var d = m[1] === '/' ? -1 : 1, tg = m[2].toLowerCase();
       if (tg === 'b') b = Math.max(0, b + d); else if (tg === 'i') i = Math.max(0, i + d); else if (tg === 'u') u = Math.max(0, u + d);
       else if (tg === 'ul' || tg === 'ol') { list = d < 0 ? '' : tg; cur = null; }
-      else if (tg === 'p' || tg === 'li') { if (d < 0) cur = null; else nb(); }
+      else if (tg === 'p' || tg === 'li') { if (d < 0) cur = null; else nb(m[3]); }
       else if (tg === 'br') { if (!cur) nb(); cur = null; }
     }
     return out;
@@ -1473,14 +1479,15 @@
     var empty = function (bk) { return !bk.runs.some(function (r) { return r.s.trim(); }); };
     while (blocks.length && empty(blocks[blocks.length - 1])) blocks.pop();
     while (blocks.length && empty(blocks[0])) blocks.shift();
-    if (blocks.every(function (bk) { return bk.t === 'p' && bk.runs.every(function (r) { return !r.b && !r.i && !r.u; }); }))
+    if (blocks.every(function (bk) { return bk.t === 'p' && !bk.ind && bk.runs.every(function (r) { return !r.b && !r.i && !r.u; }); }))
       return blocks.map(function (bk) { return bk.runs.map(function (r) { return r.s; }).join(''); }).join('\n');
     var h = '', open = '';
     blocks.forEach(function (bk) {
       var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p';
       if (open && open !== t) { h += '</' + open + '>'; open = ''; }
       if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
-      h += t === 'p' ? '<p>' + rtRunsHtml(bk.runs) + '</p>' : '<li>' + rtRunsHtml(bk.runs) + '</li>';
+      var ca = bk.ind > 0 ? ' class="i' + Math.min(4, bk.ind) + '"' : '';
+      h += t === 'p' ? '<p' + ca + '>' + rtRunsHtml(bk.runs) + '</p>' : '<li' + ca + '>' + rtRunsHtml(bk.runs) + '</li>';
     });
     return open ? h + '</' + open + '>' : h;
   }
@@ -1505,6 +1512,7 @@
     return '<div class="rte' + (ed ? '' : ' ro') + '" id="' + id + 'Wrap">' + (ed ? '<div class="rtebar" role="toolbar" aria-label="Formatting">' +
       B('bold', '<b>B</b>', 'Bold (Ctrl+B)') + B('italic', '<i>I</i>', 'Italic (Ctrl+I)') + B('underline', '<u>U</u>', 'Underline (Ctrl+U)') + '<span class="sep"></span>' +
       B('insertUnorderedList', '• List', 'Bullets') + B('insertOrderedList', '1. List', 'Numbering') + '<span class="sep"></span>' +
+      B('rteOut', '⇤', 'Less indent (Shift+Tab)') + B('rteIn', '⇥', 'More indent (Tab)') + '<span class="sep"></span>' +
       B('removeFormat', '<span class="rx">T</span>', 'Clear bold / italic / underline') + '</div>' : '') +
       '<div class="rtebox" id="' + id + '" contenteditable="' + (ed ? 'true' : 'false') + '" role="textbox" aria-multiline="true" spellcheck="true" data-ph="' + esc(ph || '') + '" style="min-height:' + (rows * 1.5) + 'em"></div></div>';
   }
@@ -1523,16 +1531,36 @@
     });
     el.addEventListener('input', function () { if (!el.textContent && !el.querySelector('li')) el.innerHTML = ''; rteState(); });
     el.addEventListener('keyup', rteState); el.addEventListener('mouseup', rteState); el.addEventListener('focus', rteState);
+    el.addEventListener('keydown', function (e) {   // Tab / Shift+Tab = indent (inside the report box)
+      if (e.key !== 'Tab' || opts.plain || el.contentEditable !== 'true') return;
+      e.preventDefault(); rteIndent(el, e.shiftKey ? -1 : 1); el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     if (wrap.querySelector('.rtebar')) {
       wrap.querySelector('.rtebar').addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });   // keep the selection
       wrap.querySelector('.rtebar').addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || opts.plain) return;
         if (document.activeElement !== el) { el.focus(); rteCaretEnd(el); }
-        document.execCommand(b.getAttribute('data-cmd'), false, null);
+        var cmd = b.getAttribute('data-cmd');
+        if (cmd === 'rteIn' || cmd === 'rteOut') rteIndent(el, cmd === 'rteIn' ? 1 : -1);
+        else document.execCommand(cmd, false, null);
         el.dispatchEvent(new Event('input', { bubbles: true })); rteState();
       });
     }
     return el;
+  }
+  /** indents / outdents the lines in the selection by one level (half an inch in the report) */
+  function rteIndent(box, d) {
+    var sel = window.getSelection(); if (!sel.rangeCount) return;
+    var blockOf = function (n) { while (n && n !== box) { if (n.nodeType === 1 && /^(DIV|P|LI)$/.test(n.tagName)) return n; n = n.parentNode; } return null; };
+    if (!blockOf(sel.anchorNode)) { document.execCommand('formatBlock', false, 'div'); }   // a bare first line: make it a line of its own
+    var r = sel.getRangeAt(0), all = box.querySelectorAll('div,p,li'), hit = [];
+    Array.prototype.forEach.call(all, function (b) { if (!b.querySelector('div,p,li') && r.intersectsNode(b)) hit.push(b); });
+    if (!hit.length) { var one = blockOf(sel.anchorNode); if (one) hit.push(one); }
+    hit.forEach(function (b) {
+      var m = /\bi([1-4])\b/.exec(b.className || ''), lv = Math.max(0, Math.min(4, (m ? +m[1] : 0) + d));
+      b.className = (b.className || '').replace(/\bi[1-4]\b/g, '').trim(); if (lv) b.classList.add('i' + lv);
+      if (!b.className) b.removeAttribute('class');
+    });
   }
   function rteCaretEnd(el) { try { var r = document.createRange(); r.selectNodeContents(el); r.collapse(false); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
   /** lights up B / I / U / list buttons for the text at the cursor */
@@ -1548,17 +1576,17 @@
   function rteRender(v) {
     var h = '', open = '';
     rtBlocks(v).forEach(function (bk) {
-      var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p', inner = rtRunsHtml(bk.runs) || '<br>';
+      var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p', inner = rtRunsHtml(bk.runs) || '<br>', ca = bk.ind > 0 ? ' class="i' + Math.min(4, bk.ind) + '"' : '';
       if (open && open !== t) { h += '</' + open + '>'; open = ''; }
       if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
-      h += t === 'p' ? '<div>' + inner + '</div>' : '<li>' + inner + '</li>';
+      h += t === 'p' ? '<div' + ca + '>' + inner + '</div>' : '<li' + ca + '>' + inner + '</li>';
     });
     return open ? h + '</' + open + '>' : h;
   }
   /** what the browser made of the box → blocks */
   function rteRead(root) {
     var blocks = [], cur = null;
-    var nb = function (t) { cur = { t: t, runs: [] }; blocks.push(cur); return cur; };
+    var nb = function (t, el) { var k = el && /\bi([1-4])\b/.exec(el.className || ''); cur = { t: t, runs: [], ind: k ? +k[1] : 0 }; blocks.push(cur); return cur; };
     var walk = function (n, st, listT) {
       if (n.nodeType === 3) {
         var s = n.nodeValue.replace(/[​﻿]/g, '').replace(/ /g, ' ').replace(/\n/g, ' ');
@@ -1572,9 +1600,10 @@
       if (fw === 'normal' || fw === '400') s2.b = false;
       if (tg === 'BR') { if (!cur) nb(listT || 'p'); cur = null; return; }
       if (tg === 'UL' || tg === 'OL') { cur = null; Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, tg.toLowerCase()); }); cur = null; return; }
-      if (tg === 'LI') { nb(listT || 'ul'); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT || 'ul'); }); cur = null; return; }
+      if (tg === 'LI') { nb(listT || 'ul', n); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT || 'ul'); }); cur = null; return; }
       if (/^(DIV|P|H[1-6]|BLOCKQUOTE|PRE)$/.test(tg)) {
-        var mine = cur && !cur.runs.length ? null : nb(listT || 'p');
+        var mine = null;
+        if (cur && !cur.runs.length) { var kk = /\bi([1-4])\b/.exec(n.className || ''); if (kk) cur.ind = +kk[1]; } else mine = nb(listT || 'p', n);
         Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT); });
         if (mine && !mine.runs.length && blocks[blocks.length - 1] !== mine) blocks.splice(blocks.indexOf(mine), 1);   // a wrapper around a list, not an empty line
         cur = null; return;
@@ -1604,9 +1633,9 @@
     $('ctExams').innerHTML = (c.exams || []).map(function (x) { return '<option value="' + esc(x) + '">'; }).join('');
     $('ctRootLink').href = c.folderUrl; $('ctDob').max = ymdLocal(new Date());
     var duty = c.onDuty;
-    $('ctAssign').innerHTML = '<option value="">' + (duty ? 'On duty for CT: ' + esc(duty.name) : 'Nobody on duty for CT – choose') + '</option>' +
-      (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '<option value="none">— Nobody (no email)</option>';
-    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
+    $('ctAssign').innerHTML = (duty ? '<option value="">On duty for CT: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for CT: choose —</option>') +
+      (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
+    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign', 'ctCivil', 'ctLoc', 'ctAddr', 'ctInd'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
     var dz = $('ctDrop');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
@@ -1615,16 +1644,19 @@
     ctdFormRestore();
   }
   function ctdSex(v) { Array.prototype.forEach.call(document.querySelectorAll('#ctSexBar button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); }); $('ctSexBar').setAttribute('data-v', v); ctdFormSave(); }
+  function ctdCon(v) { Array.prototype.forEach.call(document.querySelectorAll('#ctConBar button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); }); $('ctConBar').setAttribute('data-v', v); ctdFormSave(); }
   function ctdForm() {
     return { last: $('ctLast').value.trim(), first: $('ctFirst').value.trim(), middle: $('ctMid').value.trim(), dob: $('ctDob').value, age: $('ctAge').value.trim(),
       sex: $('ctSexBar').getAttribute('data-v'), hospNo: $('ctHosp').value.trim(), exam: $('ctExam').value.trim(), phys: $('ctPhys').value.trim(),
-      notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value };
+      notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value, civil: $('ctCivil').value, location: $('ctLoc').value.trim(), address: $('ctAddr').value.trim(),
+      indication: $('ctInd').value.trim(), contrast: $('ctConBar').getAttribute('data-v') || 'plain' };
   }
   function ctdFormSave() { try { localStorage.setItem('ctd_form', JSON.stringify(ctdForm())); } catch (e) {} }
   function ctdFormSet(f) {
     $('ctLast').value = f.last || ''; $('ctFirst').value = f.first || ''; $('ctMid').value = f.middle || ''; $('ctDob').value = f.dob || ''; $('ctAge').value = f.age || '';
     $('ctHosp').value = f.hospNo || ''; $('ctExam').value = f.exam || ''; $('ctPhys').value = f.phys || ''; $('ctNotes').value = f.notes || '';
-    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; ctdSex(f.sex || '');
+    $('ctCivil').value = f.civil || ''; $('ctLoc').value = f.location || ''; $('ctAddr').value = f.address || ''; $('ctInd').value = f.indication || '';
+    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; ctdSex(f.sex || ''); ctdCon(f.contrast || 'plain');
   }
   function ctdFormRestore() {
     var f = null, j = null; try { f = JSON.parse(localStorage.getItem('ctd_form') || 'null'); j = JSON.parse(localStorage.getItem('ctd_job') || 'null'); } catch (e) {}
@@ -1695,6 +1727,9 @@
       if ((t.sex === 'M' || t.sex === 'F') && !$('ctSexBar').getAttribute('data-v')) ctdSex(t.sex);
       fill('ctHosp', t.id); fill('ctPhys', String(t.phys || '').replace(/\^+/g, ' ').trim());
       fill('ctExam', t.study ? 'CT ' + t.study.replace(/^CT\s*/i, '') : t.part ? 'CT ' + t.part : '');
+      var sd = String(t.study || '');   // contrast from the study description
+      if (/contrast|enhanc|\+\s*c\b|\bc\+/i.test(sd) && !/plain|non[- ]?con|without/i.test(sd)) ctdCon('contrast');
+      else if (/plain.*contrast|pre.*post/i.test(sd)) ctdCon('both');
       ctdFormSave();
     });
   }
@@ -1769,12 +1804,14 @@
   }
   function ctdGo() {
     if (CTD.busy) return;
-    if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; return ctdPump(); }   // resume
+    if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; setMsg('ctMsg', 'Uploading…', true); return ctdPump(); }   // resume
     var f = ctdForm(), files = ctdSelected();
     if (!files.length) return setMsg('ctMsg', 'Choose the CT folder or files first.');
     if (!f.last || !f.first) return setMsg('ctMsg', 'Enter the patient’s last and first name.');
     if (!f.sex) return setMsg('ctMsg', 'Choose the sex.');
     if (!f.exam) return setMsg('ctMsg', 'Enter the CT examination.');
+    if (!f.indication) return setMsg('ctMsg', 'Enter the indication (clinical history) – it goes on the report.');
+    if (!f.assignTo && !(XR_META.ct && XR_META.ct.onDuty)) return setMsg('ctMsg', 'Nobody is on duty for CT – choose the radiologist.');
     var dirs = files.map(function (x) { var p = x.path.split('/'); p.pop(); return p.join('/'); }).filter(function (d, i, a) { return d && a.indexOf(d) === i; });
     var bytes = files.reduce(function (a, x) { return a + x.size; }, 0);
     var req = Object.assign({}, f, { files: files.length, bytes: bytes, dirs: dirs, uploadId: CTD.job && CTD.job.uploadId });
@@ -1854,7 +1891,8 @@
       CTD.busy = false; ctdWakeOff(); ctdButtons();
       if (!r.ok) return setMsg('ctMsg', r.msg);
       if (!r.complete) { setMsg('ctMsg', 'Only ' + r.files + ' of ' + r.expected + ' files are in Drive. Choose the same folder again and press Upload to send the rest.'); return ctdLoadList(); }
-      $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' + (r.assignedName ? ' · ' + esc(r.assignedName) + ' was emailed.' : '');
+      $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' +
+        (r.reportId ? '<br>📝 The report draft is in ' + esc(r.assignedName) + '’s list, and they were emailed.' : r.reportErr ? '<br><span class="err">The report draft could not be made: ' + esc(r.reportErr) + '</span> – use “📝 Generate report” in the list below.' : '');
       $('ctMsg').className = 'msg ok';
       xrToast('✓ CT uploaded');
       CTD.run = null; CTD.job = null; CTD.all = []; CTD.files = []; CTD.tags = null;
@@ -1884,9 +1922,39 @@
     var st = x.status === 'Complete' ? '<span class="pill Approved">Complete</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
     return '<div class="xrrow"><div class="xrl"><b>' + esc(x.name) + '</b> · ' + esc(x.exam) + (x.sex || x.age ? ' · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) : '') +
       '<div class="d">' + esc(xrTime(x.created)) + ' · ' + x.files + (x.expected && x.files < x.expected ? ' of ' + x.expected : '') + ' files' + (x.bytes ? ' · ' + esc(ctdMB(x.bytes)) : '') +
-      ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') + '</div></div>' + st +
-      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Open</a>' +
+      ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') +
+      '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
+      '</div></div>' + st +
+      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Images</a>' +
+      (x.reportId && typeof rptOpenDoc === 'function' && (XR_ROLE.rad || XR_ROLE.admin) && curView === 'rpt' ? '<button class="link" style="white-space:nowrap" onclick="rptOpenDoc(\'' + esc(x.reportId) + '\')">📝 Report</button>' : '') +
+      ((x.status === 'Complete' || x.status === 'Incomplete') && !x.reportId ? '<button class="btn ctgen" onclick="ctdMake(\'' + esc(x.id) + '\', this, ' + (x.hasInd ? 1 : 0) + ', \'' + esc(x.contrast || '') + '\')">📝 Generate report</button>' : '') +
+      ((x.mine || XR_ROLE.admin) && !x.reportFinal && x.status !== 'Removed' ? '<select class="ctre" onchange="ctdRe(\'' + esc(x.id) + '\', this)" title="Change the radiologist"><option value="">Change radiologist…</option>' +
+        (XR_META.rads || []).filter(function (r) { return r.email !== x.assignedTo; }).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '</select>' : '') +
       (x.mine && x.status !== 'Complete' ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Remove</button>' : '') + '</div>';
+  }
+  function ctdMake(id, b, hasInd, contrast) {
+    var extra = {};
+    if (!hasInd) {   // uploads made before the form asked for these
+      var ind = window.prompt('Indication / clinical history for the report (e.g. Abdominal pain):', '');
+      if (ind === null) return;
+      extra.indication = ind.trim();
+    }
+    if (!contrast) {
+      var c = window.prompt('Contrast? Type 1 = Plain, 2 = With contrast, 3 = Plain + contrast', '1');
+      if (c === null) return;
+      extra.contrast = { '1': 'plain', '2': 'contrast', '3': 'both' }[String(c).trim()] || 'plain';
+    }
+    b.disabled = true; b.textContent = 'Generating…';
+    run('ctdMakeReport', token, id, extra).then(function (r) {
+      if (r.expired) return expired();
+      xrToast(r.msg);
+      if (!r.ok) { b.disabled = false; b.textContent = '📝 Generate report'; return; }
+      if (curView === 'rpt') rptLoad(); else ctdLoadList();
+    }).catch(function (e) { b.disabled = false; b.textContent = '📝 Generate report'; xrToast('Could not: ' + ((e && e.message) || e)); });
+  }
+  function ctdRe(id, sel) {
+    var to = sel.value; if (!to) return; sel.disabled = true;
+    run('ctdReassign', token, id, to).then(function (r) { xrToast(r.msg); if (curView === 'rpt') rptLoad(); else ctdLoadList(); }).catch(function (e) { sel.disabled = false; xrToast('Could not: ' + ((e && e.message) || e)); });
   }
   function ctdDel(id) {
     if (!window.confirm('Remove this CT upload? Its folder goes to the Drive trash.')) return;
@@ -1959,6 +2027,7 @@
     $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button>' +
       '<div class="xrpt"><b>' + esc(r.name) + '</b>' + (left !== null && !r.final ? ' <span>' + (left ? left + ' more after this' : 'last one') + '</span>' : '') + '</div>' +
       (r.final ? '<span class="pill xrFinal">Finalized · ' + esc(r.modality) + '</span>' : '<select id="rptDest" title="Finalized folder"><option value="Ultrasound">Ultrasound</option><option value="CT">CT scan</option></select>') +
+      (r.imagesUrl ? '<a class="xrskip" target="_blank" rel="noopener" href="' + esc(r.imagesUrl) + '">📂 CT images</a>' : '') +
       '<button class="xrskip" onclick="rptEditDoc()">✏️ Open in Google Docs</button>';
     if ($('rptDest')) $('rptDest').value = r.modality;
     var h = '';
