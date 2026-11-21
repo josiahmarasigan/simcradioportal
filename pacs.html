@@ -411,6 +411,9 @@
   .rtebox:empty:before { content:attr(data-ph); color:var(--muted); white-space:pre-line; pointer-events:none; }
   .rtebox ul, .rtebox ol { margin:2px 0; padding-left:26px; } .rtebox li { margin:1px 0; }
   .rte.ro { background:var(--card); } .rte.ro .rtebox { min-height:0 !important; }
+  .upseg { margin:0 0 14px; max-width:420px; }
+  .ctbar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:12px; } .ctbar i { display:block; height:100%; width:0; background:var(--brand); transition:width .3s; }
+  #ctList .xrrow { gap:10px; } #ctSum { margin-top:8px; }
   #gate { max-width:460px; margin:60px auto; text-align:center; }
   .pcard input, .pcard select, .pcard textarea { box-sizing:border-box; max-width:100%; } .xrg3 > div { min-width:0; }
   @media (max-width:600px) { .pwrap { padding:10px; } .pcard { padding:12px; } }
@@ -437,6 +440,8 @@
 <div class="pwrap">
   <div id="gate" class="pcard"><p class="sub" id="gateMsg">Loading…</p><a class="btn" id="gateBtn" href="index.html" style="display:none;text-decoration:none">Go to the portal</a></div>
       <div id="vXrUp" class="hidden pcard">
+        <div class="seg upseg hidden" id="upMode"><button type="button" data-v="xr" class="on" onclick="upMode('xr')">🩻 X-ray photos</button><button type="button" data-v="ct" onclick="upMode('ct')">🧠 CT DICOM</button></div>
+        <div id="upXr">
         <div class="xrform">
           <div class="xrg3">
             <div><label>Last name *</label><input type="text" id="xrLast" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
@@ -472,6 +477,44 @@
           <select id="xrDays" onchange="xrLoadTech()" style="width:auto"><option value="1">Today</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option></select>
           <button class="link" onclick="xrLoadTech()">↻ Refresh</button></div>
         <div id="xrToday"></div>
+        </div>
+        <div id="upCt" class="hidden">
+          <div class="xrform">
+            <div class="xrcam">
+              <label class="btn xrcambtn">📁 Choose CT folder<input type="file" id="ctDir" webkitdirectory directory multiple class="hidden" onchange="ctdPick(this.files); this.value=''"></label>
+              <label class="btn alt xrcambtn">📄 Choose files / .zip<input type="file" id="ctFiles" multiple class="hidden" onchange="ctdPick(this.files); this.value=''"></label>
+            </div>
+            <div class="xrdrop" id="ctDrop"><span id="ctDropTxt">Choose the CT study folder (e.g. from the CD, USB or the CT console export), or drop the folder here. A .zip works too.</span></div>
+            <label class="crit" style="margin-top:6px"><input type="checkbox" id="ctOnlyDcm" checked onchange="ctdSummary()"><span>Send DICOM files only (skips viewer programs and other files on a CD)</span></label>
+            <div id="ctSum" class="ctbox hidden"></div>
+            <div id="ctPendBox" class="ctwarn hidden"></div>
+            <div class="xrg3">
+              <div><label>Last name *</label><input type="text" id="ctLast" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
+              <div><label>First name *</label><input type="text" id="ctFirst" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
+              <div><label>Middle name / initial</label><input type="text" id="ctMid" maxlength="40" autocomplete="off" autocapitalize="characters"></div>
+              <div><label>Date of birth</label><input type="date" id="ctDob"></div>
+              <div><label>Age <span class="hint" style="display:inline">(if no DOB)</span></label><input type="text" id="ctAge" maxlength="20" inputmode="numeric" placeholder="e.g. 45"></div>
+              <div><label>Sex *</label><div class="seg" id="ctSexBar" data-v=""><button type="button" data-v="M" onclick="ctdSex('M')">M</button><button type="button" data-v="F" onclick="ctdSex('F')">F</button></div></div>
+              <div><label>ID no. (hospital no.)</label><input type="text" id="ctHosp" maxlength="40" autocomplete="off"></div>
+              <div class="xrw2"><label>CT examination *</label><input type="text" id="ctExam" list="ctExams" maxlength="100" placeholder="e.g. CT Brain / Cranial"><datalist id="ctExams"></datalist></div>
+              <div><label>Requesting physician</label><input type="text" id="ctPhys" maxlength="100" placeholder="e.g. Dr. Aguirre"></div>
+              <div class="xrw2"><label>Note for the radiologist</label><input type="text" id="ctNotes" maxlength="500" placeholder="e.g. with contrast, plain + post-contrast series"></div>
+              <div><label>Tell radiologist</label><select id="ctAssign"></select></div>
+            </div>
+            <div id="ctProg" class="hidden"><div class="ctbar"><i id="ctBarFill"></i></div><div class="sub" id="ctProgTxt" style="margin:6px 0 0"></div></div>
+            <div class="xrbtns">
+              <button class="btn" id="ctBtn" onclick="ctdGo()">Upload CT to Drive</button>
+              <button class="btn alt hidden" id="ctPause" onclick="ctdPause()">Pause</button>
+            </div>
+            <button class="link" type="button" style="margin-top:6px" onclick="ctdClear()">Clear form</button>
+            <div id="ctMsg" class="msg"></div>
+            <p class="hint" style="margin-top:4px">Each CT gets its own folder in the CT DICOM folder in Drive, with the sub-folders kept. Keep this page open until it says done. If the upload stops (Wi-Fi, refresh), choose the same folder again: only the missing files are sent.</p>
+          </div>
+          <div class="meta" style="margin-top:14px"><b style="color:var(--ink)">CT uploads</b>
+            <select id="ctDays" onchange="ctdLoadList()" style="width:auto"><option value="1">Today</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option></select>
+            <button class="link" onclick="ctdLoadList()">↻ Refresh</button> <a class="link" id="ctRootLink" target="_blank" rel="noopener">📂 CT DICOM folder</a></div>
+          <div id="ctList"></div>
+        </div>
       </div>
       <div id="vXrRead" class="hidden pcard">
         <div class="xrnext"><button class="btn" id="xrStart" onclick="xrNext()">▶ Start reading</button>
@@ -494,7 +537,7 @@
       </div>
       <div id="vRpt" class="hidden pcard">
         <div class="xrnext">
-          <select id="rptScope" onchange="rptLoad()" style="width:auto;margin:0"><option value="pending">To finalize (generated)</option><option value="final">Finalized (recent)</option></select>
+          <select id="rptScope" onchange="rptLoad()" style="width:auto;margin:0"><option value="pending">To finalize (generated)</option><option value="final">Finalized (recent)</option><option value="ctimg">CT images (uploads)</option></select>
           <select id="rptMod" onchange="rptLoad()" style="width:auto;margin:0"><option value="">Ultrasound + CT</option><option value="Ultrasound">Ultrasound</option><option value="CT">CT</option></select>
           <select id="rptWho" class="hidden" onchange="rptLoad()" style="width:auto;margin:0"></select>
           <button class="link" onclick="rptLoad()">↻ Refresh</button>
@@ -840,7 +883,7 @@
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
     dz.addEventListener('drop', function (e) { xrAddFiles(e.dataTransfer.files); });
     document.addEventListener('paste', function (e) {   // paste a screenshot / copied image straight into the upload
-      if (curView !== 'xrup' || !e.clipboardData) return;
+      if (curView !== 'xrup' || !e.clipboardData || ctdOn()) return;
       var f = Array.prototype.filter.call(e.clipboardData.files || [], function (x) { return /^image\/(png|jpeg)$/.test(x.type); });
       if (f.length) { e.preventDefault(); xrAddFiles(f.map(function (x, i) { return new File([x], 'pasted-' + Date.now() + '-' + i + (x.type === 'image/png' ? '.png' : '.jpg'), { type: x.type }); })); }
     });
@@ -1545,6 +1588,312 @@
   function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
   /* ================= /FORMATTING BAR ================= */
 
+  /* ================= CT DICOM UPLOAD ================= */
+  var CTD = { files: [], skipped: 0, tags: null, job: null, paused: false, busy: false, wake: null };
+  function upMode(v) {
+    var ct = v === 'ct' && XR_META && XR_META.ct;
+    $('upXr').classList.toggle('hidden', !!ct); $('upCt').classList.toggle('hidden', !ct);
+    Array.prototype.forEach.call(document.querySelectorAll('#upMode button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === (ct ? 'ct' : 'xr')); });
+    lsSet('up_mode', ct ? 'ct' : 'xr');
+    if (ct) { ctdInit(); ctdLoadList(); } else { xrUpInit(); xrLoadTech(); }
+  }
+  function ctdOn() { return !$('upCt').classList.contains('hidden') && curView === 'xrup'; }
+  function ctdInit() {
+    if (CTD.inited) return; CTD.inited = true;
+    var c = XR_META.ct;
+    $('ctExams').innerHTML = (c.exams || []).map(function (x) { return '<option value="' + esc(x) + '">'; }).join('');
+    $('ctRootLink').href = c.folderUrl; $('ctDob').max = ymdLocal(new Date());
+    var duty = c.onDuty;
+    $('ctAssign').innerHTML = '<option value="">' + (duty ? 'On duty for CT: ' + esc(duty.name) : 'Nobody on duty for CT – choose') + '</option>' +
+      (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '<option value="none">— Nobody (no email)</option>';
+    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
+    var dz = $('ctDrop');
+    ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
+    dz.addEventListener('drop', function (e) { ctdDrop(e.dataTransfer); });
+    window.addEventListener('beforeunload', function (e) { if (CTD.busy) { e.preventDefault(); e.returnValue = 'The CT upload is still running.'; return e.returnValue; } });
+    ctdFormRestore();
+  }
+  function ctdSex(v) { Array.prototype.forEach.call(document.querySelectorAll('#ctSexBar button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); }); $('ctSexBar').setAttribute('data-v', v); ctdFormSave(); }
+  function ctdForm() {
+    return { last: $('ctLast').value.trim(), first: $('ctFirst').value.trim(), middle: $('ctMid').value.trim(), dob: $('ctDob').value, age: $('ctAge').value.trim(),
+      sex: $('ctSexBar').getAttribute('data-v'), hospNo: $('ctHosp').value.trim(), exam: $('ctExam').value.trim(), phys: $('ctPhys').value.trim(),
+      notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value };
+  }
+  function ctdFormSave() { try { localStorage.setItem('ctd_form', JSON.stringify(ctdForm())); } catch (e) {} }
+  function ctdFormSet(f) {
+    $('ctLast').value = f.last || ''; $('ctFirst').value = f.first || ''; $('ctMid').value = f.middle || ''; $('ctDob').value = f.dob || ''; $('ctAge').value = f.age || '';
+    $('ctHosp').value = f.hospNo || ''; $('ctExam').value = f.exam || ''; $('ctPhys').value = f.phys || ''; $('ctNotes').value = f.notes || '';
+    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; ctdSex(f.sex || '');
+  }
+  function ctdFormRestore() {
+    var f = null, j = null; try { f = JSON.parse(localStorage.getItem('ctd_form') || 'null'); j = JSON.parse(localStorage.getItem('ctd_job') || 'null'); } catch (e) {}
+    if (f) ctdFormSet(f);
+    if (j && j.uploadId) {
+      CTD.job = j;
+      $('ctPendBox').innerHTML = '⏸ Unfinished CT upload: <b>' + esc(j.label || '') + '</b> (' + (j.sent || 0) + ' of ' + j.total + ' files sent). Choose the same folder again and press Upload – only the missing files are sent. <button class="link" type="button" onclick="ctdForget()">Forget it</button>';
+      $('ctPendBox').classList.remove('hidden');
+    }
+  }
+  function ctdForget() { CTD.job = null; try { localStorage.removeItem('ctd_job'); } catch (e) {} $('ctPendBox').classList.add('hidden'); }
+  function ctdClear() {
+    if (CTD.busy) return;
+    ctdFormSet({ assignTo: '' }); CTD.files = []; CTD.tags = null; CTD.skipped = 0; ctdForget(); ctdSummary();
+    try { localStorage.removeItem('ctd_form'); } catch (e) {} setMsg('ctMsg', '');
+  }
+
+  /* ---- choosing files ---- */
+  function ctdSafe(s) { return String(s || '').replace(/[\u0000-\u001f\\]/g, '').replace(/\.\.+/g, '.').trim().slice(0, 200) || 'file'; }
+  function ctdPath(p) { var a = String(p || '').replace(/\\/g, '/').split('/').filter(function (x) { return x && x !== '.' && x !== '..'; }).map(ctdSafe); return a.join('/') || 'file'; }
+  function ctdPick(list) { ctdTake(Array.prototype.map.call(list || [], function (f) { return { file: f, path: f.webkitRelativePath || f.name }; })); }
+  function ctdDrop(dt) {   // dropped folders are walked with the file-system entries API
+    var items = dt.items ? Array.prototype.slice.call(dt.items) : [], entries = items.map(function (i) { return i.webkitGetAsEntry && i.webkitGetAsEntry(); }).filter(Boolean);
+    if (!entries.length) return ctdPick(dt.files);
+    var out = [], pending = 0, done = function () { if (--pending === 0) ctdTake(out); };
+    var walk = function (en) {
+      pending++;
+      if (en.isFile) en.file(function (f) { out.push({ file: f, path: en.fullPath.replace(/^\//, '') }); done(); }, done);
+      else { var rd = en.createReader(), all = [];
+        var more = function () { rd.readEntries(function (es) { if (es.length) { all = all.concat(Array.prototype.slice.call(es)); more(); } else { all.forEach(walk); done(); } }, done); };
+        more(); }
+    };
+    $('ctDropTxt').textContent = 'Reading the folder…';
+    entries.forEach(walk);
+  }
+  function ctdTake(list) {
+    if (CTD.busy) return setMsg('ctMsg', 'Wait for the current upload to finish (or pause it).');
+    if (!list.length) return;
+    if (CTD.run) { CTD.run = null; CTD.paused = false; $('ctProg').classList.add('hidden'); ctdButtons(); }   // a new selection replaces a stopped upload (it can still be resumed by choosing the same folder)
+    // drop the common top folder (the study gets its own folder in Drive)
+    var segs = list.map(function (x) { return ctdPath(x.path).split('/'); }), top = segs[0].length > 1 ? segs[0][0] : null;
+    if (top && segs.every(function (s) { return s.length > 1 && s[0] === top; })) segs = segs.map(function (s) { return s.slice(1); });
+    CTD.top = top || '';
+    var files = list.map(function (x, i) { return { file: x.file, path: segs[i].join('/'), size: x.file.size, dicom: null }; });
+    $('ctDropTxt').textContent = 'Checking ' + files.length + ' files…';
+    var k = 0, checkNext = function () {   // DICOM files have "DICM" at byte 128
+      var batch = files.slice(k, k + 64); k += 64;
+      if (!batch.length) return ctdChecked(files);
+      Promise.all(batch.map(function (f) {
+        if (/\.zip$/i.test(f.path)) { f.dicom = false; f.zip = true; return null; }
+        return f.file.slice(128, 132).arrayBuffer().then(function (b) { var u = new Uint8Array(b); f.dicom = u.length === 4 && u[0] === 68 && u[1] === 73 && u[2] === 67 && u[3] === 77; }, function () { f.dicom = false; });
+      })).then(checkNext);
+    };
+    checkNext();
+  }
+  function ctdChecked(files) {
+    CTD.all = files; $('ctDropTxt').textContent = 'Choose another folder to change the selection.';
+    var first = files.filter(function (f) { return f.dicom; })[0];
+    if (!first) { CTD.tags = null; ctdSummary(); return; }
+    first.file.slice(0, Math.min(first.size, 1048576)).arrayBuffer().then(function (b) {
+      CTD.tags = dcmTags(b); ctdSummary();
+      var t = CTD.tags; if (!t) return;
+      // fill empty fields from the images (the technologist checks them)
+      var nm = String(t.name || '').split('^'), fill = function (id, v) { if (v && !$(id).value.trim()) $(id).value = v; };
+      fill('ctLast', (nm[0] || '').toUpperCase()); fill('ctFirst', (nm[1] || '').toUpperCase()); fill('ctMid', (nm[2] || '').toUpperCase());
+      if (/^\d{8}$/.test(t.dob || '') && !$('ctDob').value) $('ctDob').value = t.dob.slice(0, 4) + '-' + t.dob.slice(4, 6) + '-' + t.dob.slice(6, 8);
+      if (t.age && !$('ctAge').value && !$('ctDob').value) { var a = /^(\d{3})([YMWD])$/.exec(t.age); if (a) $('ctAge').value = +a[1] + (a[2] === 'Y' ? '' : ' ' + { M: 'mo', W: 'wk', D: 'd' }[a[2]]); }
+      if ((t.sex === 'M' || t.sex === 'F') && !$('ctSexBar').getAttribute('data-v')) ctdSex(t.sex);
+      fill('ctHosp', t.id); fill('ctPhys', String(t.phys || '').replace(/\^+/g, ' ').trim());
+      fill('ctExam', t.study ? 'CT ' + t.study.replace(/^CT\s*/i, '') : t.part ? 'CT ' + t.part : '');
+      ctdFormSave();
+    });
+  }
+  function ctdSelected() { var only = $('ctOnlyDcm').checked; return (CTD.all || []).filter(function (f) { return !only || f.dicom || f.zip; }); }
+  function ctdMB(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
+  function ctdSummary() {
+    var box = $('ctSum'), sel = ctdSelected(), all = CTD.all || [];
+    CTD.files = sel;
+    if (!all.length) { box.classList.add('hidden'); return; }
+    var bytes = sel.reduce(function (a, f) { return a + f.size; }, 0), dcm = all.filter(function (f) { return f.dicom; }).length, other = all.length - dcm - all.filter(function (f) { return f.zip; }).length;
+    var t = CTD.tags, h = '<b>' + sel.length + ' file' + (sel.length === 1 ? '' : 's') + ' · ' + ctdMB(bytes) + '</b>' + (CTD.top ? ' from “' + esc(CTD.top) + '”' : '');
+    h += '<div class="sub" style="margin:4px 0 0">' + dcm + ' DICOM' + (other ? ' · ' + other + ' other file' + (other === 1 ? '' : 's') + ($('ctOnlyDcm').checked ? ' (skipped)' : ' (included)') : '') + '</div>';
+    if (t) h += '<div class="sub" style="margin:4px 0 0">From the images: <b>' + esc(String(t.name || '—').replace(/\^+/g, ' ').trim()) + '</b>' + (t.id ? ' · ID ' + esc(t.id) : '') + (t.sex ? ' · ' + esc(t.sex) : '') +
+      (t.study ? ' · ' + esc(t.study) : '') + (t.date ? ' · ' + esc(t.date.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')) : '') + (t.modality && t.modality !== 'CT' ? ' · <span class="err">modality ' + esc(t.modality) + '</span>' : '') +
+      '. Empty fields below were filled from this – check them.</div>';
+    else if (!dcm && sel.length) h += '<div class="sub" style="margin:4px 0 0">No DICOM files found' + (sel.some(function (f) { return f.zip; }) ? ' – the .zip will be uploaded as it is' : ' – untick “DICOM files only” to send these files anyway') + '.</div>';
+    box.innerHTML = h; box.classList.remove('hidden');
+  }
+
+  /* ---- reading patient details from a DICOM file (patient + study tags only) ---- */
+  function dcmTags(buf) {
+    try {
+      var dv = new DataView(buf), u8 = new Uint8Array(buf), n = buf.byteLength, pos = 132, out = {}, UNDEF = 0xFFFFFFFF;
+      if (n < 140) return null;
+      var want = { '00100010': 'name', '00100020': 'id', '00100030': 'dob', '00100040': 'sex', '00101010': 'age', '00081030': 'study', '00080020': 'date', '00080090': 'phys', '00080060': 'modality', '00180015': 'part', '00020010': 'ts' };
+      var h4 = function (x) { return ('000' + x.toString(16).toUpperCase()).slice(-4); };
+      var str = function (o, l) { var s = ''; for (var i = 0; i < l && o + i < n; i++) s += String.fromCharCode(u8[o + i]); try { s = decodeURIComponent(escape(s)); } catch (e) {} return s.replace(/\0/g, '').trim(); };
+      var el = function (expl) {
+        if (pos + 8 > n) return null;
+        var g = dv.getUint16(pos, true), e = dv.getUint16(pos + 2, true), tag = h4(g) + h4(e); pos += 4;
+        if (g === 0xFFFE) { var L0 = dv.getUint32(pos, true); pos += 4; return { tag: tag, g: g, e: e, len: L0 }; }
+        var vr = '', len;
+        if (expl && g !== 0xFFFE) { vr = String.fromCharCode(u8[pos], u8[pos + 1]); pos += 2;
+          if (/^(OB|OD|OF|OL|OV|OW|SQ|SV|UC|UR|UT|UN|UV)$/.test(vr)) { pos += 2; len = dv.getUint32(pos, true); pos += 4; } else { len = dv.getUint16(pos, true); pos += 2; } }
+        else { len = dv.getUint32(pos, true); pos += 4; }
+        return { tag: tag, g: g, e: e, vr: vr, len: len };
+      };
+      var skipUndef = function (expl, depth) {   // a sequence / item of unknown length: read until its end marker
+        if (depth > 8) throw new Error('deep');
+        while (pos < n) {
+          var x = el(expl); if (!x) return;
+          if (x.tag === 'FFFEE0DD' || x.tag === 'FFFEE00D') return;
+          if (x.len === UNDEF) skipUndef(expl, depth + 1); else pos += x.len;
+        }
+      };
+      var x;
+      while (pos + 8 <= n && dv.getUint16(pos, true) === 0x0002) { x = el(true); if (want[x.tag]) out[want[x.tag]] = str(pos, x.len); pos += x.len; }   // file meta (always explicit little-endian)
+      var ts = (out.ts || '').replace(/\0/g, ''), expl = ts !== '1.2.840.10008.1.2';
+      if (ts === '1.2.840.10008.1.2.2' || ts === '1.2.840.10008.1.2.1.99') return out;   // big-endian / deflated: not read
+      while ((x = el(expl))) {
+        if (x.g > 0x0018 && x.g !== 0xFFFE) break;
+        if (x.len === UNDEF) { skipUndef(expl, 0); continue; }
+        if (want[x.tag] && x.len < 512) out[want[x.tag]] = str(pos, x.len);
+        pos += x.len;
+      }
+      delete out.ts; return out;
+    } catch (e) { return null; }
+  }
+
+  /* ---- uploading ---- */
+  function ctdB64(blob) {
+    return new Promise(function (ok, no) { var r = new FileReader(); r.onload = function () { var s = String(r.result); ok(s.slice(s.indexOf(',') + 1)); }; r.onerror = function () { no(r.error || new Error('could not read a file')); }; r.readAsDataURL(blob); });
+  }
+  function ctdProg() {
+    var j = CTD.run; if (!j) return;
+    var pct = j.bytes ? Math.min(100, Math.round(j.doneBytes / j.bytes * 100)) : 0;
+    $('ctBarFill').style.width = pct + '%';
+    var secs = (Date.now() - j.t0) / 1000, rate = j.doneBytes / Math.max(1, secs), left = rate > 0 ? (j.bytes - j.doneBytes) / rate : 0;
+    $('ctProgTxt').textContent = (CTD.paused ? 'Paused · ' : '') + j.doneFiles + ' of ' + j.files + ' files · ' + ctdMB(j.doneBytes) + ' of ' + ctdMB(j.bytes) + ' · ' + pct + '%' +
+      (!CTD.paused && secs > 5 && left > 1 ? ' · about ' + (left > 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s') + ' left' : '');
+    try { var s = JSON.parse(localStorage.getItem('ctd_job') || 'null'); if (s) { s.sent = j.doneFiles; localStorage.setItem('ctd_job', JSON.stringify(s)); } } catch (e) {}
+  }
+  function ctdGo() {
+    if (CTD.busy) return;
+    if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; return ctdPump(); }   // resume
+    var f = ctdForm(), files = ctdSelected();
+    if (!files.length) return setMsg('ctMsg', 'Choose the CT folder or files first.');
+    if (!f.last || !f.first) return setMsg('ctMsg', 'Enter the patient’s last and first name.');
+    if (!f.sex) return setMsg('ctMsg', 'Choose the sex.');
+    if (!f.exam) return setMsg('ctMsg', 'Enter the CT examination.');
+    var dirs = files.map(function (x) { var p = x.path.split('/'); p.pop(); return p.join('/'); }).filter(function (d, i, a) { return d && a.indexOf(d) === i; });
+    var bytes = files.reduce(function (a, x) { return a + x.size; }, 0);
+    var req = Object.assign({}, f, { files: files.length, bytes: bytes, dirs: dirs, uploadId: CTD.job && CTD.job.uploadId });
+    CTD.busy = true; ctdButtons(); setMsg('ctMsg', 'Starting…', true);
+    run('ctdStart', token, req).then(function (r) {
+      if (r.expired) { CTD.busy = false; return expired(); }
+      if (!r.ok) { CTD.busy = false; ctdButtons(); return setMsg('ctMsg', r.msg); }
+      var job = { uploadId: r.uploadId, folderUrl: r.folderUrl, total: files.length, sent: 0, label: f.last.toUpperCase() + ', ' + f.first.toUpperCase() + ' · ' + f.exam };
+      CTD.job = job; try { localStorage.setItem('ctd_job', JSON.stringify(job)); } catch (e) {}
+      $('ctPendBox').classList.add('hidden');
+      var start = function (have) {
+        have = have || {};
+        var todo = files.filter(function (x) { return have[x.path] !== x.size; });
+        CTD.run = { id: r.uploadId, folderUrl: r.folderUrl, files: files.length, bytes: bytes, doneFiles: files.length - todo.length,
+          doneBytes: bytes - todo.reduce(function (a, x) { return a + x.size; }, 0), t0: Date.now(), tasks: ctdTasks(todo), active: 0, err: null };
+        $('ctProg').classList.remove('hidden'); setMsg('ctMsg', r.resumed ? 'Continuing – ' + (files.length - todo.length) + ' files were already in Drive.' : 'Uploading…', true);
+        try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { CTD.wake = w; }, function () {}); } catch (e) {}
+        ctdProg(); ctdPump();
+      };
+      if (r.resumed) run('ctdDone', token, r.uploadId).then(function (d) { start(d.ok ? d.files : {}); }, function () { start({}); }); else start({});
+    }).catch(function (e) { CTD.busy = false; ctdButtons(); setMsg('ctMsg', 'Could not start: ' + ((e && e.message) || e)); });
+  }
+  var CTD_BATCH = 3 * 1048576, CTD_BIG = 3 * 1048576, CTD_CHUNK = 4 * 1048576;   // chunk: a multiple of 256 KB (Drive rule)
+  function ctdTasks(todo) {   // small files grouped into batches of ~3 MB; big files sent in 4 MB pieces
+    var tasks = [], cur = null;
+    todo.forEach(function (x) {
+      if (x.size > CTD_BIG) { tasks.push({ big: x, offset: 0 }); return; }
+      if (!cur || cur.bytes + x.size > CTD_BATCH || cur.list.length >= 40) { cur = { list: [], bytes: 0 }; tasks.push(cur); }
+      cur.list.push(x); cur.bytes += x.size;
+    });
+    return tasks;
+  }
+  function ctdPump() {
+    var j = CTD.run; if (!j) return;
+    CTD.busy = true; ctdButtons();
+    while (!CTD.paused && !j.err && j.active < 3 && j.tasks.length) ctdDo(j, j.tasks.shift());
+    if (!j.active && (CTD.paused || j.err)) { CTD.busy = false; ctdButtons(); ctdProg();
+      if (j.err) setMsg('ctMsg', 'Upload stopped: ' + j.err + ' Press “Resume upload” to try again – files already sent are kept.');
+      else setMsg('ctMsg', 'Paused. Press “Resume upload” to continue.', true);
+      ctdWakeOff(); }
+    if (!j.active && !j.tasks.length && !j.err && !CTD.paused) ctdFinish(j);
+  }
+  function ctdDo(j, t) {
+    j.active++;
+    var fail = function (msg) { j.active--; t.tries = (t.tries || 0) + 1;
+      if (t.tries <= 3 && !j.err) { setTimeout(function () { j.tasks.unshift(t); ctdPump(); }, 1500 * t.tries); }
+      else { j.err = j.err || msg; j.tasks.unshift(t); t.tries = 0; ctdPump(); } };
+    var ok = function () { j.active--; ctdProg(); ctdPump(); };
+    if (t.big) {
+      var f = t.big, end = Math.min(f.size, t.offset + CTD_CHUNK);
+      ctdB64(f.file.slice(t.offset, end)).then(function (b64) {
+        return run('ctdChunk', token, j.id, f.path, t.offset, f.size, b64, f.file.type || (/\.zip$/i.test(f.path) ? 'application/zip' : 'application/octet-stream'), t.sess || '');
+      }).then(function (r) {
+        if (r.expired) { j.err = 'your session ended'; j.active--; return ctdPump(); }
+        if (!r.ok) {
+          if (r.restart) { j.doneBytes -= t.offset; t.offset = 0; t.sess = ''; t.restarts = (t.restarts || 0) + 1; if (t.restarts > 2) t.tries = 9; }   // give up after 2 fresh starts
+          return fail(r.msg);
+        }
+        if (r.done) { j.doneBytes += f.size - t.offset; j.doneFiles++; return ok(); }
+        if (r.sess) t.sess = r.sess;
+        var next = typeof r.next === 'number' ? r.next : end; j.doneBytes += next - t.offset; t.offset = next; t.tries = 0;
+        j.tasks.unshift(t); ok();
+      }).catch(function (e) { fail((e && e.message) || String(e)); });
+      return;
+    }
+    Promise.all(t.list.map(function (x) { return ctdB64(x.file).then(function (b) { return { path: x.path, type: 'application/dicom', b64: b }; }); }))
+      .then(function (arr) { return run('ctdPut', token, j.id, arr); })
+      .then(function (r) {
+        if (r.expired) { j.err = 'your session ended'; j.active--; return ctdPump(); }
+        if (!r.ok) return fail(r.msg);
+        j.doneFiles += t.list.length; j.doneBytes += t.bytes; ok();
+      }).catch(function (e) { fail((e && e.message) || String(e)); });
+  }
+  function ctdFinish(j) {
+    setMsg('ctMsg', 'Checking the files in Drive…', true);
+    run('ctdFinish', token, j.id).then(function (r) {
+      CTD.busy = false; ctdWakeOff(); ctdButtons();
+      if (!r.ok) return setMsg('ctMsg', r.msg);
+      if (!r.complete) { setMsg('ctMsg', 'Only ' + r.files + ' of ' + r.expected + ' files are in Drive. Choose the same folder again and press Upload to send the rest.'); return ctdLoadList(); }
+      $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' + (r.assignedName ? ' · ' + esc(r.assignedName) + ' was emailed.' : '');
+      $('ctMsg').className = 'msg ok';
+      xrToast('✓ CT uploaded');
+      CTD.run = null; CTD.job = null; CTD.all = []; CTD.files = []; CTD.tags = null;
+      try { localStorage.removeItem('ctd_job'); localStorage.removeItem('ctd_form'); } catch (e) {}
+      ctdFormSet({ assignTo: '' }); ctdSummary(); $('ctProg').classList.add('hidden');
+      ctdLoadList();
+    }).catch(function (e) { CTD.busy = false; ctdButtons(); setMsg('ctMsg', 'Uploaded, but the final check failed: ' + ((e && e.message) || e) + '. Press “Resume upload” to check again.'); CTD.run.tasks = []; CTD.paused = true; ctdButtons(); });
+  }
+  function ctdPause() { if (!CTD.run) return; CTD.paused = true; ctdButtons(); ctdProg(); setMsg('ctMsg', 'Pausing after the files in progress…', true); }
+  function ctdWakeOff() { try { if (CTD.wake) CTD.wake.release(); } catch (e) {} CTD.wake = null; }
+  function ctdButtons() {
+    var running = CTD.busy && !CTD.paused, b = $('ctBtn');
+    b.disabled = running; b.textContent = running ? 'Uploading…' : CTD.run && (CTD.paused || CTD.run.err) ? '▶ Resume upload' : 'Upload CT to Drive';
+    $('ctPause').classList.toggle('hidden', !running);
+    ['ctDir', 'ctFiles'].forEach(function (id) { $(id).disabled = CTD.busy; });
+  }
+  function ctdLoadList() {
+    var box = $('ctList'); box.innerHTML = '<p class="sub">Loading…</p>';
+    run('ctdList', token, $('ctDays').value).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { box.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      if (!r.items.length) { box.innerHTML = '<p class="sub">No CT uploads yet.</p>'; return; }
+      box.innerHTML = r.items.map(ctdRow).join('');
+    }).catch(function (e) { box.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function ctdRow(x) {
+    var st = x.status === 'Complete' ? '<span class="pill Approved">Complete</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
+    return '<div class="xrrow"><div class="xrl"><b>' + esc(x.name) + '</b> · ' + esc(x.exam) + (x.sex || x.age ? ' · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) : '') +
+      '<div class="d">' + esc(xrTime(x.created)) + ' · ' + x.files + (x.expected && x.files < x.expected ? ' of ' + x.expected : '') + ' files' + (x.bytes ? ' · ' + esc(ctdMB(x.bytes)) : '') +
+      ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') + '</div></div>' + st +
+      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Open</a>' +
+      (x.mine && x.status !== 'Complete' ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Remove</button>' : '') + '</div>';
+  }
+  function ctdDel(id) {
+    if (!window.confirm('Remove this CT upload? Its folder goes to the Drive trash.')) return;
+    run('ctdRemove', token, id).then(function (r) { xrToast(r.msg); if (r.ok && CTD.job && CTD.job.uploadId === id) ctdForget(); ctdLoadList(); });
+  }
+  /* ================= /CT DICOM UPLOAD ================= */
+
   /* ================= ULTRASOUND / CT REPORTS (generated Doc → edit → finalize) ================= */
   var RPT = { meta: null, list: [], cur: null, sure: 0, t: null };
   function rptAutoOn() { return lsGet('rpt_auto') !== '0'; }
@@ -1568,6 +1917,16 @@
   function rptLoad() {
     var list = $('rptList'), scope = $('rptScope').value, mod = $('rptMod').value, who = $('rptWho').classList.contains('hidden') ? '' : $('rptWho').value;
     list.innerHTML = '<p class="sub">Loading…</p>';
+    $('rptMod').classList.toggle('hidden', scope === 'ctimg');
+    if (scope === 'ctimg') {   // CT studies the technologists uploaded (DICOM folders in Drive)
+      run('ctdList', token, 7).then(function (r) {
+        if (r.expired) return expired();
+        if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+        var items = who ? r.items.filter(function (x) { return x.assignedTo === who; }) : r.items;
+        list.innerHTML = items.length ? items.map(ctdRow).join('') : '<p class="sub">No CT uploads in the last 7 days.</p>';
+      }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+      return;
+    }
     run('rptList', token, scope, who).then(function (r) {
       if (r.expired) return expired();
       if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
@@ -1730,7 +2089,10 @@
     $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt');
     $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt');
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
-    if (v === 'xrup') { xrUpInit(); xrLoadTech(); }
+    if (v === 'xrup') {
+      $('upMode').classList.toggle('hidden', !(XR_META && XR_META.ct));
+      upMode(lsGet('up_mode') === 'ct' ? 'ct' : 'xr');
+    }
     if (v === 'xrread') xrLoadWork();
     if (v === 'rpt') rptInit();
   }

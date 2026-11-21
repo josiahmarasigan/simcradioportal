@@ -945,8 +945,9 @@
     msg('');
   }
   function showAuth() { $('app').classList.add('hidden'); $('auth').classList.remove('hidden'); }
-  function showApp(name, admin) {
-    IS_ADMIN = !!admin;
+  var PACS_ACC = null;
+  function showApp(name, admin, pacs) {
+    IS_ADMIN = !!admin; PACS_ACC = pacs || null;
     $('auth').classList.add('hidden'); $('app').classList.remove('hidden');
     $('who').textContent = CONF.prefix ? CONF.prefix + ' ' + name.replace(/^dr\.?\s*/i, '') : name;
     try { panelsInit(); } catch (e) { console.error(e); }
@@ -1023,7 +1024,7 @@
       var known = BOOT_SESSION && BOOT_SESSION.tk === token ? Promise.resolve(BOOT_SESSION.r) : run('checkSession', token);
       BOOT_SESSION = null;
       return known.then(function (r) {
-        if (r.ok) showApp(r.name, r.admin); else { clearTok(); showAuth(); }
+        if (r.ok) showApp(r.name, r.admin, r.pacs); else { clearTok(); showAuth(); }
       }).catch(showAuth);
     };
     var startFail = function (e) {   // anything that goes wrong while starting: show it instead of a blank page
@@ -1041,7 +1042,7 @@
     run('login', $('lEmail').value, $('lPass').value, remember).then(function (r) {
       b.disabled = false;
       if (!r.ok) return msg(r.msg);
-      token = r.token; setTok(token, remember); $('lPass').value = ''; showApp(r.name, r.admin);
+      token = r.token; setTok(token, remember); $('lPass').value = ''; showApp(r.name, r.admin, r.pacs);
     }).catch(function () { b.disabled = false; msg('Something went wrong. Please try again.'); });
   }
 
@@ -1125,7 +1126,8 @@
   function schedInit() {
     var sOn = CONF.schedulerEnabled === true, pOn = CONF.peerReviewEnabled === true, rOn = !!(CONF.reprint && CONF.reprint.enabled), cOn = !!(CONF.capa && CONF.capa.enabled), dOn = !!(CONF.docs && CONF.docs.enabled), yOn = !!(CONF.duty && CONF.duty.enabled), xOn = !!(CONF.expedite && CONF.expedite.enabled), tOn = !!CONF.downtimeEnabled, ctOn = !!(CONF.ctReferral && CONF.ctReferral.enabled), xrOn = !!(CONF.pacs && CONF.pacs.enabled);
     $('schedCard').classList.toggle('hidden', !(sOn || pOn || rOn || cOn || dOn || yOn || xOn || ctOn || xrOn));
-    $('stPacs').classList.add('hidden'); $('xrBadge').classList.add('hidden');
+    // PACS button straight away (the login check says who gets it); its badge count comes with startupInfo
+    $('stPacs').classList.toggle('hidden', !(CONF.pacs && CONF.pacs.enabled && PACS_ACC && (PACS_ACC.tech || PACS_ACC.rad))); $('xrBadge').classList.add('hidden');
     $('stCtNew').classList.toggle('hidden', !ctOn); $('stCtPed').classList.toggle('hidden', !(ctOn && CONF.ctReferral.pediatric !== false));
     $('stCtMine').classList.toggle('hidden', !ctOn); $('stCtQ').classList.add('hidden'); $('ctBadge').classList.add('hidden');
     if (!$('ctqMonth').value) { var cm = new Date(); $('ctqMonth').value = cm.getFullYear() + '-' + pad(cm.getMonth() + 1); }
