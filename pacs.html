@@ -17,7 +17,6 @@
      If you ever make a NEW deployment (not a new version of the same one), paste its link here. */
   window.PORTAL_API = 'https://script.google.com/macros/s/AKfycbwOlURBIpDiezshWlQmtHTF8BQVdgg5qH1BOvVDD-4Uxi7jTsATqpZgfEu6opKSgfo03g/exec';
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root { --bg:#f4f7fa; --card:#fff; --ink:#16232e; --muted:#64748b; --line:#dbe3ea; --brand:#0f766e; --brand-d:#0b5a54; --err:#b91c1c; --ok:#15803d; }
   @media (prefers-color-scheme: dark) {
@@ -618,6 +617,7 @@
     $('vTitle').textContent = f.name;
     $('vBody').innerHTML = '<p class="sub">Loading…</p>';
     $('viewer').style.display = 'block';
+    ensureWorker().catch(function () {});   // fetch the PDF tool while the file downloads
     CUR_DL = { kind: opt && opt.fn === 'getGuideline' ? 'guideline' : 'result', ref: f.id };
     run((opt && opt.fn) || 'getResult', token, f.id).then(function (r) {
       if (r.expired) { closeViewer(); return expired(); }
@@ -636,18 +636,25 @@
   }
   var workerReady = null;
   function ensureWorker() {
-    if (!workerReady) {
-      var src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      workerReady = fetch(src).then(function (r) { return r.text(); }).then(function (t) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
-      }).catch(function () { pdfjsLib.GlobalWorkerOptions.workerSrc = src; });
+    if (!workerReady) {   // the PDF tool (~1.3 MB) is only downloaded the first time a PDF is opened or printed
+      var base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/', src = base + 'pdf.worker.min.js';
+      workerReady = new Promise(function (ok, no) {
+        if (window.pdfjsLib) return ok();
+        var sc = document.createElement('script'); sc.src = base + 'pdf.min.js'; sc.async = true;
+        sc.onload = function () { ok(); };
+        sc.onerror = function () { workerReady = null; if (sc.parentNode) sc.parentNode.removeChild(sc); no(new Error('the PDF tool did not load – check the connection')); };
+        document.head.appendChild(sc);
+      }).then(function () {
+        return fetch(src).then(function (r) { return r.text(); }).then(function (t) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
+        }).catch(function () { pdfjsLib.GlobalWorkerOptions.workerSrc = src; });
+      });
     }
     return workerReady;
   }
   function renderPdf(arr, body) {
     body.className = 'body pdf';
     body.innerHTML = '<p class="sub">Rendering…</p>';
-    if (typeof pdfjsLib === 'undefined') { body.innerHTML = '<p class="sub err">PDF viewer could not load. Use Download.</p>'; return; }
     ensureWorker().then(function () { return pdfjsLib.getDocument({ data: arr }).promise; }).then(function (pdf) {
       body.innerHTML = '';
       var ratio = window.devicePixelRatio || 1, width = Math.max(body.clientWidth - 24, 300);
@@ -684,7 +691,6 @@
       var pp = document.createElement('div'); pp.className = 'pp';
       var img = new Image(); img.onload = go; img.onerror = fail; img.src = curUrl; pp.appendChild(img); area.appendChild(pp); return;
     }
-    if (typeof pdfjsLib === 'undefined') return fail('the PDF tool did not load');
     ensureWorker().then(function () { return pdfjsLib.getDocument({ data: f.arr.slice(0) }).promise; }).then(function (pdf) {
       var chain = Promise.resolve();
       for (var p = 1; p <= pdf.numPages; p++) (function (n) {
