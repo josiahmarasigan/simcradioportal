@@ -424,6 +424,22 @@
   .upseg { margin:0 0 14px; max-width:420px; }
   .ctbar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:12px; } .ctbar i { display:block; height:100%; width:0; background:var(--brand); transition:width .3s; }
   #ctList .xrrow, #rptList .xrrow { gap:10px; } #ctSum { margin-top:8px; } button.ctgen { width:auto; margin:0; padding:7px 12px; font-size:13.5px; white-space:nowrap; } select.ctre { width:auto; max-width:170px; margin:0; padding:4px 6px; font-size:13px; }
+  .pv { position:fixed; inset:0; z-index:9200; display:flex; flex-direction:column; background:#0b1220; color:#e2e8f0; } .pv.hidden { display:none; }
+  .pvtop { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #1e293b; } .pvt { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .pvt span { color:#94a3b8; margin-left:6px; }
+  .pv .xrskip { color:#e2e8f0; border-color:#334155; }
+  .pvbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; } .pvbar:empty { display:none; }
+  .pvbar select { width:auto; max-width:100%; margin:0; background:#111827; color:#e2e8f0; border-color:#334155; } .pvbar input[type=range] { flex:1; min-width:140px; margin:0; }
+  .pvwl { display:flex; gap:4px; flex-wrap:wrap; } .pvwl button, .pvthumbs button { padding:5px 10px; border-radius:7px; border:1px solid #334155; background:#111827; color:#e2e8f0; font-size:13px; cursor:pointer; }
+  .pvwl button.on, .pvthumbs button.on { background:#0f766e; border-color:#0f766e; color:#fff; }
+  .pvstage { position:relative; flex:1; min-height:0; overflow:auto; display:flex; align-items:center; justify-content:center; background:#000; }
+  .pvstage img, .pvstage canvas { width:100%; height:100%; object-fit:contain; cursor:zoom-in; }
+  .pvstage.one { display:block; } .pvstage.one img, .pvstage.one canvas { width:auto; height:auto; max-width:none; max-height:none; cursor:zoom-out; }
+  .pvstage.one canvas { width:calc(var(--pvw, 512) * 2px); }
+  .pvmsg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; color:#cbd5e1; font-size:15px; pointer-events:none; } .pvmsg.hidden { display:none; }
+  .pvnav { position:absolute; top:50%; transform:translateY(-50%); width:44px; height:64px; border:0; border-radius:10px; background:rgba(15,23,42,.6); color:#fff; font-size:30px; cursor:pointer; } .pvl { left:8px; } .pvr { right:8px; }
+  .pvstage.one .pvnav { position:fixed; }
+  .pvfoot { padding:8px 14px 12px; border-top:1px solid #1e293b; font-size:13px; } .pvfoot .hint { color:#94a3b8; margin-top:4px; } .pvthumbs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px; }
+  .pvfoot .err { color:#fca5a5; }
   .dlbox { position:fixed; right:16px; bottom:16px; z-index:9500; width:340px; max-width:calc(100vw - 32px); background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 10px 30px rgba(0,0,0,.25); font-size:13.5px; line-height:1.45; }
   .dlbox .link { display:block; margin-top:6px; } .dlbox .ctbar { margin:8px 0 6px; }
   .xrdl { display:inline-flex; align-items:center; gap:4px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:600; color:var(--brand); background:transparent; white-space:nowrap; cursor:pointer; }
@@ -571,6 +587,16 @@
 <div id="rptv" class="hidden">
   <div class="xrtop" id="rptHead"></div>
   <div class="rptscroll"><div class="rptbody" id="rptBody"></div></div>
+</div>
+<!-- 👁 preview of an uploaded study -->
+<div id="pv" class="hidden pv">
+  <div class="pvtop"><div class="pvt"><b id="pvTitle"></b> <span id="pvInfo"></span></div><button type="button" class="xrskip" onclick="pvClose()">✕ Close</button></div>
+  <div class="pvbar" id="pvBar"></div>
+  <div class="pvstage" id="pvStage" onclick="if(event.target.id==='pvImg'||event.target.id==='pvCv')this.classList.toggle('one')">
+    <img id="pvImg" class="hidden" alt="Uploaded image"><canvas id="pvCv" class="hidden"></canvas><div id="pvMsg" class="pvmsg"></div>
+    <button type="button" class="pvnav pvl" onclick="event.stopPropagation();pvStep(-1)" aria-label="Previous">‹</button><button type="button" class="pvnav pvr" onclick="event.stopPropagation();pvStep(1)" aria-label="Next">›</button>
+  </div>
+  <div class="pvfoot" id="pvFoot"></div>
 </div>
 <!-- X-ray reading screen (full screen) -->
 <div id="xrv" class="hidden">
@@ -1083,6 +1109,11 @@
         var el = document.createElement('div'); el.className = 'xrrow';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' image' + (o.images === 1 ? '' : 's') +
           ' · ' + esc(o.acc) + ' · ' + esc(xrTime(o.created)) + ' · ' + esc(o.tech) + (o.status === 'Final' ? ' · read by ' + esc(o.finalName) : (o.status !== 'Cancelled' ? ' · → ' + esc(o.assignedName || 'any radiologist') : '')) + (o.cancelReason ? ' · ' + esc(o.cancelReason) : '') + '</div></div>' + xrPill(o.status);
+        if (o.images && o.imageIds && o.imageIds.length) {
+          var pb = document.createElement('button'); pb.className = 'xrdl'; pb.type = 'button'; pb.textContent = '👁 Preview'; pb.title = 'See the uploaded images';
+          pb.onclick = function () { pvXray(o); };
+          var pbar = document.createElement('div'); pbar.className = 'xrbar'; pbar.appendChild(pb); el.appendChild(pbar);
+        }
         if (o.status === 'Final') {
           var vb = document.createElement('button'); vb.className = 'link'; vb.textContent = '📄 View report';
           vb.onclick = function () { openFile({ id: o.acc, name: o.reportName || o.acc }, { fn: 'xrReportFile' }); };
@@ -1732,6 +1763,169 @@
   function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
   /* ================= /FORMATTING BAR ================= */
 
+  /* ================= 👁 PREVIEW OF UPLOADED STUDIES (what is really in Drive) ================= */
+  var PV = null;
+  function pvOpen(title) {
+    if (!pvOpen.on) {   // mouse wheel / trackpad goes through the CT slices
+      pvOpen.on = true;
+      $('pvStage').addEventListener('wheel', function (e) {
+        if (!PV || PV.kind !== 'ct' || $('pvStage').classList.contains('one')) return;
+        e.preventDefault(); var now = Date.now(); if (now - (PV.wt || 0) < 40) return; PV.wt = now; pvStep(e.deltaY > 0 ? 1 : -1);
+      }, { passive: false });
+    }
+    $('pv').classList.remove('hidden'); document.body.classList.add('xrlock');
+    $('pvTitle').textContent = title; $('pvInfo').textContent = ''; $('pvBar').innerHTML = ''; $('pvFoot').innerHTML = ''; $('pvMsg').textContent = 'Loading…'; $('pvMsg').classList.remove('hidden');
+    $('pvImg').classList.add('hidden'); $('pvCv').classList.add('hidden'); $('pvStage').classList.remove('one');
+  }
+  function pvClose() { PV = null; $('pv').classList.add('hidden'); document.body.classList.remove('xrlock'); $('pvImg').removeAttribute('src'); }
+  function pvMsg(m) { $('pvMsg').textContent = m || ''; $('pvMsg').classList.toggle('hidden', !m); }
+  function pvStep(d) { if (!PV) return; if (PV.kind === 'xr') pvXrShow(PV.i + d); else pvCtShow(PV.i + d); }
+  document.addEventListener('keydown', function (e) {
+    if (!PV || $('pv').classList.contains('hidden')) return;
+    if (e.key === 'Escape') pvClose(); else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); pvStep(1); } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); pvStep(-1); }
+  });
+
+  /* ---- X-ray: the uploaded images, one at a time ---- */
+  function pvXray(o) {
+    pvOpen(o.name + ' · ' + o.exam + ' · ' + o.acc);
+    PV = { kind: 'xr', acc: o.acc, ids: o.imageIds || [], cache: {}, i: 0 };
+    if (!PV.ids.length) return pvMsg('This study has no images yet.');
+    $('pvFoot').innerHTML = '<div class="pvthumbs">' + PV.ids.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="pvXrShow(' + i + ')">' + (i + 1) + '</button>'; }).join('') + '</div>' +
+      '<div class="hint">This is the image exactly as the radiologist will see it. Tap the image to see it at full size. Wrong or blurry? Use “Remove an image…” and “+ Add images” in the list.</div>';
+    pvXrShow(0);
+  }
+  function pvXrShow(i) {
+    var P = PV; if (!P || P.kind !== 'xr') return;
+    i = Math.max(0, Math.min(P.ids.length - 1, i)); P.i = i;
+    Array.prototype.forEach.call(document.querySelectorAll('#pvFoot .pvthumbs button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-i') === i); });
+    $('pvInfo').textContent = 'Image ' + (i + 1) + ' of ' + P.ids.length;
+    var show = function (src) { if (PV !== P || P.i !== i) return; var im = $('pvImg'); im.onload = function () { pvMsg(''); $('pvInfo').textContent = 'Image ' + (i + 1) + ' of ' + P.ids.length + ' · ' + im.naturalWidth + ' × ' + im.naturalHeight + ' px'; }; im.src = src; im.classList.remove('hidden'); };
+    if (P.cache[i]) return show(P.cache[i]);
+    pvMsg('Loading image ' + (i + 1) + '…'); $('pvImg').classList.add('hidden');
+    run('xrImage', token, P.acc, P.ids[i]).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) return PV === P && pvMsg(r.msg);
+      P.cache[i] = 'data:' + r.mime + ';base64,' + r.b64; show(P.cache[i]);
+    }).catch(function (e) { if (PV === P) pvMsg('Could not load: ' + ((e && e.message) || e)); });
+  }
+
+  /* ---- CT: a small DICOM viewer (series, slices, window presets) ---- */
+  var PV_WL = [['Brain', 80, 40], ['Soft tissue', 400, 40], ['Lung', 1500, -600], ['Bone', 2000, 500]];
+  function pvCt(x) {
+    pvOpen(x.name + ' · ' + x.exam);
+    var P = PV = { kind: 'ct', id: x.id, expect: x.name, series: [], s: 0, i: 0, cache: {}, wl: null };
+    run('ctdFiles', token, x.id).then(function (r) {
+      if (PV !== P) return;
+      if (r.expired) return expired();
+      if (!r.ok) return pvMsg(r.msg);
+      var by = {}, other = 0;
+      r.files.forEach(function (f) {
+        var base = f.path.split('/').pop();
+        if (/^dicomdir$/i.test(base) || /\.(zip|exe|dll|inf|txt|htm|html|xml|ini|pdf|jpg|png)$/i.test(base) || f.size > 3 * 1048576) { other++; return; }
+        var dir = f.path.indexOf('/') === -1 ? '(main folder)' : f.path.slice(0, f.path.lastIndexOf('/'));
+        (by[dir] = by[dir] || []).push(f);
+      });
+      var nat = function (a, b) { return a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }); };
+      P.series = Object.keys(by).sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); }).map(function (k) { return { name: k, files: by[k].sort(nat) }; });
+      if (!P.series.length) return pvMsg(r.files.length + ' file(s) in Drive' + (other ? ' (' + other + ' are zip / other files)' : '') + ' – nothing to show here. A .zip is uploaded as it is: download it to check it.');
+      $('pvBar').innerHTML = '<select id="pvSer" onchange="pvCtSeries(+this.value)">' + P.series.map(function (s, k) { return '<option value="' + k + '">' + esc(s.name) + ' · ' + s.files.length + ' image' + (s.files.length === 1 ? '' : 's') + '</option>'; }).join('') + '</select>' +
+        '<input type="range" id="pvSl" min="1" value="1" oninput="pvCtShow(this.value - 1)" aria-label="Slice">' +
+        '<span class="pvwl">' + PV_WL.map(function (w, k) { return '<button type="button" onclick="pvCtWl(' + k + ')" data-k="' + k + '">' + w[0] + '</button>'; }).join('') + '<button type="button" onclick="pvCtWl(-1)" data-k="-1" class="on">Auto</button></span>';
+      $('pvFoot').innerHTML = '<div id="pvTags" class="sub" style="margin:0"></div><div class="hint">Scroll the mouse wheel, use ↑ ↓, or the slider to go through the slices. ' + r.files.length + ' files in Drive (' + ctdMB(r.total) + ')' + (other ? ', incl. ' + other + ' zip / other file(s) not shown' : '') + '.</div>';
+      pvCtSeries(0);
+    }).catch(function (e) { if (PV === P) pvMsg('Could not load: ' + ((e && e.message) || e)); });
+  }
+  function pvCtSeries(k) { var P = PV; if (!P) return; P.s = k; P.i = 0; var n = P.series[k].files.length; $('pvSl').max = n; $('pvSl').value = 1; $('pvSl').classList.toggle('hidden', n < 2); pvCtShow(Math.floor((n - 1) / 2)); }
+  function pvCtWl(k) {
+    var P = PV; if (!P) return; P.wl = k < 0 ? null : { w: PV_WL[k][1], c: PV_WL[k][2] };
+    Array.prototype.forEach.call(document.querySelectorAll('#pvBar .pvwl button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-k') === k); });
+    pvCtShow(P.i);
+  }
+  function pvCtFetch(P, f) {
+    if (P.cache[f.id]) return P.cache[f.id];
+    P.cache[f.id] = run('ctdGetFiles', token, P.id, [f.id]).then(function (r) {
+      if (!r.ok) throw new Error(r.msg || 'not loaded');
+      var u = b64u8(r.files[0].b64); return dcmImage(u.buffer);
+    });
+    P.cache[f.id].catch(function () { delete P.cache[f.id]; });
+    return P.cache[f.id];
+  }
+  function pvCtShow(i) {
+    var P = PV; if (!P || P.kind !== 'ct' || !P.series.length) return;
+    var S = P.series[P.s]; i = Math.max(0, Math.min(S.files.length - 1, +i || 0)); P.i = i; $('pvSl').value = i + 1;
+    $('pvInfo').textContent = 'Slice ' + (i + 1) + ' of ' + S.files.length;
+    var f = S.files[i];
+    if (!P.cache[f.id]) pvMsg('Loading slice ' + (i + 1) + '…');
+    pvCtFetch(P, f).then(function (im) {
+      if (PV !== P || P.i !== i || P.series[P.s] !== S) return;
+      if (im.err) { $('pvCv').classList.add('hidden'); pvMsg(im.err); pvCtTags(P, im); return; }
+      pvMsg(''); dcmDraw($('pvCv'), im, P.wl); $('pvCv').classList.remove('hidden'); pvCtTags(P, im);
+      [1, -1, 2, 3].forEach(function (d) { var g = S.files[i + d]; if (g) pvCtFetch(P, g).catch(function () {}); });   // the next slices load in the background
+    }).catch(function (e) { if (PV === P && P.i === i) pvMsg('Could not load this slice: ' + ((e && e.message) || e)); });
+  }
+  function pvCtTags(P, im) {
+    var t = im.tags || {}, nm = String(t.name || '').replace(/\^+/g, ' ').trim(), exp = String(P.expect || '').replace(/[,]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+    var same = !nm || !exp || exp.split(' ').filter(function (w) { return w.length > 1; }).some(function (w) { return nm.toUpperCase().indexOf(w) !== -1; });
+    $('pvTags').innerHTML = 'In the images: <b' + (same ? '' : ' class="err"') + '>' + esc(nm || '—') + '</b>' + (same ? '' : ' <span class="err">⚠ not the name on the upload – check the patient!</span>') +
+      (t.id ? ' · ID ' + esc(t.id) : '') + (t.series ? ' · ' + esc(t.series) : '') + (t.inst ? ' · image no. ' + esc(t.inst) : '') + (im.cols ? ' · ' + im.cols + ' × ' + im.rows : '') + (t.date ? ' · ' + esc(String(t.date).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')) : '');
+  }
+  /** DICOM → { rows, cols, px (Float32 values after rescale), w, c, mono1, rgb, tags } or { err } */
+  function dcmImage(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), n = buf.byteLength, pos = 132, UNDEF = 0xFFFFFFFF, el = {}, ts = '';
+    if (n < 140 || String.fromCharCode(u8[128], u8[129], u8[130], u8[131]) !== 'DICM') return { err: 'Not a DICOM image file.' };
+    var LONG = /^(OB|OD|OF|OL|OV|OW|SQ|SV|UC|UR|UT|UN|UV)$/, h4 = function (x) { return ('000' + x.toString(16).toUpperCase()).slice(-4); };
+    var str = function (o, l) { var s = ''; for (var i = 0; i < l && o + i < n; i++) s += String.fromCharCode(u8[o + i]); try { s = decodeURIComponent(escape(s)); } catch (e) {} return s.replace(/\0/g, '').trim(); };
+    var read = function (expl) {
+      if (pos + 8 > n) return null;
+      var g = dv.getUint16(pos, true), e = dv.getUint16(pos + 2, true), tag = h4(g) + h4(e), vr = '', len; pos += 4;
+      if (g === 0xFFFE) { len = dv.getUint32(pos, true); pos += 4; return { tag: tag, g: g, len: len }; }
+      if (expl) { vr = String.fromCharCode(u8[pos], u8[pos + 1]); pos += 2; if (LONG.test(vr)) { pos += 2; len = dv.getUint32(pos, true); pos += 4; } else { len = dv.getUint16(pos, true); pos += 2; } }
+      else { len = dv.getUint32(pos, true); pos += 4; }
+      return { tag: tag, g: g, vr: vr, len: len };
+    };
+    var skip = function (expl, d) { if (d > 8) throw new Error('deep'); while (pos < n) { var x = read(expl); if (!x) return; if (x.tag === 'FFFEE0DD' || x.tag === 'FFFEE00D') return; if (x.len === UNDEF) skip(expl, d + 1); else pos += x.len; } };
+    try {
+      while (pos + 8 <= n && dv.getUint16(pos, true) === 0x0002) { var m = read(true); if (m.tag === '00020010') ts = str(pos, m.len); pos += m.len; }
+      var expl = ts !== '1.2.840.10008.1.2';
+      if (ts === '1.2.840.10008.1.2.2' || ts === '1.2.840.10008.1.2.1.99') return { err: 'This file uses an old/compressed DICOM encoding the preview can’t show (it is uploaded – open it in a DICOM viewer).' };
+      var x;
+      while ((x = read(expl))) {
+        if (x.tag === '7FE00010') { el.px = { off: pos, len: x.len }; break; }
+        if (x.len === UNDEF) { skip(expl, 0); continue; }
+        el[x.tag] = { off: pos, len: x.len, vr: x.vr }; pos += x.len;
+      }
+    } catch (e) { return { err: 'Could not read this DICOM file.' }; }
+    var us = function (t) { return el[t] && el[t].len >= 2 ? dv.getUint16(el[t].off, true) : 0; };
+    var ds = function (t, d) { if (!el[t]) return d; var v = parseFloat(str(el[t].off, el[t].len).split('\\')[0]); return isNaN(v) ? d : v; };
+    var tags = { name: el['00100010'] ? str(el['00100010'].off, el['00100010'].len) : '', id: el['00100020'] ? str(el['00100020'].off, el['00100020'].len) : '',
+      series: el['0008103E'] ? str(el['0008103E'].off, el['0008103E'].len) : '', inst: el['00200013'] ? str(el['00200013'].off, el['00200013'].len) : '', date: el['00080020'] ? str(el['00080020'].off, el['00080020'].len) : '' };
+    var rows = us('00280010'), cols = us('00280011'), bits = us('00280100') || 16, signed = us('00280103') === 1, spp = us('00280002') || 1;
+    var photo = el['00280004'] ? str(el['00280004'].off, el['00280004'].len) : 'MONOCHROME2';
+    if (!el.px || !rows || !cols) return { err: 'This file has no image (e.g. a report or a scout list).', tags: tags };
+    if (el.px.len === UNDEF) return { err: 'This image is compressed (JPEG / JPEG 2000) – the preview can’t show it, but it is uploaded. Open it in a DICOM viewer to check.', tags: tags, rows: rows, cols: cols };
+    var npx = rows * cols * spp, px = new Float32Array(rows * cols), slope = ds('00281053', 1), icpt = ds('00281052', 0), off = el.px.off;
+    if (off + npx * (bits / 8) > n) return { err: 'The image data is cut short – this file may be damaged. Upload it again.', tags: tags };
+    var rgb = null;
+    if (spp === 3 && bits === 8) { rgb = u8.subarray(off, off + npx); }
+    else if (bits === 8) { for (var i = 0; i < rows * cols; i++) px[i] = u8[off + i] * slope + icpt; }
+    else if (bits === 16) { for (var j = 0; j < rows * cols; j++) px[j] = (signed ? dv.getInt16(off + j * 2, true) : dv.getUint16(off + j * 2, true)) * slope + icpt; }
+    else return { err: bits + '-bit images are not shown in the preview.', tags: tags };
+    var w = ds('00281051', 0), c = ds('00281050', 0);
+    if (!w && !rgb) { var lo = Infinity, hi = -Infinity; for (var k = 0; k < px.length; k += 7) { if (px[k] < lo) lo = px[k]; if (px[k] > hi) hi = px[k]; } w = Math.max(1, hi - lo); c = (hi + lo) / 2; }
+    return { rows: rows, cols: cols, px: px, rgb: rgb, w: w, c: c, mono1: photo === 'MONOCHROME1', tags: tags };
+  }
+  function dcmDraw(cv, im, wl) {
+    cv.width = im.cols; cv.height = im.rows; cv.style.setProperty('--pvw', im.cols);   // full size = 2× the matrix (a 512 slice shows at 1024 px)
+    var g = cv.getContext('2d'), id = g.createImageData(im.cols, im.rows), d = id.data, N = im.rows * im.cols;
+    if (im.rgb) { for (var k = 0; k < N; k++) { d[k * 4] = im.rgb[k * 3]; d[k * 4 + 1] = im.rgb[k * 3 + 1]; d[k * 4 + 2] = im.rgb[k * 3 + 2]; d[k * 4 + 3] = 255; } }
+    else {
+      var w = Math.max(1, wl ? wl.w : im.w), c = wl ? wl.c : im.c, lo = c - w / 2;
+      for (var i = 0; i < N; i++) { var v = (im.px[i] - lo) / w * 255; v = v < 0 ? 0 : v > 255 ? 255 : v; if (im.mono1) v = 255 - v; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; }
+    }
+    g.putImageData(id, 0, 0);
+  }
+  /* ================= /PREVIEW ================= */
+
   /* ================= ⬇ DOWNLOAD A STUDY (CT DICOM folder or X-ray images → one .zip) ================= */
   var DL = { on: false, cancel: false };
   /* a small .zip writer: files are stored as they are (DICOM and JPEG barely compress), CRC-32 checked, UTF-8 names */
@@ -2147,13 +2341,17 @@
       box.innerHTML = r.items.map(ctdRow).join('');
     }).catch(function (e) { box.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
+  var CTD_ROWS = {};
+  function pvCtRow(id) { var x = CTD_ROWS[id]; if (x) pvCt(x); }
   function ctdRow(x) {
+    CTD_ROWS[x.id] = x;
     var st = x.status === 'Complete' ? '<span class="pill Approved">Complete</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
     return '<div class="xrrow"><div class="xrl"><b>' + esc(x.name) + '</b> · ' + esc(x.exam) + (x.sex || x.age ? ' · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) : '') +
       '<div class="d">' + esc(xrTime(x.created)) + ' · ' + x.files + (x.expected && x.files < x.expected ? ' of ' + x.expected : '') + ' files' + (x.bytes ? ' · ' + esc(ctdMB(x.bytes)) : '') +
       ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') +
       '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
       '</div></div>' + st +
+      (x.files ? '<button class="xrdl" onclick="pvCtRow(\'' + esc(x.id) + '\')" title="See the uploaded CT images">👁 Preview</button>' : '') +
       (x.files ? '<button class="xrdl" onclick="dlStudy(\'ct\', \'' + esc(x.id) + '\', event)" title="Download the CT images (DICOM) as one .zip">⬇ Download</button>' : '') +
       '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Drive</a>' +
       (x.reportId && typeof rptOpenDoc === 'function' && (XR_ROLE.rad || XR_ROLE.admin) && curView === 'rpt' ? '<button class="link" style="white-space:nowrap" onclick="rptOpenDoc(\'' + esc(x.reportId) + '\')">📝 Report</button>' : '') +
