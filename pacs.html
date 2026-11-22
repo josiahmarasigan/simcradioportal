@@ -428,13 +428,11 @@
   .pvtop { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #1e293b; } .pvt { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .pvt span { color:#94a3b8; margin-left:6px; }
   .pv .xrskip { color:#e2e8f0; border-color:#334155; }
   .pvbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; } .pvbar:empty { display:none; }
-  .pvbar select { width:auto; max-width:100%; margin:0; background:#111827; color:#e2e8f0; border-color:#334155; } .pvbar input[type=range] { flex:1; min-width:140px; margin:0; }
-  .pvwl { display:flex; gap:4px; flex-wrap:wrap; } .pvwl button, .pvthumbs button { padding:5px 10px; border-radius:7px; border:1px solid #334155; background:#111827; color:#e2e8f0; font-size:13px; cursor:pointer; }
-  .pvwl button.on, .pvthumbs button.on { background:#0f766e; border-color:#0f766e; color:#fff; }
+  .pvthumbs button { padding:5px 10px; border-radius:7px; border:1px solid #334155; background:#111827; color:#e2e8f0; font-size:13px; cursor:pointer; }
+  .pvthumbs button.on { background:#0f766e; border-color:#0f766e; color:#fff; }
   .pvstage { position:relative; flex:1; min-height:0; overflow:auto; display:flex; align-items:center; justify-content:center; background:#000; }
   .pvstage img, .pvstage canvas { width:100%; height:100%; object-fit:contain; cursor:zoom-in; }
   .pvstage.one { display:block; } .pvstage.one img, .pvstage.one canvas { width:auto; height:auto; max-width:none; max-height:none; cursor:zoom-out; }
-  .pvstage.one canvas { width:calc(var(--pvw, 512) * 2px); }
   .pvmsg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; color:#cbd5e1; font-size:15px; pointer-events:none; } .pvmsg.hidden { display:none; }
   .pvnav { position:absolute; top:50%; transform:translateY(-50%); width:44px; height:64px; border:0; border-radius:10px; background:rgba(15,23,42,.6); color:#fff; font-size:30px; cursor:pointer; } .pvl { left:8px; } .pvr { right:8px; }
   .pvstage.one .pvnav { position:fixed; }
@@ -592,8 +590,8 @@
 <div id="pv" class="hidden pv">
   <div class="pvtop"><div class="pvt"><b id="pvTitle"></b> <span id="pvInfo"></span></div><button type="button" class="xrskip" onclick="pvClose()">✕ Close</button></div>
   <div class="pvbar" id="pvBar"></div>
-  <div class="pvstage" id="pvStage" onclick="if(event.target.id==='pvImg'||event.target.id==='pvCv')this.classList.toggle('one')">
-    <img id="pvImg" class="hidden" alt="Uploaded image"><canvas id="pvCv" class="hidden"></canvas><div id="pvMsg" class="pvmsg"></div>
+  <div class="pvstage" id="pvStage" onclick="if(event.target.id==='pvImg')this.classList.toggle('one')">
+    <img id="pvImg" class="hidden" alt="Uploaded image"><div id="pvMsg" class="pvmsg"></div>
     <button type="button" class="pvnav pvl" onclick="event.stopPropagation();pvStep(-1)" aria-label="Previous">‹</button><button type="button" class="pvnav pvr" onclick="event.stopPropagation();pvStep(1)" aria-label="Next">›</button>
   </div>
   <div class="pvfoot" id="pvFoot"></div>
@@ -609,15 +607,17 @@
         <button id="xvWl" onclick="xvTool('wl')" title="Drag to adjust brightness / contrast (or right-drag any time)">☀ W/L</button>
         <button id="xvInv" onclick="xvTool('inv')" title="Invert (I)">Invert</button><button onclick="xvTool('rot')" title="Rotate (R)">⟳</button><button onclick="xvTool('flip')" title="Flip">⇋</button>
         <button id="xvCtrBtn" onclick="xvTool('ctr')" title="Cardiothoracic ratio (C): tap the 2 heart borders, then the 2 inner chest walls">📏 CTR</button>
+        <button id="xvAngBtn" onclick="xvTool('angle')" title="Angle (A): tap a point on one arm, the vertex, then a point on the other arm">∠ Angle</button>
+        <button id="xvCobbBtn" onclick="xvTool('cobb')" title="Cobb angle (B): tap both ends of the upper endplate, then both ends of the lower endplate">⦣ Cobb</button>
         <button onclick="xvTool('reset')" title="Reset">Reset</button><span id="xrZoom"></span><span id="xrWL"></span>
         <span class="xrstrip" id="xrStrip"></span>
       </div>
       <div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><canvas id="xrOver"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div>
         <div id="xvCtr" class="xvctr hidden">
-          <div class="xvctrH"><b>Cardiothoracic ratio</b><button type="button" class="xvx" onclick="xvCtrOff()" title="Close (C)">✕</button></div>
+          <div class="xvctrH"><b id="xvMTitle">Cardiothoracic ratio</b><button type="button" class="xvx" id="xvMX" onclick="xvMeasOff()" title="Close">✕</button></div>
           <div id="xvCtrStep" class="xvctrS"></div>
           <div id="xvCtrRes" class="xvctrR hidden"></div>
-          <div class="xvctrB"><button type="button" id="xvCtrIns" class="hidden" onclick="xvCtrInsert()">Insert into report</button><button type="button" onclick="xvCtrClear()">Start again</button></div>
+          <div class="xvctrB"><button type="button" id="xvCtrIns" class="hidden" onclick="xvMeasInsert()">Insert into report</button><button type="button" onclick="xvMeasClear()">Start again</button></div>
         </div>
       </div>
     </div>
@@ -1431,7 +1431,7 @@
   function xvInit() {
     if (XV) { XV.img = null; return; }
     var cv = $('xrCanvas'), wrap = $('xrStage');
-    XV = { cv: cv, wrap: wrap, img: null, s: 1, x: 0, y: 0, rot: 0, flip: false, inv: false, b: 100, c: 100, wl: false, ptr: {}, ctr: null };
+    XV = { cv: cv, wrap: wrap, img: null, s: 1, x: 0, y: 0, rot: 0, flip: false, inv: false, b: 100, c: 100, wl: false, ptr: {}, m: null };
     var ov = $('xrOver');
     var resize = function () { var r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = ov.width = Math.max(1, r.width * dpr); cv.height = ov.height = Math.max(1, r.height * dpr); cv.style.width = ov.style.width = r.width + 'px'; cv.style.height = ov.style.height = r.height + 'px'; xvDraw(); };
     window.addEventListener('resize', function () { if (!$('xrv').classList.contains('hidden')) resize(); });
@@ -1441,11 +1441,11 @@
     cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     cv.addEventListener('pointerdown', function (e) {
       cv.setPointerCapture(e.pointerId); XV.ptr[e.pointerId] = { x: e.offsetX, y: e.offsetY, btn: e.button, x0: e.offsetX, y0: e.offsetY };
-      if (XV.ctr && e.button === 0 && Object.keys(XV.ptr).length === 1) XV.ptr[e.pointerId].pt = xvCtrHit(e.offsetX, e.offsetY);   // grab a point to move it
+      if (XV.m && e.button === 0 && Object.keys(XV.ptr).length === 1) XV.ptr[e.pointerId].pt = xvMeasHit(e.offsetX, e.offsetY);   // grab a point to move it
     });
     cv.addEventListener('pointerup', function (e) {
       var p = XV.ptr[e.pointerId]; delete XV.ptr[e.pointerId]; XV.pinch = 0;
-      if (XV.ctr && p && p.btn === 0 && p.pt === -1 && Math.hypot(e.offsetX - p.x0, e.offsetY - p.y0) < 7 && XV.ctr.pts.length < 4) xvCtrAdd(e.offsetX, e.offsetY);   // a tap places the next point
+      if (XV.m && p && p.btn === 0 && p.pt === -1 && Math.hypot(e.offsetX - p.x0, e.offsetY - p.y0) < 7 && XV.m.pts.length < MEAS[XV.m.kind].n) xvMeasAdd(e.offsetX, e.offsetY);   // a tap places the next point
     });
     cv.addEventListener('pointercancel', function (e) { delete XV.ptr[e.pointerId]; XV.pinch = 0; });
     cv.addEventListener('pointermove', function (e) {
@@ -1456,7 +1456,7 @@
         var d = Math.hypot(a.x - b.x, a.y - b.y); if (XV.pinch) xvZoom(d / XV.pinch, (a.x + b.x) / 2, (a.y + b.y) / 2); XV.pinch = d; return;
       }
       p.x = e.offsetX; p.y = e.offsetY;
-      if (XV.ctr && p.pt >= 0) { XV.ctr.pts[p.pt] = xvToImg(e.offsetX, e.offsetY); xvOver(); return; }   // moving a CTR point
+      if (XV.m && p.pt >= 0) { XV.m.pts[p.pt] = xvToImg(e.offsetX, e.offsetY); xvOver(); return; }   // moving a measurement point
       if (XV.wl || p.btn === 2) {   // window / level: left-right = contrast, up-down = brightness
         XV.c = Math.max(10, Math.min(400, XV.c + dx * 0.6)); XV.b = Math.max(10, Math.min(300, XV.b - dy * 0.4)); xvFilter();
       } else { var dpr = window.devicePixelRatio || 1; XV.x += dx * dpr; XV.y += dy * dpr; xvDraw(); }
@@ -1465,14 +1465,14 @@
       if ($('xrv').classList.contains('hidden')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); xrDraft(false); return; }
       if (isTyping(e.target)) return;
-      if (e.key === 'c') { xvTool('ctr'); return; }
+      if (e.key === 'c') { xvTool('ctr'); return; } if (e.key === 'a') { xvTool('angle'); return; } if (e.key === 'b') { xvTool('cobb'); return; }
       if (e.key === 'i') xvTool('inv'); else if (e.key === 'r') xvTool('rot'); else if (e.key === '0' || e.key === 'f') xvReset(); else if (e.key === '+' || e.key === '=') xvTool('in'); else if (e.key === '-') xvTool('out');
-      else if (e.key === 'Escape') { if (XV.ctr) xvCtrOff(); else xrClose(); }
+      else if (e.key === 'Escape') { if (XV.m) xvMeasOff(); else xrClose(); }
       else if (/^[1-9]$/.test(e.key) && XS && XS.imageIds.length > 1 && +e.key <= XS.imageIds.length) xrShowImage(+e.key - 1);
     });
     setTimeout(resize, 0);
   }
-  function xvClear(msg) { if (XV) { XV.img = null; XV.cv.getContext('2d').clearRect(0, 0, XV.cv.width, XV.cv.height); if (XV.ctr) xvCtrClear(); else xvOver(); } $('xrStageMsg').textContent = msg || ''; $('xrStageMsg').classList.toggle('hidden', !msg); }
+  function xvClear(msg) { if (XV) { XV.img = null; XV.cv.getContext('2d').clearRect(0, 0, XV.cv.width, XV.cv.height); if (XV.m) xvMeasClear(); else xvOver(); } $('xrStageMsg').textContent = msg || ''; $('xrStageMsg').classList.toggle('hidden', !msg); }
   function xvReset() {
     if (!XV.img) return; XV.resize && XV.resize();
     var rot = XV.rot % 180 !== 0, w = rot ? XV.img.height : XV.img.width, h = rot ? XV.img.width : XV.img.height;
@@ -1506,17 +1506,27 @@
     else if (t === 'inv') { XV.inv = !XV.inv; xvFilter(); $('xvInv').classList.toggle('on', XV.inv); }
     else if (t === 'wl') { XV.wl = !XV.wl; $('xvWl').classList.toggle('on', XV.wl); }
     else if (t === 'reset') { XV.b = 100; XV.c = 100; XV.inv = false; XV.rot = 0; XV.flip = false; $('xvInv').classList.remove('on'); xvReset(); }
-    else if (t === 'ctr') { if (XV.ctr) xvCtrOff(); else xvCtrOn(); }
+    else if (MEAS[t]) { if (XV.m && XV.m.kind === t) xvMeasOff(); else xvMeasOn(t); }
   }
 
-  /* ---- cardiothoracic ratio: 4 taps, points can be dragged, ratio from the horizontal widths as displayed ---- */
-  var CTR_STEPS = ['the <i>right</i> heart border (widest point of the heart)', 'the <i>left</i> heart border', 'the <i>right</i> inner chest wall (widest point of the chest)', 'the <i>left</i> inner chest wall'];
-  function xvCtrOn() {
+  /* ---- measurements on the image: 📏 CTR, ∠ Angle, ⦣ Cobb angle. Tap the points, drag a point to adjust. ---- */
+  var MEAS = {
+    ctr: { n: 4, title: 'Cardiothoracic ratio', btn: 'xvCtrBtn', key: 'C', labels: ['R heart', 'L heart', 'R chest', 'L chest'], col: ['#22d3ee', '#22d3ee', '#fbbf24', '#fbbf24'],
+      steps: ['the <i>right</i> heart border (widest point of the heart)', 'the <i>left</i> heart border', 'the <i>right</i> inner chest wall (widest point of the chest)', 'the <i>left</i> inner chest wall'] },
+    angle: { n: 3, title: 'Angle', btn: 'xvAngBtn', key: 'A', labels: ['', 'vertex', ''], col: ['#a78bfa', '#f472b6', '#a78bfa'],
+      steps: ['a point on the <i>first arm</i>', 'the <i>vertex</i> (corner of the angle)', 'a point on the <i>second arm</i>'] },
+    cobb: { n: 4, title: 'Cobb angle', btn: 'xvCobbBtn', key: 'B', labels: ['1', '1', '2', '2'], col: ['#34d399', '#34d399', '#fbbf24', '#fbbf24'],
+      steps: ['one end of the <i>upper endplate</i> (top vertebra of the curve)', 'the other end of that endplate', 'one end of the <i>lower endplate</i> (bottom vertebra)', 'the other end of that endplate'] } };
+  function xvMeasOn(kind) {
     if (!XV.img) return xrToast('Open an image first.');
-    XV.ctr = { pts: [] }; $('xvCtr').classList.remove('hidden'); $('xvCtrBtn').classList.add('on'); XV.wrap.classList.add('ctr'); xvCtrPanel(); xvOver();
+    if (XV.m) xvMeasOff();
+    XV.m = { kind: kind, pts: [] }; $('xvMTitle').textContent = MEAS[kind].title; $('xvMX').title = 'Close (' + MEAS[kind].key + ')';
+    $('xvCtr').classList.remove('hidden'); $(MEAS[kind].btn).classList.add('on'); XV.wrap.classList.add('ctr'); xvMeasPanel(); xvOver();
   }
-  function xvCtrOff() { XV.ctr = null; $('xvCtr').classList.add('hidden'); $('xvCtrBtn').classList.remove('on'); XV.wrap.classList.remove('ctr'); xvOver(); }
-  function xvCtrClear() { if (XV.ctr) { XV.ctr.pts = []; xvCtrPanel(); } xvOver(); }
+  function xvMeasOff() { if (XV.m) $(MEAS[XV.m.kind].btn).classList.remove('on'); XV.m = null; $('xvCtr').classList.add('hidden'); XV.wrap.classList.remove('ctr'); xvOver(); }
+  function xvMeasClear() { if (XV.m) { XV.m.pts = []; xvMeasPanel(); } xvOver(); }
+  // (older names kept for the CTR button / tests)
+  function xvCtrOn() { xvMeasOn('ctr'); } function xvCtrOff() { xvMeasOff(); } function xvCtrClear() { xvMeasClear(); } function xvCtrInsert() { xvMeasInsert(); }
   /** screen (CSS px) → image pixel, and back (follows zoom, pan, rotate and flip) */
   function xvToImg(ox, oy) {
     var dpr = window.devicePixelRatio || 1, x = ox * dpr - (XV.cv.width / 2 + XV.x), y = oy * dpr - (XV.cv.height / 2 + XV.y);
@@ -1527,68 +1537,95 @@
     var x = (p.x - XV.img.width / 2) * (XV.flip ? -XV.s : XV.s), y = (p.y - XV.img.height / 2) * XV.s, a = XV.rot * Math.PI / 180;
     return { x: x * Math.cos(a) - y * Math.sin(a) + XV.cv.width / 2 + XV.x, y: x * Math.sin(a) + y * Math.cos(a) + XV.cv.height / 2 + XV.y };
   }
-  function xvCtrHit(ox, oy) {
+  function xvMeasHit(ox, oy) {
     var dpr = window.devicePixelRatio || 1, best = -1, bd = 18 * dpr;
-    (XV.ctr ? XV.ctr.pts : []).forEach(function (p, i) { var q = xvToScr(p), d = Math.hypot(q.x - ox * dpr, q.y - oy * dpr); if (d < bd) { bd = d; best = i; } });
+    (XV.m ? XV.m.pts : []).forEach(function (p, i) { var q = xvToScr(p), d = Math.hypot(q.x - ox * dpr, q.y - oy * dpr); if (d < bd) { bd = d; best = i; } });
     return best;
   }
-  function xvCtrAdd(ox, oy) { XV.ctr.pts.push(xvToImg(ox, oy)); xvCtrPanel(); xvOver(); }
-  /** { heart, chest, ratio } – widths measured left-right on the image as it is shown */
-  function xvCtrCalc() {
-    var P = XV.ctr && XV.ctr.pts; if (!P || P.length < 4) return null;
-    var s = P.map(xvToScr), heart = Math.abs(s[1].x - s[0].x), chest = Math.abs(s[3].x - s[2].x);
-    if (!chest) return null;
-    return { heart: heart / XV.s, chest: chest / XV.s, ratio: heart / chest };
+  function xvMeasAdd(ox, oy) { XV.m.pts.push(xvToImg(ox, oy)); xvMeasPanel(); xvOver(); }
+  function xvAng(ax, ay, bx, by) { var d = Math.abs(Math.atan2(ay, ax) - Math.atan2(by, bx)) * 180 / Math.PI; return d > 180 ? 360 - d : d; }
+  /** the result of the active measurement, or null until all points are placed */
+  function xvMeasCalc() {
+    var M = XV.m, P = M && M.pts; if (!P || P.length < MEAS[M.kind].n) return null;
+    if (M.kind === 'ctr') {   // widths left-right on the image as shown
+      var s = P.map(xvToScr), heart = Math.abs(s[1].x - s[0].x), chest = Math.abs(s[3].x - s[2].x);
+      return chest ? { ctr: true, heart: heart / XV.s, chest: chest / XV.s, ratio: heart / chest } : null;
+    }
+    if (M.kind === 'angle') return { deg: xvAng(P[0].x - P[1].x, P[0].y - P[1].y, P[2].x - P[1].x, P[2].y - P[1].y) };
+    var d = xvAng(P[1].x - P[0].x, P[1].y - P[0].y, P[3].x - P[2].x, P[3].y - P[2].y);   // Cobb: angle between the two lines (0–90°)
+    return { deg: d > 90 ? 180 - d : d };
   }
-  function xvCtrPanel() {
-    var n = XV.ctr ? XV.ctr.pts.length : 0, c = xvCtrCalc();
-    $('xvCtrStep').innerHTML = n < 4 ? '<b>' + (n + 1) + ' of 4:</b> tap ' + CTR_STEPS[n] + '.' + (n ? ' Drag a point to move it.' : ' Zoom and pan as usual.') : 'Drag any point to adjust.';
+  function xvMeasPanel() {
+    var M = XV.m; if (!M) return;
+    var D = MEAS[M.kind], n = M.pts.length, c = xvMeasCalc();
+    $('xvCtrStep').innerHTML = n < D.n ? '<b>' + (n + 1) + ' of ' + D.n + ':</b> tap ' + D.steps[n] + '.' + (n ? ' Drag a point to move it.' : ' Zoom and pan as usual.') : 'Drag any point to adjust.';
     $('xvCtrRes').classList.toggle('hidden', !c); $('xvCtrIns').classList.toggle('hidden', !c);
-    if (c) {
-      var r = c.ratio.toFixed(2), big = c.ratio > 0.5;
-      $('xvCtrRes').innerHTML = '<span class="big ' + (big ? 'hi' : 'ok') + '">CTR ' + r + '</span> ' + (big ? '<span class="hi">&gt; 0.50</span>' : '<span class="ok">≤ 0.50</span>') +
+    if (!c) return;
+    if (c.ctr) {
+      var big = c.ratio > 0.5;
+      $('xvCtrRes').innerHTML = '<span class="big ' + (big ? 'hi' : 'ok') + '">CTR ' + c.ratio.toFixed(2) + '</span> ' + (big ? '<span class="hi">&gt; 0.50</span>' : '<span class="ok">≤ 0.50</span>') +
         '<br>Heart ' + Math.round(c.heart) + ' px ÷ chest ' + Math.round(c.chest) + ' px' +
         '<br><span style="color:#94a3b8">Upper limit 0.50 on an adult PA film; AP and supine films magnify the heart.</span>';
+    } else if (M.kind === 'angle') {
+      $('xvCtrRes').innerHTML = '<span class="big">' + c.deg.toFixed(1) + '°</span><br><span style="color:#94a3b8">Supplement ' + (180 - c.deg).toFixed(1) + '° · measured on the image as shown (a tilted photo changes angles).</span>';
+    } else {
+      $('xvCtrRes').innerHTML = '<span class="big">Cobb ' + Math.round(c.deg) + '°</span><br><span style="color:#94a3b8">' + (c.deg < 10 ? 'Under 10° is not usually called scoliosis.' : 'Angle between the two endplate lines.') + '</span>';
     }
   }
   function xvOver() {
     var ov = $('xrOver'); if (!ov) return;
     var g = ov.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, ov.width, ov.height);
-    if (!XV || !XV.img || !XV.ctr || !XV.ctr.pts.length) return;
-    var dpr = window.devicePixelRatio || 1, S = XV.ctr.pts.map(xvToScr), col = ['#22d3ee', '#22d3ee', '#fbbf24', '#fbbf24'];
-    g.lineWidth = 2 * dpr; g.font = (12 * dpr) + 'px system-ui, sans-serif';
-    [[0, 1], [2, 3]].forEach(function (pr) {
-      if (S[pr[1]]) {   // the measured width: a horizontal line at the pair's average height, with end ticks at each point
-        var a = S[pr[0]], b = S[pr[1]], y = (a.y + b.y) / 2;
-        g.strokeStyle = col[pr[0]]; g.setLineDash([]); g.beginPath(); g.moveTo(a.x, y); g.lineTo(b.x, y); g.stroke();
-        g.setLineDash([4 * dpr, 4 * dpr]); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(a.x, y); g.moveTo(b.x, b.y); g.lineTo(b.x, y); g.stroke(); g.setLineDash([]);
-      }
-    });
-    S.forEach(function (q, i) {
-      g.fillStyle = col[i]; g.strokeStyle = '#0f172a'; g.lineWidth = 2 * dpr;
-      g.beginPath(); g.arc(q.x, q.y, 6 * dpr, 0, Math.PI * 2); g.fill(); g.stroke();
-      g.fillStyle = '#fff'; g.fillText(['R heart', 'L heart', 'R chest', 'L chest'][i], q.x + 9 * dpr, q.y - 8 * dpr);
-    });
-    var c = xvCtrCalc();
-    if (c) {
-      var t = 'CTR ' + c.ratio.toFixed(2), x = Math.min(S[2].x, S[3].x), y = Math.max(S[2].y, S[3].y) + 26 * dpr;
+    if (!XV || !XV.img || !XV.m || !XV.m.pts.length) return;
+    var M = XV.m, D = MEAS[M.kind], dpr = window.devicePixelRatio || 1, S = M.pts.map(xvToScr), c = xvMeasCalc();
+    var line = function (a, b, col, dash) { g.strokeStyle = col; g.lineWidth = 2 * dpr; g.setLineDash(dash ? [4 * dpr, 4 * dpr] : []); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.setLineDash([]); };
+    var label = function (t, x, y, col) {
       g.font = 'bold ' + (16 * dpr) + 'px system-ui, sans-serif'; var w = g.measureText(t).width;
-      g.fillStyle = 'rgba(15,23,42,.8)'; g.fillRect(x - 6 * dpr, y - 18 * dpr, w + 12 * dpr, 24 * dpr);
-      g.fillStyle = c.ratio > 0.5 ? '#fca5a5' : '#86efac'; g.fillText(t, x, y);
+      g.fillStyle = 'rgba(15,23,42,.8)'; g.fillRect(x - 6 * dpr, y - 18 * dpr, w + 12 * dpr, 24 * dpr); g.fillStyle = col; g.fillText(t, x, y);
+    };
+    if (M.kind === 'ctr') {
+      [[0, 1], [2, 3]].forEach(function (pr) {   // the measured width: a horizontal line at the pair's average height, with ticks to each point
+        if (!S[pr[1]]) return; var a = S[pr[0]], b = S[pr[1]], y = (a.y + b.y) / 2;
+        line({ x: a.x, y: y }, { x: b.x, y: y }, D.col[pr[0]]); line(a, { x: a.x, y: y }, D.col[pr[0]], true); line(b, { x: b.x, y: y }, D.col[pr[0]], true);
+      });
+    } else if (M.kind === 'angle') {
+      if (S[1]) line(S[1], S[0], D.col[0]);
+      if (S[2]) {
+        line(S[1], S[2], D.col[2]);
+        var a0 = Math.atan2(S[0].y - S[1].y, S[0].x - S[1].x), a1 = Math.atan2(S[2].y - S[1].y, S[2].x - S[1].x), dd = a1 - a0;
+        while (dd > Math.PI) dd -= 2 * Math.PI; while (dd < -Math.PI) dd += 2 * Math.PI;
+        var rr = Math.min(40 * dpr, Math.hypot(S[0].x - S[1].x, S[0].y - S[1].y) / 2, Math.hypot(S[2].x - S[1].x, S[2].y - S[1].y) / 2);
+        g.strokeStyle = D.col[1]; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(S[1].x, S[1].y, rr, a0, a0 + dd, dd < 0); g.stroke();
+      }
+    } else {   // Cobb: the two endplate lines, drawn longer so they can be compared
+      [[0, 1], [2, 3]].forEach(function (pr) {
+        if (!S[pr[1]]) return; var a = S[pr[0]], b = S[pr[1]], dx = b.x - a.x, dy = b.y - a.y;
+        line({ x: a.x - dx * 0.4, y: a.y - dy * 0.4 }, { x: b.x + dx * 0.4, y: b.y + dy * 0.4 }, D.col[pr[0]]);
+      });
     }
-    if (XV.ctr && $('xvCtr') && !$('xvCtr').classList.contains('hidden')) xvCtrPanel();
+    S.forEach(function (q, i) {
+      g.fillStyle = D.col[i]; g.strokeStyle = '#0f172a'; g.lineWidth = 2 * dpr;
+      g.beginPath(); g.arc(q.x, q.y, 6 * dpr, 0, Math.PI * 2); g.fill(); g.stroke();
+      if (D.labels[i]) { g.font = (12 * dpr) + 'px system-ui, sans-serif'; g.fillStyle = '#fff'; g.fillText(D.labels[i], q.x + 9 * dpr, q.y - 8 * dpr); }
+    });
+    if (c) {
+      if (c.ctr) label('CTR ' + c.ratio.toFixed(2), Math.min(S[2].x, S[3].x), Math.max(S[2].y, S[3].y) + 26 * dpr, c.ratio > 0.5 ? '#fca5a5' : '#86efac');
+      else if (M.kind === 'angle') label(c.deg.toFixed(1) + '°', S[1].x + 14 * dpr, S[1].y + 26 * dpr, '#f9a8d4');
+      else label('Cobb ' + Math.round(c.deg) + '°', Math.max(S[1].x, S[3].x) + 16 * dpr, (S[1].y + S[3].y) / 2, '#86efac');
+    }
+    xvMeasPanel();
   }
-  /** adds "Cardiothoracic ratio: 0.54." to the report (at the cursor if the report is being typed in, else at the end) */
-  function xvCtrInsert() {
-    var c = xvCtrCalc(), f = $('xrF'); if (!c || !f) return;
+  /** adds the result to the report (at the cursor if the report is being typed in, else at the end) */
+  function xvMeasInsert() {
+    var c = xvMeasCalc(), f = $('xrF'); if (!c || !f) return;
     if (f.readOnly) return xrToast('This report is finalized.');
-    var line = 'Cardiothoracic ratio: ' + c.ratio.toFixed(2) + '.';
+    var line = c.ctr ? 'Cardiothoracic ratio: ' + c.ratio.toFixed(2) + '.' : XV.m.kind === 'angle' ? 'Measured angle: ' + c.deg.toFixed(1) + '°.' : 'Cobb angle: ' + Math.round(c.deg) + '°.';
     var sel = window.getSelection(), inBox = sel && sel.rangeCount && f.contains(sel.anchorNode);
     if (inBox && f.isContentEditable) { f.focus(); document.execCommand('insertText', false, line); }
     else { f.value = rtCat(f.value, line); f.focus(); rteCaretEnd(f); }
     f.dispatchEvent(new Event('input', { bubbles: true }));
     xrToast('Added to the report: ' + line);
   }
+
   /* ================= /X-RAY MINI-PACS ================= */
 
   /* ================= FORMATTING BAR (bold / italic / underline / bullets / numbering) =================
@@ -1763,23 +1800,16 @@
   function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
   /* ================= /FORMATTING BAR ================= */
 
-  /* ================= 👁 PREVIEW OF UPLOADED STUDIES (what is really in Drive) ================= */
+  /* ================= 👁 PREVIEW OF UPLOADED X-RAYS (what is really in Drive) ================= */
   var PV = null;
   function pvOpen(title) {
-    if (!pvOpen.on) {   // mouse wheel / trackpad goes through the CT slices
-      pvOpen.on = true;
-      $('pvStage').addEventListener('wheel', function (e) {
-        if (!PV || PV.kind !== 'ct' || $('pvStage').classList.contains('one')) return;
-        e.preventDefault(); var now = Date.now(); if (now - (PV.wt || 0) < 40) return; PV.wt = now; pvStep(e.deltaY > 0 ? 1 : -1);
-      }, { passive: false });
-    }
     $('pv').classList.remove('hidden'); document.body.classList.add('xrlock');
     $('pvTitle').textContent = title; $('pvInfo').textContent = ''; $('pvBar').innerHTML = ''; $('pvFoot').innerHTML = ''; $('pvMsg').textContent = 'Loading…'; $('pvMsg').classList.remove('hidden');
-    $('pvImg').classList.add('hidden'); $('pvCv').classList.add('hidden'); $('pvStage').classList.remove('one');
+    $('pvImg').classList.add('hidden'); $('pvStage').classList.remove('one');
   }
   function pvClose() { PV = null; $('pv').classList.add('hidden'); document.body.classList.remove('xrlock'); $('pvImg').removeAttribute('src'); }
   function pvMsg(m) { $('pvMsg').textContent = m || ''; $('pvMsg').classList.toggle('hidden', !m); }
-  function pvStep(d) { if (!PV) return; if (PV.kind === 'xr') pvXrShow(PV.i + d); else pvCtShow(PV.i + d); }
+  function pvStep(d) { if (PV) pvXrShow(PV.i + d); }
   document.addEventListener('keydown', function (e) {
     if (!PV || $('pv').classList.contains('hidden')) return;
     if (e.key === 'Escape') pvClose(); else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); pvStep(1); } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); pvStep(-1); }
@@ -1809,121 +1839,6 @@
     }).catch(function (e) { if (PV === P) pvMsg('Could not load: ' + ((e && e.message) || e)); });
   }
 
-  /* ---- CT: a small DICOM viewer (series, slices, window presets) ---- */
-  var PV_WL = [['Brain', 80, 40], ['Soft tissue', 400, 40], ['Lung', 1500, -600], ['Bone', 2000, 500]];
-  function pvCt(x) {
-    pvOpen(x.name + ' · ' + x.exam);
-    var P = PV = { kind: 'ct', id: x.id, expect: x.name, series: [], s: 0, i: 0, cache: {}, wl: null };
-    run('ctdFiles', token, x.id).then(function (r) {
-      if (PV !== P) return;
-      if (r.expired) return expired();
-      if (!r.ok) return pvMsg(r.msg);
-      var by = {}, other = 0;
-      r.files.forEach(function (f) {
-        var base = f.path.split('/').pop();
-        if (/^dicomdir$/i.test(base) || /\.(zip|exe|dll|inf|txt|htm|html|xml|ini|pdf|jpg|png)$/i.test(base) || f.size > 3 * 1048576) { other++; return; }
-        var dir = f.path.indexOf('/') === -1 ? '(main folder)' : f.path.slice(0, f.path.lastIndexOf('/'));
-        (by[dir] = by[dir] || []).push(f);
-      });
-      var nat = function (a, b) { return a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }); };
-      P.series = Object.keys(by).sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); }).map(function (k) { return { name: k, files: by[k].sort(nat) }; });
-      if (!P.series.length) return pvMsg(r.files.length + ' file(s) in Drive' + (other ? ' (' + other + ' are zip / other files)' : '') + ' – nothing to show here. A .zip is uploaded as it is: download it to check it.');
-      $('pvBar').innerHTML = '<select id="pvSer" onchange="pvCtSeries(+this.value)">' + P.series.map(function (s, k) { return '<option value="' + k + '">' + esc(s.name) + ' · ' + s.files.length + ' image' + (s.files.length === 1 ? '' : 's') + '</option>'; }).join('') + '</select>' +
-        '<input type="range" id="pvSl" min="1" value="1" oninput="pvCtShow(this.value - 1)" aria-label="Slice">' +
-        '<span class="pvwl">' + PV_WL.map(function (w, k) { return '<button type="button" onclick="pvCtWl(' + k + ')" data-k="' + k + '">' + w[0] + '</button>'; }).join('') + '<button type="button" onclick="pvCtWl(-1)" data-k="-1" class="on">Auto</button></span>';
-      $('pvFoot').innerHTML = '<div id="pvTags" class="sub" style="margin:0"></div><div class="hint">Scroll the mouse wheel, use ↑ ↓, or the slider to go through the slices. ' + r.files.length + ' files in Drive (' + ctdMB(r.total) + ')' + (other ? ', incl. ' + other + ' zip / other file(s) not shown' : '') + '.</div>';
-      pvCtSeries(0);
-    }).catch(function (e) { if (PV === P) pvMsg('Could not load: ' + ((e && e.message) || e)); });
-  }
-  function pvCtSeries(k) { var P = PV; if (!P) return; P.s = k; P.i = 0; var n = P.series[k].files.length; $('pvSl').max = n; $('pvSl').value = 1; $('pvSl').classList.toggle('hidden', n < 2); pvCtShow(Math.floor((n - 1) / 2)); }
-  function pvCtWl(k) {
-    var P = PV; if (!P) return; P.wl = k < 0 ? null : { w: PV_WL[k][1], c: PV_WL[k][2] };
-    Array.prototype.forEach.call(document.querySelectorAll('#pvBar .pvwl button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-k') === k); });
-    pvCtShow(P.i);
-  }
-  function pvCtFetch(P, f) {
-    if (P.cache[f.id]) return P.cache[f.id];
-    P.cache[f.id] = run('ctdGetFiles', token, P.id, [f.id]).then(function (r) {
-      if (!r.ok) throw new Error(r.msg || 'not loaded');
-      var u = b64u8(r.files[0].b64); return dcmImage(u.buffer);
-    });
-    P.cache[f.id].catch(function () { delete P.cache[f.id]; });
-    return P.cache[f.id];
-  }
-  function pvCtShow(i) {
-    var P = PV; if (!P || P.kind !== 'ct' || !P.series.length) return;
-    var S = P.series[P.s]; i = Math.max(0, Math.min(S.files.length - 1, +i || 0)); P.i = i; $('pvSl').value = i + 1;
-    $('pvInfo').textContent = 'Slice ' + (i + 1) + ' of ' + S.files.length;
-    var f = S.files[i];
-    if (!P.cache[f.id]) pvMsg('Loading slice ' + (i + 1) + '…');
-    pvCtFetch(P, f).then(function (im) {
-      if (PV !== P || P.i !== i || P.series[P.s] !== S) return;
-      if (im.err) { $('pvCv').classList.add('hidden'); pvMsg(im.err); pvCtTags(P, im); return; }
-      pvMsg(''); dcmDraw($('pvCv'), im, P.wl); $('pvCv').classList.remove('hidden'); pvCtTags(P, im);
-      [1, -1, 2, 3].forEach(function (d) { var g = S.files[i + d]; if (g) pvCtFetch(P, g).catch(function () {}); });   // the next slices load in the background
-    }).catch(function (e) { if (PV === P && P.i === i) pvMsg('Could not load this slice: ' + ((e && e.message) || e)); });
-  }
-  function pvCtTags(P, im) {
-    var t = im.tags || {}, nm = String(t.name || '').replace(/\^+/g, ' ').trim(), exp = String(P.expect || '').replace(/[,]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
-    var same = !nm || !exp || exp.split(' ').filter(function (w) { return w.length > 1; }).some(function (w) { return nm.toUpperCase().indexOf(w) !== -1; });
-    $('pvTags').innerHTML = 'In the images: <b' + (same ? '' : ' class="err"') + '>' + esc(nm || '—') + '</b>' + (same ? '' : ' <span class="err">⚠ not the name on the upload – check the patient!</span>') +
-      (t.id ? ' · ID ' + esc(t.id) : '') + (t.series ? ' · ' + esc(t.series) : '') + (t.inst ? ' · image no. ' + esc(t.inst) : '') + (im.cols ? ' · ' + im.cols + ' × ' + im.rows : '') + (t.date ? ' · ' + esc(String(t.date).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')) : '');
-  }
-  /** DICOM → { rows, cols, px (Float32 values after rescale), w, c, mono1, rgb, tags } or { err } */
-  function dcmImage(buf) {
-    var dv = new DataView(buf), u8 = new Uint8Array(buf), n = buf.byteLength, pos = 132, UNDEF = 0xFFFFFFFF, el = {}, ts = '';
-    if (n < 140 || String.fromCharCode(u8[128], u8[129], u8[130], u8[131]) !== 'DICM') return { err: 'Not a DICOM image file.' };
-    var LONG = /^(OB|OD|OF|OL|OV|OW|SQ|SV|UC|UR|UT|UN|UV)$/, h4 = function (x) { return ('000' + x.toString(16).toUpperCase()).slice(-4); };
-    var str = function (o, l) { var s = ''; for (var i = 0; i < l && o + i < n; i++) s += String.fromCharCode(u8[o + i]); try { s = decodeURIComponent(escape(s)); } catch (e) {} return s.replace(/\0/g, '').trim(); };
-    var read = function (expl) {
-      if (pos + 8 > n) return null;
-      var g = dv.getUint16(pos, true), e = dv.getUint16(pos + 2, true), tag = h4(g) + h4(e), vr = '', len; pos += 4;
-      if (g === 0xFFFE) { len = dv.getUint32(pos, true); pos += 4; return { tag: tag, g: g, len: len }; }
-      if (expl) { vr = String.fromCharCode(u8[pos], u8[pos + 1]); pos += 2; if (LONG.test(vr)) { pos += 2; len = dv.getUint32(pos, true); pos += 4; } else { len = dv.getUint16(pos, true); pos += 2; } }
-      else { len = dv.getUint32(pos, true); pos += 4; }
-      return { tag: tag, g: g, vr: vr, len: len };
-    };
-    var skip = function (expl, d) { if (d > 8) throw new Error('deep'); while (pos < n) { var x = read(expl); if (!x) return; if (x.tag === 'FFFEE0DD' || x.tag === 'FFFEE00D') return; if (x.len === UNDEF) skip(expl, d + 1); else pos += x.len; } };
-    try {
-      while (pos + 8 <= n && dv.getUint16(pos, true) === 0x0002) { var m = read(true); if (m.tag === '00020010') ts = str(pos, m.len); pos += m.len; }
-      var expl = ts !== '1.2.840.10008.1.2';
-      if (ts === '1.2.840.10008.1.2.2' || ts === '1.2.840.10008.1.2.1.99') return { err: 'This file uses an old/compressed DICOM encoding the preview can’t show (it is uploaded – open it in a DICOM viewer).' };
-      var x;
-      while ((x = read(expl))) {
-        if (x.tag === '7FE00010') { el.px = { off: pos, len: x.len }; break; }
-        if (x.len === UNDEF) { skip(expl, 0); continue; }
-        el[x.tag] = { off: pos, len: x.len, vr: x.vr }; pos += x.len;
-      }
-    } catch (e) { return { err: 'Could not read this DICOM file.' }; }
-    var us = function (t) { return el[t] && el[t].len >= 2 ? dv.getUint16(el[t].off, true) : 0; };
-    var ds = function (t, d) { if (!el[t]) return d; var v = parseFloat(str(el[t].off, el[t].len).split('\\')[0]); return isNaN(v) ? d : v; };
-    var tags = { name: el['00100010'] ? str(el['00100010'].off, el['00100010'].len) : '', id: el['00100020'] ? str(el['00100020'].off, el['00100020'].len) : '',
-      series: el['0008103E'] ? str(el['0008103E'].off, el['0008103E'].len) : '', inst: el['00200013'] ? str(el['00200013'].off, el['00200013'].len) : '', date: el['00080020'] ? str(el['00080020'].off, el['00080020'].len) : '' };
-    var rows = us('00280010'), cols = us('00280011'), bits = us('00280100') || 16, signed = us('00280103') === 1, spp = us('00280002') || 1;
-    var photo = el['00280004'] ? str(el['00280004'].off, el['00280004'].len) : 'MONOCHROME2';
-    if (!el.px || !rows || !cols) return { err: 'This file has no image (e.g. a report or a scout list).', tags: tags };
-    if (el.px.len === UNDEF) return { err: 'This image is compressed (JPEG / JPEG 2000) – the preview can’t show it, but it is uploaded. Open it in a DICOM viewer to check.', tags: tags, rows: rows, cols: cols };
-    var npx = rows * cols * spp, px = new Float32Array(rows * cols), slope = ds('00281053', 1), icpt = ds('00281052', 0), off = el.px.off;
-    if (off + npx * (bits / 8) > n) return { err: 'The image data is cut short – this file may be damaged. Upload it again.', tags: tags };
-    var rgb = null;
-    if (spp === 3 && bits === 8) { rgb = u8.subarray(off, off + npx); }
-    else if (bits === 8) { for (var i = 0; i < rows * cols; i++) px[i] = u8[off + i] * slope + icpt; }
-    else if (bits === 16) { for (var j = 0; j < rows * cols; j++) px[j] = (signed ? dv.getInt16(off + j * 2, true) : dv.getUint16(off + j * 2, true)) * slope + icpt; }
-    else return { err: bits + '-bit images are not shown in the preview.', tags: tags };
-    var w = ds('00281051', 0), c = ds('00281050', 0);
-    if (!w && !rgb) { var lo = Infinity, hi = -Infinity; for (var k = 0; k < px.length; k += 7) { if (px[k] < lo) lo = px[k]; if (px[k] > hi) hi = px[k]; } w = Math.max(1, hi - lo); c = (hi + lo) / 2; }
-    return { rows: rows, cols: cols, px: px, rgb: rgb, w: w, c: c, mono1: photo === 'MONOCHROME1', tags: tags };
-  }
-  function dcmDraw(cv, im, wl) {
-    cv.width = im.cols; cv.height = im.rows; cv.style.setProperty('--pvw', im.cols);   // full size = 2× the matrix (a 512 slice shows at 1024 px)
-    var g = cv.getContext('2d'), id = g.createImageData(im.cols, im.rows), d = id.data, N = im.rows * im.cols;
-    if (im.rgb) { for (var k = 0; k < N; k++) { d[k * 4] = im.rgb[k * 3]; d[k * 4 + 1] = im.rgb[k * 3 + 1]; d[k * 4 + 2] = im.rgb[k * 3 + 2]; d[k * 4 + 3] = 255; } }
-    else {
-      var w = Math.max(1, wl ? wl.w : im.w), c = wl ? wl.c : im.c, lo = c - w / 2;
-      for (var i = 0; i < N; i++) { var v = (im.px[i] - lo) / w * 255; v = v < 0 ? 0 : v > 255 ? 255 : v; if (im.mono1) v = 255 - v; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; }
-    }
-    g.putImageData(id, 0, 0);
-  }
   /* ================= /PREVIEW ================= */
 
   /* ================= ⬇ DOWNLOAD A STUDY (CT DICOM folder or X-ray images → one .zip) ================= */
@@ -2341,17 +2256,13 @@
       box.innerHTML = r.items.map(ctdRow).join('');
     }).catch(function (e) { box.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
-  var CTD_ROWS = {};
-  function pvCtRow(id) { var x = CTD_ROWS[id]; if (x) pvCt(x); }
   function ctdRow(x) {
-    CTD_ROWS[x.id] = x;
     var st = x.status === 'Complete' ? '<span class="pill Approved">Complete</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
     return '<div class="xrrow"><div class="xrl"><b>' + esc(x.name) + '</b> · ' + esc(x.exam) + (x.sex || x.age ? ' · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) : '') +
       '<div class="d">' + esc(xrTime(x.created)) + ' · ' + x.files + (x.expected && x.files < x.expected ? ' of ' + x.expected : '') + ' files' + (x.bytes ? ' · ' + esc(ctdMB(x.bytes)) : '') +
       ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') +
       '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
       '</div></div>' + st +
-      (x.files ? '<button class="xrdl" onclick="pvCtRow(\'' + esc(x.id) + '\')" title="See the uploaded CT images">👁 Preview</button>' : '') +
       (x.files ? '<button class="xrdl" onclick="dlStudy(\'ct\', \'' + esc(x.id) + '\', event)" title="Download the CT images (DICOM) as one .zip">⬇ Download</button>' : '') +
       '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Drive</a>' +
       (x.reportId && typeof rptOpenDoc === 'function' && (XR_ROLE.rad || XR_ROLE.admin) && curView === 'rpt' ? '<button class="link" style="white-space:nowrap" onclick="rptOpenDoc(\'' + esc(x.reportId) + '\')">📝 Report</button>' : '') +
