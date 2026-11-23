@@ -385,6 +385,7 @@
       <div class="tgroups">
         <div class="tgroup" data-g="xr"><div class="tgt">X-ray (mini-PACS)</div><div class="schedbar">
           <button class="chip hidden" id="stPacs" onclick="openPacs()"><span class="cl">🩻 PACS (X-ray, US, CT)</span><span id="xrBadge" class="badge hidden"></span></button>
+          <button class="chip hidden" id="stImg" onclick="openImages()"><span class="cl">🖼 Images</span></button>
         </div></div>
         <div class="tgroup" data-g="req"><div class="tgt" id="tg_req">New request</div><div class="schedbar">
           <button class="chip" id="stNew" onclick="schedView('new')"><span class="cl">📅 Request a scan</span></button>
@@ -868,7 +869,7 @@
 
 <div id="viewer">
   <div class="box">
-    <div class="bar"><b id="vTitle"></b><span><button class="link hidden" id="vPrint" onclick="printFile()">🖨 Print</button><a id="dl" class="link hidden" download>Download</a><button class="link" onclick="closeViewer()">Close ✕</button></span></div>
+    <div class="bar"><b id="vTitle"></b><span><button class="link hidden" id="vImgs" onclick="var a=CUR_IMG;closeViewer();openImages(a)">🖼 Images</button><button class="link hidden" id="vPrint" onclick="printFile()">🖨 Print</button><a id="dl" class="link hidden" download>Download</a><button class="link" onclick="closeViewer()">Close ✕</button></span></div>
     <div class="body" id="vBody"></div>
   </div>
 </div>
@@ -1134,6 +1135,7 @@
     $('schedCard').classList.toggle('hidden', !(sOn || pOn || rOn || cOn || dOn || yOn || xOn || ctOn || xrOn));
     // PACS button straight away (the login check says who gets it); its badge count comes with startupInfo
     $('stPacs').classList.toggle('hidden', !(CONF.pacs && CONF.pacs.enabled && PACS_ACC && (PACS_ACC.tech || PACS_ACC.rad))); $('xrBadge').classList.add('hidden');
+    $('stImg').classList.toggle('hidden', !(CONF.pacs && CONF.pacs.enabled));   // X-ray images: every staff member
     $('stCtNew').classList.toggle('hidden', !ctOn); $('stCtPed').classList.toggle('hidden', !(ctOn && CONF.ctReferral.pediatric !== false));
     $('stCtMine').classList.toggle('hidden', !ctOn); $('stCtQ').classList.add('hidden'); $('ctBadge').classList.add('hidden');
     if (!$('ctqMonth').value) { var cm = new Date(); $('ctqMonth').value = cm.getFullYear() + '-' + pad(cm.getMonth() + 1); }
@@ -3997,8 +3999,25 @@
     if (!e.target.closest || !e.target.closest('.sbox')) $('sug').classList.add('hidden');
   });
 
+  /* 🖼 Images: the X-ray viewer for all staff lives in viewer.js, downloaded the first time it is opened */
+  var IMGV_LOAD = null, CUR_IMG = '';
+  function openImages(acc) {
+    if (!IMGV_LOAD) IMGV_LOAD = new Promise(function (ok, no) {
+      if (window.IMGV) return ok();
+      var base = '';
+      if (VIA_APPS_SCRIPT) { base = (CONF.appUrl || '').split('#')[0].replace(/[^\/]*$/, ''); if (!/^https:\/\//.test(base) || /script\.google/.test(base)) return no(new Error('Open the portal from its GitHub address (CONFIG APP_URL) to see images.')); }
+      var sc = document.createElement('script'); sc.src = base + 'viewer.js'; sc.async = true;
+      sc.onload = function () { ok(); }; sc.onerror = function () { sc.remove(); no(new Error('The image viewer did not load – check the connection and try again.')); };
+      document.head.appendChild(sc);
+    });
+    IMGV_LOAD.then(function () { window.IMGV.open(acc || ''); }).catch(function (e) { IMGV_LOAD = null; alertBox(e.message); });
+  }
   function openFile(f, opt) {   // opt.fn = server function to fetch with (default getResult)
     $('vTitle').textContent = f.name;
+    $('vImgs').classList.add('hidden'); CUR_IMG = '';
+    if (!(opt && opt.fn) && /\bXRAY\b/i.test(f.name || '') && CONF.pacs && CONF.pacs.enabled) {   // an X-ray result: are its images in the PACS? (checked in the background)
+      run('imgForResult', token, f.id).then(function (r) { if (r && r.ok && r.acc && $('vTitle').textContent === f.name) { CUR_IMG = r.acc; $('vImgs').classList.remove('hidden'); } }).catch(function () {});
+    }
     $('vBody').innerHTML = '<p class="sub">Loading…</p>';
     $('viewer').style.display = 'block';
     ensureWorker().catch(function () {});   // fetch the PDF tool while the file downloads
