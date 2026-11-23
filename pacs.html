@@ -304,6 +304,15 @@
   .xrstrip { display:flex; gap:4px; margin-left:auto; } .xrstrip button { min-width:34px; }
   .xrstage { position:relative; flex:1; min-height:0; overflow:hidden; touch-action:none; cursor:grab; }
   .xrstage canvas { display:block; }
+  #xrOver { position:absolute; left:0; top:0; pointer-events:none; }
+  .xvctr { position:absolute; left:10px; top:10px; z-index:3; width:260px; max-width:calc(100% - 20px); background:rgba(15,23,42,.92); color:#e2e8f0; border:1px solid #334155; border-radius:10px; padding:10px 12px; font-size:13px; box-shadow:0 6px 20px rgba(0,0,0,.35); }
+  .xvctrH { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; } .xvctrH b { font-size:14px; }
+  .xvx { background:none; border:0; color:#94a3b8; font-size:16px; cursor:pointer; padding:0 4px; }
+  .xvctrS { color:#cbd5e1; line-height:1.4; } .xvctrS i { color:#fbbf24; font-style:normal; font-weight:700; }
+  .xvctrR { margin-top:6px; font-size:13px; line-height:1.45; } .xvctrR .big { font-size:22px; font-weight:800; color:#fff; } .xvctrR .hi { color:#fca5a5; } .xvctrR .ok { color:#86efac; }
+  .xvctrB { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; } .xvctrB button { flex:1; min-width:0; padding:7px 8px; border-radius:7px; border:1px solid #475569; background:#1e293b; color:#e2e8f0; font-size:12.5px; cursor:pointer; }
+  .xvctrB button#xvCtrIns { background:#0f766e; border-color:#0f766e; color:#fff; font-weight:700; }
+  .xrstage.ctr { cursor:crosshair; }
   .xrsmsg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:15px; }
   .xrside { width:min(440px,40vw); overflow:auto; padding:12px 14px 24px; border-left:1px solid var(--line); background:var(--card); }
   .xrside textarea { font-size:15px; line-height:1.45; }
@@ -410,10 +419,29 @@
   .rtebox { padding:11px 12px; font-size:15px; line-height:1.5; color:var(--ink); outline:none; overflow-wrap:anywhere; resize:vertical; overflow:auto; }
   .rtebox:empty:before { content:attr(data-ph); color:var(--muted); white-space:pre-line; pointer-events:none; }
   .rtebox ul, .rtebox ol { margin:2px 0; padding-left:26px; } .rtebox li { margin:1px 0; }
+  .rtebox .i1 { margin-left:2em; } .rtebox .i2 { margin-left:4em; } .rtebox .i3 { margin-left:6em; } .rtebox .i4 { margin-left:8em; }
   .rte.ro { background:var(--card); } .rte.ro .rtebox { min-height:0 !important; }
   .upseg { margin:0 0 14px; max-width:420px; }
   .ctbar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:12px; } .ctbar i { display:block; height:100%; width:0; background:var(--brand); transition:width .3s; }
-  #ctList .xrrow { gap:10px; } #ctSum { margin-top:8px; }
+  #ctList .xrrow, #rptList .xrrow { gap:10px; } #ctSum { margin-top:8px; } button.ctgen { width:auto; margin:0; padding:7px 12px; font-size:13.5px; white-space:nowrap; } select.ctre { width:auto; max-width:170px; margin:0; padding:4px 6px; font-size:13px; }
+  .pv { position:fixed; inset:0; z-index:9200; display:flex; flex-direction:column; background:#0b1220; color:#e2e8f0; } .pv.hidden { display:none; }
+  .pvtop { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #1e293b; } .pvt { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .pvt span { color:#94a3b8; margin-left:6px; }
+  .pv .xrskip { color:#e2e8f0; border-color:#334155; }
+  .pvbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; } .pvbar:empty { display:none; }
+  .pvthumbs button { padding:5px 10px; border-radius:7px; border:1px solid #334155; background:#111827; color:#e2e8f0; font-size:13px; cursor:pointer; }
+  .pvthumbs button.on { background:#0f766e; border-color:#0f766e; color:#fff; }
+  .pvstage { position:relative; flex:1; min-height:0; overflow:auto; display:flex; align-items:center; justify-content:center; background:#000; }
+  .pvstage img, .pvstage canvas { width:100%; height:100%; object-fit:contain; cursor:zoom-in; }
+  .pvstage.one { display:block; } .pvstage.one img, .pvstage.one canvas { width:auto; height:auto; max-width:none; max-height:none; cursor:zoom-out; }
+  .pvmsg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; color:#cbd5e1; font-size:15px; pointer-events:none; } .pvmsg.hidden { display:none; }
+  .pvnav { position:absolute; top:50%; transform:translateY(-50%); width:44px; height:64px; border:0; border-radius:10px; background:rgba(15,23,42,.6); color:#fff; font-size:30px; cursor:pointer; } .pvl { left:8px; } .pvr { right:8px; }
+  .pvstage.one .pvnav { position:fixed; }
+  .pvfoot { padding:8px 14px 12px; border-top:1px solid #1e293b; font-size:13px; } .pvfoot .hint { color:#94a3b8; margin-top:4px; } .pvthumbs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px; }
+  .pvfoot .err { color:#fca5a5; }
+  .dlbox { position:fixed; right:16px; bottom:16px; z-index:9500; width:340px; max-width:calc(100vw - 32px); background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 10px 30px rgba(0,0,0,.25); font-size:13.5px; line-height:1.45; }
+  .dlbox .link { display:block; margin-top:6px; } .dlbox .ctbar { margin:8px 0 6px; }
+  .xrdl { display:inline-flex; align-items:center; gap:4px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:600; color:var(--brand); background:transparent; white-space:nowrap; cursor:pointer; }
+  .xrdl:hover { background:color-mix(in srgb,var(--brand) 10%,transparent); }
   #gate { max-width:460px; margin:60px auto; text-align:center; }
   .pcard input, .pcard select, .pcard textarea { box-sizing:border-box; max-width:100%; } .xrg3 > div { min-width:0; }
   @media (max-width:600px) { .pwrap { padding:10px; } .pcard { padding:12px; } }
@@ -496,10 +524,15 @@
               <div><label>Age <span class="hint" style="display:inline">(if no DOB)</span></label><input type="text" id="ctAge" maxlength="20" inputmode="numeric" placeholder="e.g. 45"></div>
               <div><label>Sex *</label><div class="seg" id="ctSexBar" data-v=""><button type="button" data-v="M" onclick="ctdSex('M')">M</button><button type="button" data-v="F" onclick="ctdSex('F')">F</button></div></div>
               <div><label>ID no. (hospital no.)</label><input type="text" id="ctHosp" maxlength="40" autocomplete="off"></div>
+              <div><label>Civil status</label><select id="ctCivil"><option value=""></option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option></select></div>
+              <div><label>Patient location</label><input type="text" id="ctLoc" maxlength="40" placeholder="e.g. ER, OPD, S1"></div>
+              <div class="xrw2"><label>Address</label><input type="text" id="ctAddr" maxlength="200" placeholder="e.g. Pilar, SDN"></div>
               <div class="xrw2"><label>CT examination *</label><input type="text" id="ctExam" list="ctExams" maxlength="100" placeholder="e.g. CT Brain / Cranial"><datalist id="ctExams"></datalist></div>
+              <div><label>Contrast *</label><div class="seg" id="ctConBar" data-v="plain"><button type="button" data-v="plain" class="on" onclick="ctdCon('plain')">Plain</button><button type="button" data-v="contrast" onclick="ctdCon('contrast')">Contrast</button><button type="button" data-v="both" onclick="ctdCon('both')">Plain + contrast</button></div></div>
               <div><label>Requesting physician</label><input type="text" id="ctPhys" maxlength="100" placeholder="e.g. Dr. Aguirre"></div>
+              <div class="xrw2"><label>Indication / clinical history *</label><input type="text" id="ctInd" maxlength="300" placeholder="e.g. Abdominal pain"></div>
               <div class="xrw2"><label>Note for the radiologist</label><input type="text" id="ctNotes" maxlength="500" placeholder="e.g. with contrast, plain + post-contrast series"></div>
-              <div><label>Tell radiologist</label><select id="ctAssign"></select></div>
+              <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="ctAssign"></select></div>
             </div>
             <div id="ctProg" class="hidden"><div class="ctbar"><i id="ctBarFill"></i></div><div class="sub" id="ctProgTxt" style="margin:6px 0 0"></div></div>
             <div class="xrbtns">
@@ -508,7 +541,7 @@
             </div>
             <button class="link" type="button" style="margin-top:6px" onclick="ctdClear()">Clear form</button>
             <div id="ctMsg" class="msg"></div>
-            <p class="hint" style="margin-top:4px">Each CT gets its own folder in the CT DICOM folder in Drive, with the sub-folders kept. Keep this page open until it says done. If the upload stops (Wi-Fi, refresh), choose the same folder again: only the missing files are sent.</p>
+            <p class="hint" style="margin-top:4px">When the upload is complete, a report draft (filled in from this form, with the normal template for the exam) goes to the radiologist’s list in 📝 US / CT. Each CT gets its own folder in the CT DICOM folder in Drive, with the sub-folders kept. Keep this page open until it says done. If the upload stops (Wi-Fi, refresh), choose the same folder again: only the missing files are sent.</p>
           </div>
           <div class="meta" style="margin-top:14px"><b style="color:var(--ink)">CT uploads</b>
             <select id="ctDays" onchange="ctdLoadList()" style="width:auto"><option value="1">Today</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option></select>
@@ -553,6 +586,16 @@
   <div class="xrtop" id="rptHead"></div>
   <div class="rptscroll"><div class="rptbody" id="rptBody"></div></div>
 </div>
+<!-- 👁 preview of an uploaded study -->
+<div id="pv" class="hidden pv">
+  <div class="pvtop"><div class="pvt"><b id="pvTitle"></b> <span id="pvInfo"></span></div><button type="button" class="xrskip" onclick="pvClose()">✕ Close</button></div>
+  <div class="pvbar" id="pvBar"></div>
+  <div class="pvstage" id="pvStage" onclick="if(event.target.id==='pvImg')this.classList.toggle('one')">
+    <img id="pvImg" class="hidden" alt="Uploaded image"><div id="pvMsg" class="pvmsg"></div>
+    <button type="button" class="pvnav pvl" onclick="event.stopPropagation();pvStep(-1)" aria-label="Previous">‹</button><button type="button" class="pvnav pvr" onclick="event.stopPropagation();pvStep(1)" aria-label="Next">›</button>
+  </div>
+  <div class="pvfoot" id="pvFoot"></div>
+</div>
 <!-- X-ray reading screen (full screen) -->
 <div id="xrv" class="hidden">
   <div class="xrtop" id="xrHead"></div>
@@ -563,10 +606,20 @@
         <button onclick="xvTool('in')" title="Zoom in (+)">＋</button><button onclick="xvTool('out')" title="Zoom out (−)">−</button>
         <button id="xvWl" onclick="xvTool('wl')" title="Drag to adjust brightness / contrast (or right-drag any time)">☀ W/L</button>
         <button id="xvInv" onclick="xvTool('inv')" title="Invert (I)">Invert</button><button onclick="xvTool('rot')" title="Rotate (R)">⟳</button><button onclick="xvTool('flip')" title="Flip">⇋</button>
+        <button id="xvCtrBtn" onclick="xvTool('ctr')" title="Cardiothoracic ratio (C): tap the 2 heart borders, then the 2 inner chest walls">📏 CTR</button>
+        <button id="xvAngBtn" onclick="xvTool('angle')" title="Angle (A): tap a point on one arm, the vertex, then a point on the other arm">∠ Angle</button>
+        <button id="xvCobbBtn" onclick="xvTool('cobb')" title="Cobb angle (B): tap both ends of the upper endplate, then both ends of the lower endplate">⦣ Cobb</button>
         <button onclick="xvTool('reset')" title="Reset">Reset</button><span id="xrZoom"></span><span id="xrWL"></span>
         <span class="xrstrip" id="xrStrip"></span>
       </div>
-      <div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div></div>
+      <div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><canvas id="xrOver"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div>
+        <div id="xvCtr" class="xvctr hidden">
+          <div class="xvctrH"><b id="xvMTitle">Cardiothoracic ratio</b><button type="button" class="xvx" id="xvMX" onclick="xvMeasOff()" title="Close">✕</button></div>
+          <div id="xvCtrStep" class="xvctrS"></div>
+          <div id="xvCtrRes" class="xvctrR hidden"></div>
+          <div class="xvctrB"><button type="button" id="xvCtrIns" class="hidden" onclick="xvMeasInsert()">Insert into report</button><button type="button" onclick="xvMeasClear()">Start again</button></div>
+        </div>
+      </div>
     </div>
     <div class="xrside" id="xrSide"></div>
   </div>
@@ -1056,6 +1109,11 @@
         var el = document.createElement('div'); el.className = 'xrrow';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' image' + (o.images === 1 ? '' : 's') +
           ' · ' + esc(o.acc) + ' · ' + esc(xrTime(o.created)) + ' · ' + esc(o.tech) + (o.status === 'Final' ? ' · read by ' + esc(o.finalName) : (o.status !== 'Cancelled' ? ' · → ' + esc(o.assignedName || 'any radiologist') : '')) + (o.cancelReason ? ' · ' + esc(o.cancelReason) : '') + '</div></div>' + xrPill(o.status);
+        if (o.images && o.imageIds && o.imageIds.length) {
+          var pb = document.createElement('button'); pb.className = 'xrdl'; pb.type = 'button'; pb.textContent = '👁 Preview'; pb.title = 'See the uploaded images';
+          pb.onclick = function () { pvXray(o); };
+          var pbar = document.createElement('div'); pbar.className = 'xrbar'; pbar.appendChild(pb); el.appendChild(pbar);
+        }
         if (o.status === 'Final') {
           var vb = document.createElement('button'); vb.className = 'link'; vb.textContent = '📄 View report';
           vb.onclick = function () { openFile({ id: o.acc, name: o.reportName || o.acc }, { fn: 'xrReportFile' }); };
@@ -1173,8 +1231,9 @@
           : o.status === 'To read' ? ' · → ' + (o.assignedTo === r.me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) : '';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
           ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') + '</div></div>' +
-          xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>';
+          xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>' + (o.images ? '<span class="xrdl" role="button" tabindex="0" title="Download the images">⬇ Download</span>' : '');
         el.onclick = function () { xrOpenStudy(o.acc); };
+        if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('xr', o.acc, e); };
         list.appendChild(el);
       });
     }).catch(function (e) { if (quiet !== true) list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -1201,6 +1260,7 @@
     $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button>' +
       '<div class="xrpt"><b>' + esc(o.name) + '</b> <span>' + esc(o.age) + ' ' + esc(o.sex) + ' · ' + esc(o.exam) + ' · ' + esc(o.acc) + '</span></div>' + xrPri(o.priority) + xrPill(o.status) +
       (typeof o.left === 'number' ? '<span class="xrleft">' + (o.left ? o.left + ' more to read' : 'last one') + '</span>' : '') +
+      (o.imageIds && o.imageIds.length ? '<button class="xrskip" onclick="dlStudy(\'xr\', XS.acc)" title="Download the images">⬇ Download</button>' : '') +
       (ed && o.status === 'Reading' ? '<button class="xrskip" onclick="xrSkip()" title="Leave this one for later and open the next">Skip ▶</button>' : '');
     $('xrStrip').innerHTML = o.imageIds.length > 1 ? o.imageIds.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="xrShowImage(' + i + ')">' + (i + 1) + '</button>'; }).join('') : '';
     var kv = function (k, v) { return v ? '<div><span>' + esc(k) + '</span>' + esc(v) + '</div>' : ''; };
@@ -1371,15 +1431,22 @@
   function xvInit() {
     if (XV) { XV.img = null; return; }
     var cv = $('xrCanvas'), wrap = $('xrStage');
-    XV = { cv: cv, wrap: wrap, img: null, s: 1, x: 0, y: 0, rot: 0, flip: false, inv: false, b: 100, c: 100, wl: false, ptr: {} };
-    var resize = function () { var r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr); cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px'; xvDraw(); };
+    XV = { cv: cv, wrap: wrap, img: null, s: 1, x: 0, y: 0, rot: 0, flip: false, inv: false, b: 100, c: 100, wl: false, ptr: {}, m: null };
+    var ov = $('xrOver');
+    var resize = function () { var r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = ov.width = Math.max(1, r.width * dpr); cv.height = ov.height = Math.max(1, r.height * dpr); cv.style.width = ov.style.width = r.width + 'px'; cv.style.height = ov.style.height = r.height + 'px'; xvDraw(); };
     window.addEventListener('resize', function () { if (!$('xrv').classList.contains('hidden')) resize(); });
     XV.resize = resize;
     cv.addEventListener('wheel', function (e) { e.preventDefault(); xvZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY); }, { passive: false });
     cv.addEventListener('dblclick', function () { xvReset(); });
     cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-    cv.addEventListener('pointerdown', function (e) { cv.setPointerCapture(e.pointerId); XV.ptr[e.pointerId] = { x: e.offsetX, y: e.offsetY, btn: e.button }; });
-    cv.addEventListener('pointerup', function (e) { delete XV.ptr[e.pointerId]; XV.pinch = 0; });
+    cv.addEventListener('pointerdown', function (e) {
+      cv.setPointerCapture(e.pointerId); XV.ptr[e.pointerId] = { x: e.offsetX, y: e.offsetY, btn: e.button, x0: e.offsetX, y0: e.offsetY };
+      if (XV.m && e.button === 0 && Object.keys(XV.ptr).length === 1) XV.ptr[e.pointerId].pt = xvMeasHit(e.offsetX, e.offsetY);   // grab a point to move it
+    });
+    cv.addEventListener('pointerup', function (e) {
+      var p = XV.ptr[e.pointerId]; delete XV.ptr[e.pointerId]; XV.pinch = 0;
+      if (XV.m && p && p.btn === 0 && p.pt === -1 && Math.hypot(e.offsetX - p.x0, e.offsetY - p.y0) < 7 && XV.m.pts.length < MEAS[XV.m.kind].n) xvMeasAdd(e.offsetX, e.offsetY);   // a tap places the next point
+    });
     cv.addEventListener('pointercancel', function (e) { delete XV.ptr[e.pointerId]; XV.pinch = 0; });
     cv.addEventListener('pointermove', function (e) {
       var p = XV.ptr[e.pointerId]; if (!p) return;
@@ -1389,6 +1456,7 @@
         var d = Math.hypot(a.x - b.x, a.y - b.y); if (XV.pinch) xvZoom(d / XV.pinch, (a.x + b.x) / 2, (a.y + b.y) / 2); XV.pinch = d; return;
       }
       p.x = e.offsetX; p.y = e.offsetY;
+      if (XV.m && p.pt >= 0) { XV.m.pts[p.pt] = xvToImg(e.offsetX, e.offsetY); xvOver(); return; }   // moving a measurement point
       if (XV.wl || p.btn === 2) {   // window / level: left-right = contrast, up-down = brightness
         XV.c = Math.max(10, Math.min(400, XV.c + dx * 0.6)); XV.b = Math.max(10, Math.min(300, XV.b - dy * 0.4)); xvFilter();
       } else { var dpr = window.devicePixelRatio || 1; XV.x += dx * dpr; XV.y += dy * dpr; xvDraw(); }
@@ -1397,13 +1465,14 @@
       if ($('xrv').classList.contains('hidden')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); xrDraft(false); return; }
       if (isTyping(e.target)) return;
+      if (e.key === 'c') { xvTool('ctr'); return; } if (e.key === 'a') { xvTool('angle'); return; } if (e.key === 'b') { xvTool('cobb'); return; }
       if (e.key === 'i') xvTool('inv'); else if (e.key === 'r') xvTool('rot'); else if (e.key === '0' || e.key === 'f') xvReset(); else if (e.key === '+' || e.key === '=') xvTool('in'); else if (e.key === '-') xvTool('out');
-      else if (e.key === 'Escape') xrClose();
+      else if (e.key === 'Escape') { if (XV.m) xvMeasOff(); else xrClose(); }
       else if (/^[1-9]$/.test(e.key) && XS && XS.imageIds.length > 1 && +e.key <= XS.imageIds.length) xrShowImage(+e.key - 1);
     });
     setTimeout(resize, 0);
   }
-  function xvClear(msg) { if (XV) { XV.img = null; XV.cv.getContext('2d').clearRect(0, 0, XV.cv.width, XV.cv.height); } $('xrStageMsg').textContent = msg || ''; $('xrStageMsg').classList.toggle('hidden', !msg); }
+  function xvClear(msg) { if (XV) { XV.img = null; XV.cv.getContext('2d').clearRect(0, 0, XV.cv.width, XV.cv.height); if (XV.m) xvMeasClear(); else xvOver(); } $('xrStageMsg').textContent = msg || ''; $('xrStageMsg').classList.toggle('hidden', !msg); }
   function xvReset() {
     if (!XV.img) return; XV.resize && XV.resize();
     var rot = XV.rot % 180 !== 0, w = rot ? XV.img.height : XV.img.width, h = rot ? XV.img.width : XV.img.height;
@@ -1419,6 +1488,7 @@
     var g = XV.cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, XV.cv.width, XV.cv.height);
     g.translate(XV.cv.width / 2 + XV.x, XV.cv.height / 2 + XV.y); g.rotate(XV.rot * Math.PI / 180); g.scale(XV.flip ? -XV.s : XV.s, XV.s);
     g.imageSmoothingQuality = 'high'; g.drawImage(XV.img, -XV.img.width / 2, -XV.img.height / 2);
+    xvOver();
     $('xrZoom').textContent = Math.round(XV.s * 100 / (window.devicePixelRatio || 1)) + '%';
   }
   function xvFilter() {   // CSS filters work on every browser (incl. Safari)
@@ -1436,7 +1506,126 @@
     else if (t === 'inv') { XV.inv = !XV.inv; xvFilter(); $('xvInv').classList.toggle('on', XV.inv); }
     else if (t === 'wl') { XV.wl = !XV.wl; $('xvWl').classList.toggle('on', XV.wl); }
     else if (t === 'reset') { XV.b = 100; XV.c = 100; XV.inv = false; XV.rot = 0; XV.flip = false; $('xvInv').classList.remove('on'); xvReset(); }
+    else if (MEAS[t]) { if (XV.m && XV.m.kind === t) xvMeasOff(); else xvMeasOn(t); }
   }
+
+  /* ---- measurements on the image: 📏 CTR, ∠ Angle, ⦣ Cobb angle. Tap the points, drag a point to adjust. ---- */
+  var MEAS = {
+    ctr: { n: 4, title: 'Cardiothoracic ratio', btn: 'xvCtrBtn', key: 'C', labels: ['R heart', 'L heart', 'R chest', 'L chest'], col: ['#22d3ee', '#22d3ee', '#fbbf24', '#fbbf24'],
+      steps: ['the <i>right</i> heart border (widest point of the heart)', 'the <i>left</i> heart border', 'the <i>right</i> inner chest wall (widest point of the chest)', 'the <i>left</i> inner chest wall'] },
+    angle: { n: 3, title: 'Angle', btn: 'xvAngBtn', key: 'A', labels: ['', 'vertex', ''], col: ['#a78bfa', '#f472b6', '#a78bfa'],
+      steps: ['a point on the <i>first arm</i>', 'the <i>vertex</i> (corner of the angle)', 'a point on the <i>second arm</i>'] },
+    cobb: { n: 4, title: 'Cobb angle', btn: 'xvCobbBtn', key: 'B', labels: ['1', '1', '2', '2'], col: ['#34d399', '#34d399', '#fbbf24', '#fbbf24'],
+      steps: ['one end of the <i>upper endplate</i> (top vertebra of the curve)', 'the other end of that endplate', 'one end of the <i>lower endplate</i> (bottom vertebra)', 'the other end of that endplate'] } };
+  function xvMeasOn(kind) {
+    if (!XV.img) return xrToast('Open an image first.');
+    if (XV.m) xvMeasOff();
+    XV.m = { kind: kind, pts: [] }; $('xvMTitle').textContent = MEAS[kind].title; $('xvMX').title = 'Close (' + MEAS[kind].key + ')';
+    $('xvCtr').classList.remove('hidden'); $(MEAS[kind].btn).classList.add('on'); XV.wrap.classList.add('ctr'); xvMeasPanel(); xvOver();
+  }
+  function xvMeasOff() { if (XV.m) $(MEAS[XV.m.kind].btn).classList.remove('on'); XV.m = null; $('xvCtr').classList.add('hidden'); XV.wrap.classList.remove('ctr'); xvOver(); }
+  function xvMeasClear() { if (XV.m) { XV.m.pts = []; xvMeasPanel(); } xvOver(); }
+  // (older names kept for the CTR button / tests)
+  function xvCtrOn() { xvMeasOn('ctr'); } function xvCtrOff() { xvMeasOff(); } function xvCtrClear() { xvMeasClear(); } function xvCtrInsert() { xvMeasInsert(); }
+  /** screen (CSS px) → image pixel, and back (follows zoom, pan, rotate and flip) */
+  function xvToImg(ox, oy) {
+    var dpr = window.devicePixelRatio || 1, x = ox * dpr - (XV.cv.width / 2 + XV.x), y = oy * dpr - (XV.cv.height / 2 + XV.y);
+    var a = -XV.rot * Math.PI / 180, rx = x * Math.cos(a) - y * Math.sin(a), ry = x * Math.sin(a) + y * Math.cos(a);
+    return { x: rx / (XV.flip ? -XV.s : XV.s) + XV.img.width / 2, y: ry / XV.s + XV.img.height / 2 };
+  }
+  function xvToScr(p) {   // → canvas px
+    var x = (p.x - XV.img.width / 2) * (XV.flip ? -XV.s : XV.s), y = (p.y - XV.img.height / 2) * XV.s, a = XV.rot * Math.PI / 180;
+    return { x: x * Math.cos(a) - y * Math.sin(a) + XV.cv.width / 2 + XV.x, y: x * Math.sin(a) + y * Math.cos(a) + XV.cv.height / 2 + XV.y };
+  }
+  function xvMeasHit(ox, oy) {
+    var dpr = window.devicePixelRatio || 1, best = -1, bd = 18 * dpr;
+    (XV.m ? XV.m.pts : []).forEach(function (p, i) { var q = xvToScr(p), d = Math.hypot(q.x - ox * dpr, q.y - oy * dpr); if (d < bd) { bd = d; best = i; } });
+    return best;
+  }
+  function xvMeasAdd(ox, oy) { XV.m.pts.push(xvToImg(ox, oy)); xvMeasPanel(); xvOver(); }
+  function xvAng(ax, ay, bx, by) { var d = Math.abs(Math.atan2(ay, ax) - Math.atan2(by, bx)) * 180 / Math.PI; return d > 180 ? 360 - d : d; }
+  /** the result of the active measurement, or null until all points are placed */
+  function xvMeasCalc() {
+    var M = XV.m, P = M && M.pts; if (!P || P.length < MEAS[M.kind].n) return null;
+    if (M.kind === 'ctr') {   // widths left-right on the image as shown
+      var s = P.map(xvToScr), heart = Math.abs(s[1].x - s[0].x), chest = Math.abs(s[3].x - s[2].x);
+      return chest ? { ctr: true, heart: heart / XV.s, chest: chest / XV.s, ratio: heart / chest } : null;
+    }
+    if (M.kind === 'angle') return { deg: xvAng(P[0].x - P[1].x, P[0].y - P[1].y, P[2].x - P[1].x, P[2].y - P[1].y) };
+    var d = xvAng(P[1].x - P[0].x, P[1].y - P[0].y, P[3].x - P[2].x, P[3].y - P[2].y);   // Cobb: angle between the two lines (0–90°)
+    return { deg: d > 90 ? 180 - d : d };
+  }
+  function xvMeasPanel() {
+    var M = XV.m; if (!M) return;
+    var D = MEAS[M.kind], n = M.pts.length, c = xvMeasCalc();
+    $('xvCtrStep').innerHTML = n < D.n ? '<b>' + (n + 1) + ' of ' + D.n + ':</b> tap ' + D.steps[n] + '.' + (n ? ' Drag a point to move it.' : ' Zoom and pan as usual.') : 'Drag any point to adjust.';
+    $('xvCtrRes').classList.toggle('hidden', !c); $('xvCtrIns').classList.toggle('hidden', !c);
+    if (!c) return;
+    if (c.ctr) {
+      var big = c.ratio > 0.5;
+      $('xvCtrRes').innerHTML = '<span class="big ' + (big ? 'hi' : 'ok') + '">CTR ' + c.ratio.toFixed(2) + '</span> ' + (big ? '<span class="hi">&gt; 0.50</span>' : '<span class="ok">≤ 0.50</span>') +
+        '<br>Heart ' + Math.round(c.heart) + ' px ÷ chest ' + Math.round(c.chest) + ' px' +
+        '<br><span style="color:#94a3b8">Upper limit 0.50 on an adult PA film; AP and supine films magnify the heart.</span>';
+    } else if (M.kind === 'angle') {
+      $('xvCtrRes').innerHTML = '<span class="big">' + c.deg.toFixed(1) + '°</span><br><span style="color:#94a3b8">Supplement ' + (180 - c.deg).toFixed(1) + '° · measured on the image as shown (a tilted photo changes angles).</span>';
+    } else {
+      $('xvCtrRes').innerHTML = '<span class="big">Cobb ' + Math.round(c.deg) + '°</span><br><span style="color:#94a3b8">' + (c.deg < 10 ? 'Under 10° is not usually called scoliosis.' : 'Angle between the two endplate lines.') + '</span>';
+    }
+  }
+  function xvOver() {
+    var ov = $('xrOver'); if (!ov) return;
+    var g = ov.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, ov.width, ov.height);
+    if (!XV || !XV.img || !XV.m || !XV.m.pts.length) return;
+    var M = XV.m, D = MEAS[M.kind], dpr = window.devicePixelRatio || 1, S = M.pts.map(xvToScr), c = xvMeasCalc();
+    var line = function (a, b, col, dash) { g.strokeStyle = col; g.lineWidth = 2 * dpr; g.setLineDash(dash ? [4 * dpr, 4 * dpr] : []); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.setLineDash([]); };
+    var label = function (t, x, y, col) {
+      g.font = 'bold ' + (16 * dpr) + 'px system-ui, sans-serif'; var w = g.measureText(t).width;
+      g.fillStyle = 'rgba(15,23,42,.8)'; g.fillRect(x - 6 * dpr, y - 18 * dpr, w + 12 * dpr, 24 * dpr); g.fillStyle = col; g.fillText(t, x, y);
+    };
+    if (M.kind === 'ctr') {
+      [[0, 1], [2, 3]].forEach(function (pr) {   // the measured width: a horizontal line at the pair's average height, with ticks to each point
+        if (!S[pr[1]]) return; var a = S[pr[0]], b = S[pr[1]], y = (a.y + b.y) / 2;
+        line({ x: a.x, y: y }, { x: b.x, y: y }, D.col[pr[0]]); line(a, { x: a.x, y: y }, D.col[pr[0]], true); line(b, { x: b.x, y: y }, D.col[pr[0]], true);
+      });
+    } else if (M.kind === 'angle') {
+      if (S[1]) line(S[1], S[0], D.col[0]);
+      if (S[2]) {
+        line(S[1], S[2], D.col[2]);
+        var a0 = Math.atan2(S[0].y - S[1].y, S[0].x - S[1].x), a1 = Math.atan2(S[2].y - S[1].y, S[2].x - S[1].x), dd = a1 - a0;
+        while (dd > Math.PI) dd -= 2 * Math.PI; while (dd < -Math.PI) dd += 2 * Math.PI;
+        var rr = Math.min(40 * dpr, Math.hypot(S[0].x - S[1].x, S[0].y - S[1].y) / 2, Math.hypot(S[2].x - S[1].x, S[2].y - S[1].y) / 2);
+        g.strokeStyle = D.col[1]; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(S[1].x, S[1].y, rr, a0, a0 + dd, dd < 0); g.stroke();
+      }
+    } else {   // Cobb: the two endplate lines, drawn longer so they can be compared
+      [[0, 1], [2, 3]].forEach(function (pr) {
+        if (!S[pr[1]]) return; var a = S[pr[0]], b = S[pr[1]], dx = b.x - a.x, dy = b.y - a.y;
+        line({ x: a.x - dx * 0.4, y: a.y - dy * 0.4 }, { x: b.x + dx * 0.4, y: b.y + dy * 0.4 }, D.col[pr[0]]);
+      });
+    }
+    S.forEach(function (q, i) {
+      g.fillStyle = D.col[i]; g.strokeStyle = '#0f172a'; g.lineWidth = 2 * dpr;
+      g.beginPath(); g.arc(q.x, q.y, 6 * dpr, 0, Math.PI * 2); g.fill(); g.stroke();
+      if (D.labels[i]) { g.font = (12 * dpr) + 'px system-ui, sans-serif'; g.fillStyle = '#fff'; g.fillText(D.labels[i], q.x + 9 * dpr, q.y - 8 * dpr); }
+    });
+    if (c) {
+      if (c.ctr) label('CTR ' + c.ratio.toFixed(2), Math.min(S[2].x, S[3].x), Math.max(S[2].y, S[3].y) + 26 * dpr, c.ratio > 0.5 ? '#fca5a5' : '#86efac');
+      else if (M.kind === 'angle') label(c.deg.toFixed(1) + '°', S[1].x + 14 * dpr, S[1].y + 26 * dpr, '#f9a8d4');
+      else label('Cobb ' + Math.round(c.deg) + '°', Math.max(S[1].x, S[3].x) + 16 * dpr, (S[1].y + S[3].y) / 2, '#86efac');
+    }
+    xvMeasPanel();
+  }
+  /** adds the result to the report (at the cursor if the report is being typed in, else at the end) */
+  function xvMeasInsert() {
+    var c = xvMeasCalc(), f = $('xrF'); if (!c || !f) return;
+    if (f.readOnly) return xrToast('This report is finalized.');
+    var line = c.ctr ? 'Cardiothoracic ratio: ' + c.ratio.toFixed(2) + '.' : XV.m.kind === 'angle' ? 'Measured angle: ' + c.deg.toFixed(1) + '°.' : 'Cobb angle: ' + Math.round(c.deg) + '°.';
+    var sel = window.getSelection(), inBox = sel && sel.rangeCount && f.contains(sel.anchorNode);
+    if (inBox && f.isContentEditable) { f.focus(); document.execCommand('insertText', false, line); }
+    else { f.value = rtCat(f.value, line); f.focus(); rteCaretEnd(f); }
+    f.dispatchEvent(new Event('input', { bubbles: true }));
+    xrToast('Added to the report: ' + line);
+  }
+
   /* ================= /X-RAY MINI-PACS ================= */
 
   /* ================= FORMATTING BAR (bold / italic / underline / bullets / numbering) =================
@@ -1449,18 +1638,18 @@
     s = String(s == null ? '' : s).replace(/\r/g, '');
     if (!rtIsRich(s)) return s.split('\n').filter(function (l) { return !plainType || plainType === 'p' || l.trim(); })
       .map(function (l) { return { t: plainType || 'p', runs: l ? [{ s: l, b: !!plainBold, i: false, u: false }] : [] }; });
-    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, re = /<(\/?)(p|ul|ol|li|b|i|u|br)(?:\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
-    var nb = function () { cur = { t: list || 'p', runs: [] }; out.push(cur); };
+    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, re = /<(\/?)(p|ul|ol|li|b|i|u|br)(\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
+    var nb = function (attrs) { var k = /\bclass\s*=\s*["'][^"']*\bi([1-4])\b/i.exec(attrs || ''); cur = { t: list || 'p', runs: [], ind: k ? +k[1] : 0 }; out.push(cur); };
     while ((m = re.exec(s))) {
-      if (m[3] !== undefined) {
-        var txt = rtDec(m[3].replace(/\n/g, '')); if (!txt) continue; if (!cur) nb();
+      if (m[4] !== undefined) {
+        var txt = rtDec(m[4].replace(/\n/g, '')); if (!txt) continue; if (!cur) nb();
         rtPush(cur.runs, { s: txt, b: b > 0, i: i > 0, u: u > 0 }); continue;
       }
       if (!m[2]) continue;
       var d = m[1] === '/' ? -1 : 1, tg = m[2].toLowerCase();
       if (tg === 'b') b = Math.max(0, b + d); else if (tg === 'i') i = Math.max(0, i + d); else if (tg === 'u') u = Math.max(0, u + d);
       else if (tg === 'ul' || tg === 'ol') { list = d < 0 ? '' : tg; cur = null; }
-      else if (tg === 'p' || tg === 'li') { if (d < 0) cur = null; else nb(); }
+      else if (tg === 'p' || tg === 'li') { if (d < 0) cur = null; else nb(m[3]); }
       else if (tg === 'br') { if (!cur) nb(); cur = null; }
     }
     return out;
@@ -1473,14 +1662,15 @@
     var empty = function (bk) { return !bk.runs.some(function (r) { return r.s.trim(); }); };
     while (blocks.length && empty(blocks[blocks.length - 1])) blocks.pop();
     while (blocks.length && empty(blocks[0])) blocks.shift();
-    if (blocks.every(function (bk) { return bk.t === 'p' && bk.runs.every(function (r) { return !r.b && !r.i && !r.u; }); }))
+    if (blocks.every(function (bk) { return bk.t === 'p' && !bk.ind && bk.runs.every(function (r) { return !r.b && !r.i && !r.u; }); }))
       return blocks.map(function (bk) { return bk.runs.map(function (r) { return r.s; }).join(''); }).join('\n');
     var h = '', open = '';
     blocks.forEach(function (bk) {
       var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p';
       if (open && open !== t) { h += '</' + open + '>'; open = ''; }
       if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
-      h += t === 'p' ? '<p>' + rtRunsHtml(bk.runs) + '</p>' : '<li>' + rtRunsHtml(bk.runs) + '</li>';
+      var ca = bk.ind > 0 ? ' class="i' + Math.min(4, bk.ind) + '"' : '';
+      h += t === 'p' ? '<p' + ca + '>' + rtRunsHtml(bk.runs) + '</p>' : '<li' + ca + '>' + rtRunsHtml(bk.runs) + '</li>';
     });
     return open ? h + '</' + open + '>' : h;
   }
@@ -1505,6 +1695,7 @@
     return '<div class="rte' + (ed ? '' : ' ro') + '" id="' + id + 'Wrap">' + (ed ? '<div class="rtebar" role="toolbar" aria-label="Formatting">' +
       B('bold', '<b>B</b>', 'Bold (Ctrl+B)') + B('italic', '<i>I</i>', 'Italic (Ctrl+I)') + B('underline', '<u>U</u>', 'Underline (Ctrl+U)') + '<span class="sep"></span>' +
       B('insertUnorderedList', '• List', 'Bullets') + B('insertOrderedList', '1. List', 'Numbering') + '<span class="sep"></span>' +
+      B('rteOut', '⇤', 'Less indent (Shift+Tab)') + B('rteIn', '⇥', 'More indent (Tab)') + '<span class="sep"></span>' +
       B('removeFormat', '<span class="rx">T</span>', 'Clear bold / italic / underline') + '</div>' : '') +
       '<div class="rtebox" id="' + id + '" contenteditable="' + (ed ? 'true' : 'false') + '" role="textbox" aria-multiline="true" spellcheck="true" data-ph="' + esc(ph || '') + '" style="min-height:' + (rows * 1.5) + 'em"></div></div>';
   }
@@ -1523,16 +1714,36 @@
     });
     el.addEventListener('input', function () { if (!el.textContent && !el.querySelector('li')) el.innerHTML = ''; rteState(); });
     el.addEventListener('keyup', rteState); el.addEventListener('mouseup', rteState); el.addEventListener('focus', rteState);
+    el.addEventListener('keydown', function (e) {   // Tab / Shift+Tab = indent (inside the report box)
+      if (e.key !== 'Tab' || opts.plain || el.contentEditable !== 'true') return;
+      e.preventDefault(); rteIndent(el, e.shiftKey ? -1 : 1); el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     if (wrap.querySelector('.rtebar')) {
       wrap.querySelector('.rtebar').addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });   // keep the selection
       wrap.querySelector('.rtebar').addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || opts.plain) return;
         if (document.activeElement !== el) { el.focus(); rteCaretEnd(el); }
-        document.execCommand(b.getAttribute('data-cmd'), false, null);
+        var cmd = b.getAttribute('data-cmd');
+        if (cmd === 'rteIn' || cmd === 'rteOut') rteIndent(el, cmd === 'rteIn' ? 1 : -1);
+        else document.execCommand(cmd, false, null);
         el.dispatchEvent(new Event('input', { bubbles: true })); rteState();
       });
     }
     return el;
+  }
+  /** indents / outdents the lines in the selection by one level (half an inch in the report) */
+  function rteIndent(box, d) {
+    var sel = window.getSelection(); if (!sel.rangeCount) return;
+    var blockOf = function (n) { while (n && n !== box) { if (n.nodeType === 1 && /^(DIV|P|LI)$/.test(n.tagName)) return n; n = n.parentNode; } return null; };
+    if (!blockOf(sel.anchorNode)) { document.execCommand('formatBlock', false, 'div'); }   // a bare first line: make it a line of its own
+    var r = sel.getRangeAt(0), all = box.querySelectorAll('div,p,li'), hit = [];
+    Array.prototype.forEach.call(all, function (b) { if (!b.querySelector('div,p,li') && r.intersectsNode(b)) hit.push(b); });
+    if (!hit.length) { var one = blockOf(sel.anchorNode); if (one) hit.push(one); }
+    hit.forEach(function (b) {
+      var m = /\bi([1-4])\b/.exec(b.className || ''), lv = Math.max(0, Math.min(4, (m ? +m[1] : 0) + d));
+      b.className = (b.className || '').replace(/\bi[1-4]\b/g, '').trim(); if (lv) b.classList.add('i' + lv);
+      if (!b.className) b.removeAttribute('class');
+    });
   }
   function rteCaretEnd(el) { try { var r = document.createRange(); r.selectNodeContents(el); r.collapse(false); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
   /** lights up B / I / U / list buttons for the text at the cursor */
@@ -1548,17 +1759,17 @@
   function rteRender(v) {
     var h = '', open = '';
     rtBlocks(v).forEach(function (bk) {
-      var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p', inner = rtRunsHtml(bk.runs) || '<br>';
+      var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p', inner = rtRunsHtml(bk.runs) || '<br>', ca = bk.ind > 0 ? ' class="i' + Math.min(4, bk.ind) + '"' : '';
       if (open && open !== t) { h += '</' + open + '>'; open = ''; }
       if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
-      h += t === 'p' ? '<div>' + inner + '</div>' : '<li>' + inner + '</li>';
+      h += t === 'p' ? '<div' + ca + '>' + inner + '</div>' : '<li' + ca + '>' + inner + '</li>';
     });
     return open ? h + '</' + open + '>' : h;
   }
   /** what the browser made of the box → blocks */
   function rteRead(root) {
     var blocks = [], cur = null;
-    var nb = function (t) { cur = { t: t, runs: [] }; blocks.push(cur); return cur; };
+    var nb = function (t, el) { var k = el && /\bi([1-4])\b/.exec(el.className || ''); cur = { t: t, runs: [], ind: k ? +k[1] : 0 }; blocks.push(cur); return cur; };
     var walk = function (n, st, listT) {
       if (n.nodeType === 3) {
         var s = n.nodeValue.replace(/[​﻿]/g, '').replace(/ /g, ' ').replace(/\n/g, ' ');
@@ -1572,9 +1783,10 @@
       if (fw === 'normal' || fw === '400') s2.b = false;
       if (tg === 'BR') { if (!cur) nb(listT || 'p'); cur = null; return; }
       if (tg === 'UL' || tg === 'OL') { cur = null; Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, tg.toLowerCase()); }); cur = null; return; }
-      if (tg === 'LI') { nb(listT || 'ul'); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT || 'ul'); }); cur = null; return; }
+      if (tg === 'LI') { nb(listT || 'ul', n); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT || 'ul'); }); cur = null; return; }
       if (/^(DIV|P|H[1-6]|BLOCKQUOTE|PRE)$/.test(tg)) {
-        var mine = cur && !cur.runs.length ? null : nb(listT || 'p');
+        var mine = null;
+        if (cur && !cur.runs.length) { var kk = /\bi([1-4])\b/.exec(n.className || ''); if (kk) cur.ind = +kk[1]; } else mine = nb(listT || 'p', n);
         Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT); });
         if (mine && !mine.runs.length && blocks[blocks.length - 1] !== mine) blocks.splice(blocks.indexOf(mine), 1);   // a wrapper around a list, not an empty line
         cur = null; return;
@@ -1587,6 +1799,161 @@
   }
   function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
   /* ================= /FORMATTING BAR ================= */
+
+  /* ================= 👁 PREVIEW OF UPLOADED X-RAYS (what is really in Drive) ================= */
+  var PV = null;
+  function pvOpen(title) {
+    $('pv').classList.remove('hidden'); document.body.classList.add('xrlock');
+    $('pvTitle').textContent = title; $('pvInfo').textContent = ''; $('pvBar').innerHTML = ''; $('pvFoot').innerHTML = ''; $('pvMsg').textContent = 'Loading…'; $('pvMsg').classList.remove('hidden');
+    $('pvImg').classList.add('hidden'); $('pvStage').classList.remove('one');
+  }
+  function pvClose() { PV = null; $('pv').classList.add('hidden'); document.body.classList.remove('xrlock'); $('pvImg').removeAttribute('src'); }
+  function pvMsg(m) { $('pvMsg').textContent = m || ''; $('pvMsg').classList.toggle('hidden', !m); }
+  function pvStep(d) { if (PV) pvXrShow(PV.i + d); }
+  document.addEventListener('keydown', function (e) {
+    if (!PV || $('pv').classList.contains('hidden')) return;
+    if (e.key === 'Escape') pvClose(); else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); pvStep(1); } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); pvStep(-1); }
+  });
+
+  /* ---- X-ray: the uploaded images, one at a time ---- */
+  function pvXray(o) {
+    pvOpen(o.name + ' · ' + o.exam + ' · ' + o.acc);
+    PV = { kind: 'xr', acc: o.acc, ids: o.imageIds || [], cache: {}, i: 0 };
+    if (!PV.ids.length) return pvMsg('This study has no images yet.');
+    $('pvFoot').innerHTML = '<div class="pvthumbs">' + PV.ids.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="pvXrShow(' + i + ')">' + (i + 1) + '</button>'; }).join('') + '</div>' +
+      '<div class="hint">This is the image exactly as the radiologist will see it. Tap the image to see it at full size. Wrong or blurry? Use “Remove an image…” and “+ Add images” in the list.</div>';
+    pvXrShow(0);
+  }
+  function pvXrShow(i) {
+    var P = PV; if (!P || P.kind !== 'xr') return;
+    i = Math.max(0, Math.min(P.ids.length - 1, i)); P.i = i;
+    Array.prototype.forEach.call(document.querySelectorAll('#pvFoot .pvthumbs button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-i') === i); });
+    $('pvInfo').textContent = 'Image ' + (i + 1) + ' of ' + P.ids.length;
+    var show = function (src) { if (PV !== P || P.i !== i) return; var im = $('pvImg'); im.onload = function () { pvMsg(''); $('pvInfo').textContent = 'Image ' + (i + 1) + ' of ' + P.ids.length + ' · ' + im.naturalWidth + ' × ' + im.naturalHeight + ' px'; }; im.src = src; im.classList.remove('hidden'); };
+    if (P.cache[i]) return show(P.cache[i]);
+    pvMsg('Loading image ' + (i + 1) + '…'); $('pvImg').classList.add('hidden');
+    run('xrImage', token, P.acc, P.ids[i]).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) return PV === P && pvMsg(r.msg);
+      P.cache[i] = 'data:' + r.mime + ';base64,' + r.b64; show(P.cache[i]);
+    }).catch(function (e) { if (PV === P) pvMsg('Could not load: ' + ((e && e.message) || e)); });
+  }
+
+  /* ================= /PREVIEW ================= */
+
+  /* ================= ⬇ DOWNLOAD A STUDY (CT DICOM folder or X-ray images → one .zip) ================= */
+  var DL = { on: false, cancel: false };
+  /* a small .zip writer: files are stored as they are (DICOM and JPEG barely compress), CRC-32 checked, UTF-8 names */
+  var CRC_T = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(parts) { var c = 0xFFFFFFFF; parts.forEach(function (u) { for (var i = 0; i < u.length; i++) c = CRC_T[(c ^ u[i]) & 255] ^ (c >>> 8); }); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zipBlob(files) {   // files: [{ name, parts: [Uint8Array…] }]
+    var out = [], central = [], off = 0, now = new Date(), enc = new TextEncoder();
+    var dt = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF, dd = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), size = f.parts.reduce(function (a, u) { return a + u.length; }, 0), crc = crc32(f.parts);
+      var h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, dt, true); h.setUint16(12, dd, true);
+      h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+      out.push(new Uint8Array(h.buffer), name); f.parts.forEach(function (u) { out.push(u); });
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, dt, true); c.setUint16(14, dd, true);
+      c.setUint32(16, crc, true); c.setUint32(20, size, true); c.setUint32(24, size, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + size;
+    });
+    var cs = central.reduce(function (a, u) { return a + u.length; }, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+    return new Blob(out.concat(central, [new Uint8Array(e.buffer)]), { type: 'application/zip' });
+  }
+  function b64u8(b) { var s = atob(b), u = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+  function saveBlob(blob, name) {
+    var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 60000);
+  }
+  function dlPanel(html, done) {
+    var p = $('dlBox'); if (!p) { p = document.createElement('div'); p.id = 'dlBox'; p.className = 'dlbox'; document.body.appendChild(p); }
+    p.innerHTML = html + (done ? '<button type="button" class="link" onclick="this.parentNode.remove()">Close</button>' : '<button type="button" class="link" onclick="DL.cancel=true">Cancel</button>');
+    p.classList.remove('hidden');
+  }
+  function dlStop() { DL.on = false; window.removeEventListener('beforeunload', dlWarn); }
+  function dlWarn(e) { e.preventDefault(); e.returnValue = 'A study is still downloading.'; return e.returnValue; }
+  /** ⬇ a study. kind 'ct' (CT upload id) or 'xr' (accession) */
+  function dlStudy(kind, id, ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+    if (DL.on) return xrToast('A download is already running – wait for it or cancel it.');
+    DL = { on: true, cancel: false }; window.addEventListener('beforeunload', dlWarn);
+    dlPanel('⬇ Getting the file list…');
+    var fail = function (m) { dlStop(); dlPanel('<span class="err">Download stopped: ' + esc(m) + '</span>', true); };
+    if (kind === 'xr') {
+      run('xrImageList', token, id).then(function (r) {
+        if (r.expired) { dlStop(); return expired(); }
+        if (!r.ok) return fail(r.msg);
+        var got = [], i = 0;
+        var next = function () {
+          if (DL.cancel) return fail('cancelled.');
+          if (i >= r.images.length) {
+            dlStop();
+            var one = got.length === 1, ext1 = one ? got[0].name.replace(/^.*(\.\w+)$/, '$1') : '.zip';
+            if (one) saveBlob(new Blob(got[0].parts, { type: ext1 === '.png' ? 'image/png' : 'image/jpeg' }), r.name + ext1);
+            else saveBlob(zipBlob(got), r.name + '.zip');
+            return dlPanel('✓ Saved <b>' + esc(r.name) + ext1 + '</b> (' + got.length + ' image' + (got.length === 1 ? '' : 's') + ') to your Downloads.', true);
+          }
+          dlPanel('⬇ ' + esc(r.name) + ' · image ' + (i + 1) + ' of ' + r.images.length + '…');
+          run('xrImage', token, id, r.images[i]).then(function (x) {
+            if (!x.ok) return fail(x.msg);
+            var ext = /png/.test(x.mime || '') ? '.png' : '.jpg';
+            got.push({ name: 'image ' + (i + 1) + ext, parts: [b64u8(x.b64)] }); i++; next();
+          }).catch(function (e) { fail((e && e.message) || String(e)); });
+        };
+        next();
+      }).catch(function (e) { fail((e && e.message) || String(e)); });
+      return;
+    }
+    run('ctdFiles', token, id).then(function (r) {
+      if (r.expired) { dlStop(); return expired(); }
+      if (!r.ok) return fail(r.msg);
+      if (r.total > 1.5 * 1073741824 && !window.confirm('This study is ' + ctdMB(r.total) + '. Download it anyway? (It needs that much free memory.)')) return fail('cancelled.');
+      var parts = {}, tasks = [], cur = null, BATCH = 3 * 1048576, BIG = 3 * 1048576, CH = 4 * 1048576, done = 0, doneB = 0, active = 0, err = null, t0 = Date.now();
+      r.files.forEach(function (f) {
+        parts[f.id] = [];
+        if (f.size > BIG) { for (var o = 0; o < f.size; o += CH) tasks.push({ big: f, off: o, len: Math.min(CH, f.size - o), last: o + CH >= f.size }); return; }
+        if (!cur || cur.bytes + f.size > BATCH || cur.list.length >= 40) { cur = { list: [], bytes: 0 }; tasks.push(cur); }
+        cur.list.push(f); cur.bytes += f.size;
+      });
+      var bigChunks = {};   // pieces of big files arrive in any order
+      var prog = function () {
+        var pct = r.total ? Math.round(doneB / r.total * 100) : 0, secs = (Date.now() - t0) / 1000, left = doneB ? (r.total - doneB) / (doneB / secs) : 0;
+        dlPanel('⬇ <b>' + esc(r.name) + '</b><div class="ctbar"><i style="width:' + pct + '%"></i></div>' + done + ' of ' + r.files.length + ' files · ' + ctdMB(doneB) + ' of ' + ctdMB(r.total) +
+          (secs > 5 && left > 1 ? ' · about ' + (left > 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s') + ' left' : ''));
+      };
+      var finish = function () {
+        dlStop();
+        r.files.forEach(function (f) { if (bigChunks[f.id]) parts[f.id] = Object.keys(bigChunks[f.id]).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return bigChunks[f.id][k]; }); });
+        var blob = zipBlob(r.files.map(function (f) { return { name: f.path, parts: parts[f.id] }; }));
+        saveBlob(blob, r.name + '.zip');
+        dlPanel('✓ Saved <b>' + esc(r.name) + '.zip</b> (' + r.files.length + ' files, ' + ctdMB(blob.size) + ') to your Downloads. Unzip it and open the folder in your DICOM viewer.', true);
+      };
+      var pump = function () {
+        if (err || DL.cancel) { if (!active) fail(err || 'cancelled.'); return; }
+        if (!tasks.length && !active) return finish();
+        while (active < 3 && tasks.length) go(tasks.shift());
+      };
+      var go = function (t) {
+        active++; t.tries = t.tries || 0;
+        var retry = function (m) { active--; if (++t.tries <= 3 && !DL.cancel) { setTimeout(function () { tasks.unshift(t); pump(); }, 1500 * t.tries); } else { err = m; pump(); } };
+        var p = t.big ? run('ctdGetChunk', token, id, t.big.id, t.off, t.len) : run('ctdGetFiles', token, id, t.list.map(function (f) { return f.id; }));
+        p.then(function (x) {
+          if (x.expired) { err = 'your session ended'; active--; return pump(); }
+          if (!x.ok) return retry(x.msg);
+          if (t.big) { (bigChunks[t.big.id] = bigChunks[t.big.id] || {})[t.off] = b64u8(x.b64); doneB += t.len; if (t.last) done++; }
+          else { x.files.forEach(function (g) { parts[g.id] = [b64u8(g.b64)]; }); done += t.list.length; doneB += t.bytes; }
+          active--; prog(); pump();
+        }).catch(function (e) { retry((e && e.message) || String(e)); });
+      };
+      prog(); pump();
+    }).catch(function (e) { fail((e && e.message) || String(e)); });
+  }
+  /* ================= /DOWNLOAD ================= */
 
   /* ================= CT DICOM UPLOAD ================= */
   var CTD = { files: [], skipped: 0, tags: null, job: null, paused: false, busy: false, wake: null };
@@ -1604,9 +1971,9 @@
     $('ctExams').innerHTML = (c.exams || []).map(function (x) { return '<option value="' + esc(x) + '">'; }).join('');
     $('ctRootLink').href = c.folderUrl; $('ctDob').max = ymdLocal(new Date());
     var duty = c.onDuty;
-    $('ctAssign').innerHTML = '<option value="">' + (duty ? 'On duty for CT: ' + esc(duty.name) : 'Nobody on duty for CT – choose') + '</option>' +
-      (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '<option value="none">— Nobody (no email)</option>';
-    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
+    $('ctAssign').innerHTML = (duty ? '<option value="">On duty for CT: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for CT: choose —</option>') +
+      (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
+    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign', 'ctCivil', 'ctLoc', 'ctAddr', 'ctInd'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
     var dz = $('ctDrop');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
@@ -1615,16 +1982,19 @@
     ctdFormRestore();
   }
   function ctdSex(v) { Array.prototype.forEach.call(document.querySelectorAll('#ctSexBar button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); }); $('ctSexBar').setAttribute('data-v', v); ctdFormSave(); }
+  function ctdCon(v) { Array.prototype.forEach.call(document.querySelectorAll('#ctConBar button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); }); $('ctConBar').setAttribute('data-v', v); ctdFormSave(); }
   function ctdForm() {
     return { last: $('ctLast').value.trim(), first: $('ctFirst').value.trim(), middle: $('ctMid').value.trim(), dob: $('ctDob').value, age: $('ctAge').value.trim(),
       sex: $('ctSexBar').getAttribute('data-v'), hospNo: $('ctHosp').value.trim(), exam: $('ctExam').value.trim(), phys: $('ctPhys').value.trim(),
-      notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value };
+      notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value, civil: $('ctCivil').value, location: $('ctLoc').value.trim(), address: $('ctAddr').value.trim(),
+      indication: $('ctInd').value.trim(), contrast: $('ctConBar').getAttribute('data-v') || 'plain' };
   }
   function ctdFormSave() { try { localStorage.setItem('ctd_form', JSON.stringify(ctdForm())); } catch (e) {} }
   function ctdFormSet(f) {
     $('ctLast').value = f.last || ''; $('ctFirst').value = f.first || ''; $('ctMid').value = f.middle || ''; $('ctDob').value = f.dob || ''; $('ctAge').value = f.age || '';
     $('ctHosp').value = f.hospNo || ''; $('ctExam').value = f.exam || ''; $('ctPhys').value = f.phys || ''; $('ctNotes').value = f.notes || '';
-    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; ctdSex(f.sex || '');
+    $('ctCivil').value = f.civil || ''; $('ctLoc').value = f.location || ''; $('ctAddr').value = f.address || ''; $('ctInd').value = f.indication || '';
+    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; ctdSex(f.sex || ''); ctdCon(f.contrast || 'plain');
   }
   function ctdFormRestore() {
     var f = null, j = null; try { f = JSON.parse(localStorage.getItem('ctd_form') || 'null'); j = JSON.parse(localStorage.getItem('ctd_job') || 'null'); } catch (e) {}
@@ -1695,6 +2065,9 @@
       if ((t.sex === 'M' || t.sex === 'F') && !$('ctSexBar').getAttribute('data-v')) ctdSex(t.sex);
       fill('ctHosp', t.id); fill('ctPhys', String(t.phys || '').replace(/\^+/g, ' ').trim());
       fill('ctExam', t.study ? 'CT ' + t.study.replace(/^CT\s*/i, '') : t.part ? 'CT ' + t.part : '');
+      var sd = String(t.study || '');   // contrast from the study description
+      if (/contrast|enhanc|\+\s*c\b|\bc\+/i.test(sd) && !/plain|non[- ]?con|without/i.test(sd)) ctdCon('contrast');
+      else if (/plain.*contrast|pre.*post/i.test(sd)) ctdCon('both');
       ctdFormSave();
     });
   }
@@ -1769,12 +2142,14 @@
   }
   function ctdGo() {
     if (CTD.busy) return;
-    if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; return ctdPump(); }   // resume
+    if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; setMsg('ctMsg', 'Uploading…', true); return ctdPump(); }   // resume
     var f = ctdForm(), files = ctdSelected();
     if (!files.length) return setMsg('ctMsg', 'Choose the CT folder or files first.');
     if (!f.last || !f.first) return setMsg('ctMsg', 'Enter the patient’s last and first name.');
     if (!f.sex) return setMsg('ctMsg', 'Choose the sex.');
     if (!f.exam) return setMsg('ctMsg', 'Enter the CT examination.');
+    if (!f.indication) return setMsg('ctMsg', 'Enter the indication (clinical history) – it goes on the report.');
+    if (!f.assignTo && !(XR_META.ct && XR_META.ct.onDuty)) return setMsg('ctMsg', 'Nobody is on duty for CT – choose the radiologist.');
     var dirs = files.map(function (x) { var p = x.path.split('/'); p.pop(); return p.join('/'); }).filter(function (d, i, a) { return d && a.indexOf(d) === i; });
     var bytes = files.reduce(function (a, x) { return a + x.size; }, 0);
     var req = Object.assign({}, f, { files: files.length, bytes: bytes, dirs: dirs, uploadId: CTD.job && CTD.job.uploadId });
@@ -1854,7 +2229,8 @@
       CTD.busy = false; ctdWakeOff(); ctdButtons();
       if (!r.ok) return setMsg('ctMsg', r.msg);
       if (!r.complete) { setMsg('ctMsg', 'Only ' + r.files + ' of ' + r.expected + ' files are in Drive. Choose the same folder again and press Upload to send the rest.'); return ctdLoadList(); }
-      $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' + (r.assignedName ? ' · ' + esc(r.assignedName) + ' was emailed.' : '');
+      $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' +
+        (r.reportId ? '<br>📝 The report draft is in ' + esc(r.assignedName) + '’s list, and they were emailed.' : r.reportErr ? '<br><span class="err">The report draft could not be made: ' + esc(r.reportErr) + '</span> – use “📝 Generate report” in the list below.' : '');
       $('ctMsg').className = 'msg ok';
       xrToast('✓ CT uploaded');
       CTD.run = null; CTD.job = null; CTD.all = []; CTD.files = []; CTD.tags = null;
@@ -1884,9 +2260,40 @@
     var st = x.status === 'Complete' ? '<span class="pill Approved">Complete</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
     return '<div class="xrrow"><div class="xrl"><b>' + esc(x.name) + '</b> · ' + esc(x.exam) + (x.sex || x.age ? ' · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) : '') +
       '<div class="d">' + esc(xrTime(x.created)) + ' · ' + x.files + (x.expected && x.files < x.expected ? ' of ' + x.expected : '') + ' files' + (x.bytes ? ' · ' + esc(ctdMB(x.bytes)) : '') +
-      ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') + '</div></div>' + st +
-      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Open</a>' +
+      ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') +
+      '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
+      '</div></div>' + st +
+      (x.files ? '<button class="xrdl" onclick="dlStudy(\'ct\', \'' + esc(x.id) + '\', event)" title="Download the CT images (DICOM) as one .zip">⬇ Download</button>' : '') +
+      '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Drive</a>' +
+      (x.reportId && typeof rptOpenDoc === 'function' && (XR_ROLE.rad || XR_ROLE.admin) && curView === 'rpt' ? '<button class="link" style="white-space:nowrap" onclick="rptOpenDoc(\'' + esc(x.reportId) + '\')">📝 Report</button>' : '') +
+      ((x.status === 'Complete' || x.status === 'Incomplete') && !x.reportId ? '<button class="btn ctgen" onclick="ctdMake(\'' + esc(x.id) + '\', this, ' + (x.hasInd ? 1 : 0) + ', \'' + esc(x.contrast || '') + '\')">📝 Generate report</button>' : '') +
+      ((x.mine || XR_ROLE.admin) && !x.reportFinal && x.status !== 'Removed' ? '<select class="ctre" onchange="ctdRe(\'' + esc(x.id) + '\', this)" title="Change the radiologist"><option value="">Change radiologist…</option>' +
+        (XR_META.rads || []).filter(function (r) { return r.email !== x.assignedTo; }).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '</select>' : '') +
       (x.mine && x.status !== 'Complete' ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Remove</button>' : '') + '</div>';
+  }
+  function ctdMake(id, b, hasInd, contrast) {
+    var extra = {};
+    if (!hasInd) {   // uploads made before the form asked for these
+      var ind = window.prompt('Indication / clinical history for the report (e.g. Abdominal pain):', '');
+      if (ind === null) return;
+      extra.indication = ind.trim();
+    }
+    if (!contrast) {
+      var c = window.prompt('Contrast? Type 1 = Plain, 2 = With contrast, 3 = Plain + contrast', '1');
+      if (c === null) return;
+      extra.contrast = { '1': 'plain', '2': 'contrast', '3': 'both' }[String(c).trim()] || 'plain';
+    }
+    b.disabled = true; b.textContent = 'Generating…';
+    run('ctdMakeReport', token, id, extra).then(function (r) {
+      if (r.expired) return expired();
+      xrToast(r.msg);
+      if (!r.ok) { b.disabled = false; b.textContent = '📝 Generate report'; return; }
+      if (curView === 'rpt') rptLoad(); else ctdLoadList();
+    }).catch(function (e) { b.disabled = false; b.textContent = '📝 Generate report'; xrToast('Could not: ' + ((e && e.message) || e)); });
+  }
+  function ctdRe(id, sel) {
+    var to = sel.value; if (!to) return; sel.disabled = true;
+    run('ctdReassign', token, id, to).then(function (r) { xrToast(r.msg); if (curView === 'rpt') rptLoad(); else ctdLoadList(); }).catch(function (e) { sel.disabled = false; xrToast('Could not: ' + ((e && e.message) || e)); });
   }
   function ctdDel(id) {
     if (!window.confirm('Remove this CT upload? Its folder goes to the Drive trash.')) return;
@@ -1937,8 +2344,10 @@
       RPT.list.forEach(function (x) {
         var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
         el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + '</div></div>' +
-          '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>';
+          '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>' +
+          (x.upload ? '<span class="xrdl" role="button" tabindex="0" title="Download the CT images (DICOM)">⬇ Download</span>' : '');
         el.onclick = function () { rptOpenDoc(x.id); };
+        if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('ct', x.upload, e); };
         list.appendChild(el);
       });
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -1959,6 +2368,8 @@
     $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button>' +
       '<div class="xrpt"><b>' + esc(r.name) + '</b>' + (left !== null && !r.final ? ' <span>' + (left ? left + ' more after this' : 'last one') + '</span>' : '') + '</div>' +
       (r.final ? '<span class="pill xrFinal">Finalized · ' + esc(r.modality) + '</span>' : '<select id="rptDest" title="Finalized folder"><option value="Ultrasound">Ultrasound</option><option value="CT">CT scan</option></select>') +
+      (r.uploadId ? '<button class="xrskip" onclick="dlStudy(\'ct\', RPT.cur.uploadId)" title="Download the CT images (DICOM) as one .zip">⬇ Download CT</button>' : '') +
+      (r.imagesUrl ? '<a class="xrskip" target="_blank" rel="noopener" href="' + esc(r.imagesUrl) + '">📂 CT images</a>' : '') +
       '<button class="xrskip" onclick="rptEditDoc()">✏️ Open in Google Docs</button>';
     if ($('rptDest')) $('rptDest').value = r.modality;
     var h = '';
