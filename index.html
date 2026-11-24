@@ -200,6 +200,36 @@
   .panels { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
   .panels > .card { margin:0; min-width:0; grid-column:span 2; }
   .panels > .card.half { grid-column:span 1; }
+  #panels > .pnl.toff, #schedCard .tgroup.toff { display:none !important; }
+  .ptabs2 { display:flex; gap:6px; margin:0 0 14px; overflow-x:auto; scrollbar-width:none; }
+  .ptabs2::-webkit-scrollbar { display:none; }
+  .ptabs2 button { width:auto; margin:0; padding:9px 16px; border-radius:999px; border:1px solid var(--line); background:var(--card, #fff); color:var(--ink); font:inherit; font-size:15px; cursor:pointer; white-space:nowrap; flex:0 0 auto; }
+  .ptabs2 button.on { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
+  @media (max-width:640px) {
+    .ptabs2 { position:fixed; left:0; right:0; bottom:0; z-index:900; margin:0; padding:6px 6px calc(6px + env(safe-area-inset-bottom)); gap:2px; background:var(--card, #fff); border-top:1px solid var(--line); box-shadow:0 -4px 14px rgba(0,0,0,.08); justify-content:space-around; }
+    .ptabs2 button { flex:1 1 0; padding:7px 4px; font-size:12px; border:0; border-radius:10px; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    body[data-tab] .wrap { padding-bottom:76px; }
+  }
+  .prn { margin:0 0 12px; padding:10px 14px; border-radius:12px; background:#fff7ed; border:1px solid #fdba74; color:#7c2d12; font-size:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .prn .link { margin-left:auto; } .prn .link + .link { margin-left:8px; }
+  .policy { margin:0 0 12px; padding:8px 12px; border-left:4px solid var(--brand); background:color-mix(in srgb,var(--brand) 8%,transparent); border-radius:6px; font-size:13px; }
+  #rpPolicy { margin:10px 0 0; }
+  .dctl { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; }
+  .dtiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .dtile { border:1px solid var(--line); border-radius:12px; padding:12px; } .dtile .dt { font-weight:700; } .dtile .dv { font-size:26px; font-weight:700; margin:2px 0; } .dtile .ds { font-size:12px; color:var(--muted); margin-top:2px; }
+  .dpct { font-weight:700; } .dpct.g { color:#15803d; } .dpct.a { color:#b45309; } .dpct.r { color:#dc2626; }
+  .dh { font-size:15px; margin:16px 0 6px; }
+  .dtab { width:100%; border-collapse:collapse; font-size:13px; } .dtab th, .dtab td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); } .dtab th { color:var(--muted); font-weight:600; }
+  .dleg { font-size:12px; color:var(--muted); display:flex; gap:6px; align-items:center; } .dleg .k { width:10px; height:10px; border-radius:2px; display:inline-block; margin-left:8px; }
+  .dbars { display:flex; gap:4px; align-items:flex-end; overflow-x:auto; padding:8px 0 4px; }
+  .dday { flex:0 0 auto; width:34px; text-align:center; } .dcol { height:120px; display:flex; gap:2px; align-items:flex-end; justify-content:center; border-bottom:1px solid var(--line); }
+  .dcol .b { width:8px; border-radius:2px 2px 0 0; display:block; } .dlab { font-size:10px; color:var(--muted); margin-top:2px; }
+  .b.XR, .k.XR { background:#475569; } .b.CT, .k.CT { background:#7c3aed; } .b.US, .k.US { background:#0f766e; }
+  .cfgg { border:1px solid var(--line); border-radius:10px; margin-top:8px; padding:6px 12px; } .cfgg summary { cursor:pointer; font-weight:600; padding:4px 0; }
+  .cfgrow { border-top:1px solid var(--line); padding:10px 0; } .cfgg summary + .cfgrow { border-top:0; }
+  .cfgk code { font-size:13px; font-weight:700; } .cfgw { color:#b45309; } .cfgn { font-size:12px; color:var(--muted); margin:2px 0 4px; }
+  .cfgrow input, .cfgrow select, .cfgrow textarea { margin-top:4px; }
+  .cfgb { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px; } .cfgb .btn { width:auto; margin:0; padding:6px 14px; }
   body.wide .wrap { max-width:1180px; }
   @media (max-width:900px) { .panels { grid-template-columns:1fr; } .panels > .card, .panels > .card.half { grid-column:span 1; } .pwid { display:none; } body.wide .wrap { max-width:760px; } }
   .phd { display:flex; align-items:center; gap:8px; margin:-6px 0 10px; }
@@ -380,8 +410,17 @@
       <button class="btn" id="cBtn" onclick="doChange()">Update password</button>
       <div id="pwMsg" class="msg"></div>
     </div>
+    <div id="prNotice" class="prn hidden"></div>
+    <nav id="ptabs" class="ptabs2 hidden" role="tablist" aria-label="Portal sections">
+      <button type="button" role="tab" data-tab="viewer" onclick="tabGo('viewer')">🖼 Viewer</button>
+      <button type="button" role="tab" data-tab="requests" onclick="tabGo('requests')">📋 Requests</button>
+      <button type="button" role="tab" data-tab="pacs" class="hidden" onclick="tabGo('pacs')">🩻 PACS</button>
+      <button type="button" role="tab" data-tab="dash" class="hidden" onclick="tabGo('dash')">📊 TAT</button>
+      <button type="button" role="tab" data-tab="admin" class="hidden" onclick="tabGo('admin')">⚙ Admin</button>
+    </nav>
+    <div id="tabPolicy" class="policy hidden"></div>
     <div id="panels" class="panels">
-    <div id="schedCard" class="card panel pnl hidden" data-panel="tools" data-title="Requests &amp; tools">
+    <div id="schedCard" class="card panel pnl hidden" data-panel="tools" data-tabs="viewer requests admin" data-title="Requests &amp; tools">
       <div class="tgroups">
         <div class="tgroup" data-g="xr"><div class="tgt">X-ray (mini-PACS)</div><div class="schedbar">
           <button class="chip hidden" id="stPacs" onclick="openPacs()"><span class="cl">🩻 PACS (X-ray, US, CT)</span><span id="xrBadge" class="badge hidden"></span></button>
@@ -521,6 +560,7 @@
       <!-- REPRINT: request -->
       <div id="vRpNew" class="hidden" style="margin-top:6px">
         <p class="sub" style="margin:10px 0 0">For results that were lost or damaged in the ward. Only existing results can be requested.</p>
+        <div id="rpPolicy" class="policy hidden"></div>
         <label>Search results *</label>
         <div class="sbox" id="rpPick">
           <input type="text" id="rpQ" placeholder="Type part of the patient's name…" autocomplete="off" oninput="rpPickType()" onfocus="rpPickType()">
@@ -839,7 +879,7 @@
       </div>
     </div>
 
-    <div id="odCard" class="card panel pnl hidden" data-panel="duty" data-title="🩺 Radiologist on duty" data-title-id="odTitle">
+    <div id="odCard" class="card panel pnl hidden" data-panel="duty" data-tabs="viewer" data-title="🩺 Radiologist on duty" data-title-id="odTitle">
       <div class="odpick">
         <button class="link" onclick="odStep(-1)" aria-label="Previous day">‹</button>
         <button type="button" class="datebtn" id="odDateBtn" onclick="odCalOpen(event)">📅 <span id="odDateLbl">Today</span> ▾</button>
@@ -852,7 +892,19 @@
       <div id="odList"></div>
     </div>
 
-    <div id="resCard" class="card panel pnl" data-panel="results" data-title="Results viewer">
+    <div id="dashCard" class="card panel pnl toff" data-panel="dash" data-tabs="dash" data-title="📊 Turnaround time (TAT)">
+      <div class="dctl"><select id="dRange" onchange="dashOpen()" style="width:auto;margin:0"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="custom">Custom…</option></select>
+        <span id="dCustom" class="hidden"><input type="date" id="dFrom" style="width:auto;margin:0"> to <input type="date" id="dTo" style="width:auto;margin:0"> <button class="link" onclick="dashOpen(true)">Show</button></span>
+        <button class="link" onclick="dashOpen(true)">↻ Refresh</button><button class="link" id="dCsv" onclick="dashCsv()">⬇ Download log (CSV)</button></div>
+      <div id="dBody"></div>
+    </div>
+    <div id="cfgCard" class="card panel pnl hidden toff" data-panel="config" data-tabs="admin" data-title="⚙ Settings (CONFIG)">
+      <p class="sub" style="margin:0">Change portal settings here instead of in the spreadsheet. A change applies at once and is recorded in AUDIT.</p>
+      <button class="btn alt" id="cfgOpenBtn" onclick="cfgOpen()" style="width:auto">Open settings</button>
+      <div id="cfgBox" class="hidden"><input type="search" id="cfgQ" placeholder="Search settings… e.g. OPD, print, TAT" oninput="cfgDraw()"><div id="cfgList"></div></div>
+    </div>
+
+    <div id="resCard" class="card panel pnl" data-panel="results" data-tabs="viewer" data-title="Results viewer">
       <div class="sbox">
         <input type="text" id="q" placeholder="Type part of a patient's name…" autocomplete="off"
                oninput="onType()" onkeydown="onKey(event)" onfocus="onType()">
@@ -961,7 +1013,10 @@
     loadFiles(false, true);   // show the cached list instantly, then refresh it from Drive automatically
     try { schedInit(); } catch (e) { console.error(e); }
     try { applyLabels(); } catch (e) { console.error(e); }
-    setTimeout(function () { $('q').focus(); }, 50);
+    try { tabsInit(); } catch (e) { console.error(e); }
+    var pn = CONF.print && CONF.print.note ? '🖨 ' + CONF.print.note : '';
+    $('tabPolicy').textContent = pn; $('rpPolicy').textContent = pn; $('rpPolicy').classList.toggle('hidden', !pn);
+    if (TAB === 'viewer') setTimeout(function () { $('q').focus(); }, 50);
   }
 
   // ---- startup: auto-login if a saved session is still valid ----
@@ -1196,10 +1251,16 @@
       if (tOn && IS_ADMIN) setDtBadge(bd.dt || 0);
       if (r.ctQueue) { $('stCtQ').classList.remove('hidden'); setCtBadge(bd.ctr || 0); }
       if (CONF.pacs && CONF.pacs.enabled && r.xr) { $('stPacs').classList.toggle('hidden', !(r.xr.tech || r.xr.rad)); if (r.xr.rad) xrSetBadge(bd.xr || 0); }
+      try { tabsRefresh(); prnShow(r.printNotice); } catch (e) { console.error(e); }
     }).catch(function () {});
   }
 
   function schedView(v) {
+    if (v && v !== curView && TAB) {   // a view in another tab: go to that tab first
+      var nm = VIEWS.filter(function (n) { return n.toLowerCase() === v; })[0], ch = nm && $('st' + nm), g = ch && ch.closest('.tgroup');
+      var gt = g && { xr: 'viewer', req: 'requests', mine: 'requests', res: 'requests', adm: 'admin' }[g.getAttribute('data-g')];
+      if (gt && gt !== TAB) tabGo(gt, true);
+    }
     if (v === curView) v = null;
     curView = v;
     VIEWS.forEach(function (n) {
@@ -2787,7 +2848,7 @@
     layoutWide();
   }
   function layoutWide() {
-    var any = Array.prototype.some.call($('panels').children, function (p) { return p.classList.contains('half') && !p.classList.contains('hidden'); });
+    var any = Array.prototype.some.call($('panels').children, function (p) { return p.classList.contains('half') && !p.classList.contains('hidden') && !p.classList.contains('toff'); });
     document.body.classList.toggle('wide', any);
   }
 
@@ -2829,7 +2890,7 @@
   function layoutReset() {
     try { localStorage.removeItem(layoutKey()); } catch (e) {}
     var box = $('panels');
-    ['tools', 'duty', 'results'].forEach(function (id) { var p = box.querySelector(':scope > [data-panel="' + id + '"]'); if (p) box.appendChild(p); });
+    ['tools', 'dash', 'config', 'duty', 'results'].forEach(function (id) { var p = box.querySelector(':scope > [data-panel="' + id + '"]'); if (p) box.appendChild(p); });
     layoutApply();
   }
 
@@ -3040,6 +3101,193 @@
     }).catch(function () { b.disabled = false; });
   }
   /* ================= /EXPEDITE ================= */
+
+
+
+  /* ================= TABS · 1 PM PRINT NOTICE · TAT DASHBOARD · SETTINGS EDITOR ================= */
+  var TAB = '', TAB_GROUPS = { viewer: ['xr'], requests: ['req', 'mine', 'res'], admin: ['adm'] };
+  function tabVis(id, on) { var b = document.querySelector('#ptabs [data-tab="' + id + '"]'); if (b) b.classList.toggle('hidden', !on); }
+  function tabHasChips(g) { return Array.prototype.some.call(document.querySelectorAll('#schedCard .tgroup[data-g="' + g + '"] .chip'), function (c) { return !c.classList.contains('hidden'); }); }
+  /** Which tabs this person gets (called at login and again when the startup info arrives). */
+  function tabsRefresh() {
+    var rad = !!(PACS_ACC && PACS_ACC.rad);
+    $('ptabs').classList.remove('hidden');
+    tabVis('pacs', !$('stPacs').classList.contains('hidden'));
+    tabVis('dash', IS_ADMIN || rad);
+    tabVis('admin', IS_ADMIN || tabHasChips('adm'));
+    var ab = document.querySelector('#ptabs [data-tab="admin"]'); if (ab) ab.innerHTML = IS_ADMIN ? '⚙ Admin' : '🩺 Radiology';
+    tabVis('requests', tabHasChips('req') || tabHasChips('mine') || tabHasChips('res'));
+    if (TAB) tabGo(TAB, true);
+  }
+  function tabsInit() {
+    TAB = '';
+    tabsRefresh();
+    var want = ''; try { want = sessionStorage.getItem('portal_tab') || ''; } catch (e) {}
+    tabGo(want || (IS_ADMIN ? 'admin' : 'viewer'));
+  }
+  function tabGo(t, quiet) {
+    if (t === 'pacs') { openPacs(); return; }
+    var btn = document.querySelector('#ptabs [data-tab="' + t + '"]');
+    if (!btn || btn.classList.contains('hidden')) t = 'viewer';
+    var changed = TAB !== t; TAB = t;
+    try { sessionStorage.setItem('portal_tab', t); } catch (e) {}
+    document.body.setAttribute('data-tab', t);
+    Array.prototype.forEach.call(document.querySelectorAll('#ptabs button'), function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); b.setAttribute('aria-selected', b.getAttribute('data-tab') === t ? 'true' : 'false'); });
+    var groups = TAB_GROUPS[t] || [];
+    Array.prototype.forEach.call($('panels').querySelectorAll(':scope > .pnl'), function (p) {
+      var tabs = (p.getAttribute('data-tabs') || 'viewer').split(' '), on = tabs.indexOf(t) !== -1;
+      if (p.id === 'schedCard') on = on && groups.some(tabHasChips);
+      p.classList.toggle('toff', !on);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#schedCard .tgroup'), function (g) { g.classList.toggle('toff', groups.indexOf(g.getAttribute('data-g')) === -1); });
+    var h = document.querySelector('#schedCard > .phd h2');
+    if (h) { if (!h.dataset.orig) h.dataset.orig = h.textContent; h.textContent = t === 'viewer' ? '🩻 X-ray images & PACS' : t === 'admin' ? (IS_ADMIN ? 'Admin & radiology' : 'Radiology') : h.dataset.orig; }
+    if (curView && curView !== 'x') {   // a view of another tab stays open in the background: close it
+      var name = VIEWS.filter(function (n) { return n.toLowerCase() === curView; })[0], chip = name && $('st' + name), g = chip && chip.closest('.tgroup');
+      if (g && groups.indexOf(g.getAttribute('data-g')) === -1) schedView(curView);
+    }
+    $('tabPolicy').classList.toggle('hidden', !(t === 'requests' && CONF.print && CONF.print.note));
+    if (t === 'dash') dashOpen();
+    if (t === 'admin' && IS_ADMIN) $('cfgCard').classList.remove('hidden');
+    try { layoutWide(); } catch (e) {}
+    if (changed && !quiet) window.scrollTo(0, 0);
+  }
+
+  /* ---- 🖨 1 PM print-release notice (radiologists; from the startup info) ---- */
+  function prnShow(n) {
+    var b = $('prNotice');
+    if (!n || !n.n) { b.classList.add('hidden'); return; }
+    var d = new Date(), k = 'prn_' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + n.batch;
+    try { if (localStorage.getItem(k)) return; } catch (e) {}
+    var parts = []; if (n.xr) parts.push(n.xr + ' X-ray'); if (n.us) parts.push(n.us + ' ultrasound'); if (n.ct) parts.push(n.ct + ' CT');
+    b.innerHTML = '🖨 <span><b>Print release request:</b> ' + esc(parts.join(', ')) + ' of yours ' + (n.n === 1 ? 'is' : 'are') + ' due for the <b>' + esc(n.batchLabel) + '</b> print batch and not finalized yet.</span>' +
+      ($('stPacs').classList.contains('hidden') ? '' : '<button class="link" type="button" onclick="openPacs()">Open PACS</button>') + '<button class="link" type="button" id="prnX">Dismiss</button>';
+    b.classList.remove('hidden');
+    $('prnX').onclick = function () { try { localStorage.setItem(k, '1'); } catch (e) {} b.classList.add('hidden'); };
+  }
+
+  /* ---- 📊 TAT dashboard (radiologists & admins): one call when the tab is opened, kept 5 minutes ---- */
+  var DASH = { data: null, at: 0, key: '' };
+  function dashRange() {
+    var v = $('dRange').value, to = new Date(), from = new Date();
+    if (v === 'custom') return { from: $('dFrom').value, to: $('dTo').value };
+    from.setDate(from.getDate() - (Number(v) - 1));
+    var f = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+    return { from: f(from), to: f(to) };
+  }
+  function dashOpen(force) {
+    $('dCustom').classList.toggle('hidden', $('dRange').value !== 'custom');
+    var r = dashRange(), key = r.from + '_' + r.to;
+    if (!force && DASH.data && DASH.key === key && Date.now() - DASH.at < 300000) return;
+    $('dBody').innerHTML = '<p class="sub">Loading…</p>';
+    run('tatStats', token, r.from, r.to).then(function (d) {
+      if (d.expired) return expired();
+      if (!d.ok) { $('dBody').innerHTML = '<p class="sub err">' + esc(d.msg) + '</p>'; return; }
+      DASH = { data: d, at: Date.now(), key: key }; dashDraw(d);
+    }).catch(function (e) { $('dBody').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function dashDur(m) { if (m === null || m === undefined) return '—'; return m < 60 ? Math.round(m) + ' min' : m < 2880 ? (m / 60).toFixed(m < 600 ? 1 : 0) + ' h' : (m / 1440).toFixed(1) + ' d'; }
+  function dashPct(p) { return p === null || p === undefined ? '—' : '<span class="dpct ' + (p >= 85 ? 'g' : p >= 70 ? 'a' : 'r') + '">' + p + '%</span>'; }
+  function dashDraw(d) {
+    var M = { XR: 'X-ray', CT: 'CT', US: 'Ultrasound' }, t = d.targets || {};
+    var h = '<div class="dtiles">' + ['XR', 'CT', 'US'].map(function (m) {
+      var x = d.byMod[m];
+      return '<div class="dtile"><div class="dt">' + M[m] + '</div><div class="dv">' + dashDur(x.med) + '</div><div class="ds">median TAT · ' + x.n + ' case' + (x.n === 1 ? '' : 's') + '</div>' +
+        '<div class="ds">90% within ' + dashDur(x.p90) + ' · on target ' + dashPct(x.pct) + '</div>' + (x.queued ? '<div class="ds">' + x.queued + ' OPD queued · median wait ' + dashDur(x.wait) + ' (not counted in TAT)</div>' : '') + '</div>';
+    }).join('') + '</div>';
+    h += '<p class="hint">Targets (POL-002 §2.2): ER / STAT ' + (t.fastH || 4) + ' h · ultrasound same day · routine X-ray and CT ' + (t.routineH || 48) + ' h · goal 85% on target. TAT runs from images available to report finalized.</p>';
+    h += '<h3 class="dh">By category</h3><table class="dtab"><tr><th>Modality</th><th>Category</th><th>Cases</th><th>Median</th><th>90%</th><th>On target</th></tr>';
+    ['XR', 'CT', 'US'].forEach(function (m) { Object.keys(d.byCat[m] || {}).forEach(function (c) { var x = d.byCat[m][c]; h += '<tr><td>' + M[m] + '</td><td>' + esc(c) + '</td><td>' + x.n + '</td><td>' + dashDur(x.med) + '</td><td>' + dashDur(x.p90) + '</td><td>' + dashPct(x.pct) + '</td></tr>'; }); });
+    h += '</table>';
+    if (d.byRad.length) {
+      h += '<h3 class="dh">By radiologist</h3><table class="dtab"><tr><th>Radiologist</th><th>X-ray</th><th>CT</th><th>US</th><th>Median</th><th>On target</th></tr>';
+      d.byRad.forEach(function (r) { h += '<tr><td>' + esc(r.name) + '</td><td>' + r.mods.XR + '</td><td>' + r.mods.CT + '</td><td>' + r.mods.US + '</td><td>' + dashDur(r.med) + '</td><td>' + dashPct(r.pct) + '</td></tr>'; });
+      h += '</table>';
+    }
+    if (d.byDay.length) {
+      var max = 1; d.byDay.forEach(function (x) { ['XR', 'CT', 'US'].forEach(function (m) { if (x[m] > max) max = x[m]; }); });
+      h += '<h3 class="dh">Median TAT per day</h3><div class="dleg"><span class="k XR"></span>X-ray <span class="k CT"></span>CT <span class="k US"></span>Ultrasound</div><div class="dbars">' + d.byDay.map(function (x) {
+        return '<div class="dday" title="' + esc(x.ymd) + ' · ' + x.n + ' cases"><div class="dcol">' + ['XR', 'CT', 'US'].map(function (m) { return x[m] === null ? '<i class="b ' + m + '" style="height:0"></i>' : '<i class="b ' + m + '" style="height:' + Math.max(2, Math.round(x[m] / max * 100)) + '%" title="' + M[m] + ': ' + dashDur(x[m]) + ' (' + x[m + 'n'] + ')"></i>'; }).join('') + '</div><div class="dlab">' + esc(x.ymd.slice(5)) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    if (!d.total.n) h = '<p class="sub">No finalized cases in this period yet. Cases are logged from now on as reports are finalized.</p>';
+    $('dBody').innerHTML = h;
+  }
+  function dashCsv() {
+    var r = dashRange(), b = $('dCsv'); b.disabled = true;
+    run('tatStats', token, r.from, r.to, true).then(function (d) {
+      b.disabled = false;
+      if (d.expired) return expired();
+      if (!d.ok) return alertBox(d.msg);
+      var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      var csv = [d.header].concat(d.rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = 'TAT_' + d.from + '_to_' + d.to + '.csv';
+      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    }).catch(function (e) { b.disabled = false; alertBox('Could not export: ' + ((e && e.message) || e)); });
+  }
+
+  /* ---- ⚙ Settings (CONFIG sheet) editor – admins; loads only when opened ---- */
+  var CFGE = { items: null };
+  var CFG_GROUPS = [['App & login', /^(APP_|SUBTITLE|RESULTS_|SEARCH_|LOGO|ACCENT|DOCTOR_|SUPPORT|REGISTRATION|AUTO_APPROVE|MAINTENANCE|MIN_PASSWORD|SESSION_|BLOCK_IN_APP|EMAIL_|RESET_)/],
+    ['Results folders & display', /^(FOLDER_|CACHE_|MAX_|FAST_DRIVE|RAD_FOLDERS)/], ['X-ray PACS & OPD limit', /^(PACS_|XR_|OPD_)/], ['Printing & pickup', /^PRINT_/], ['TAT targets', /^TAT_/],
+    ['Ultrasound', /^US_/], ['CT', /^CT_/], ['Peer review', /^PEER_/], ['Reprints', /^REPRINT_/], ['Scheduling', /^(SCHEDULE|SCAN_)/], ['Button labels', /^TAB_/]];
+  function cfgGroup(k) { for (var i = 0; i < CFG_GROUPS.length; i++) if (CFG_GROUPS[i][1].test(k)) return CFG_GROUPS[i][0]; return 'Other'; }
+  function cfgOpen() {
+    $('cfgOpenBtn').classList.add('hidden'); $('cfgBox').classList.remove('hidden');
+    if (CFGE.items) return cfgDraw();
+    $('cfgList').innerHTML = '<p class="sub">Loading settings…</p>';
+    run('cfgList', token).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('cfgList').innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      CFGE.items = r.items; cfgDraw();
+    }).catch(function (e) { $('cfgList').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function cfgKind(x) {
+    var v = String(x.value).trim().toUpperCase(), d = String(x.def == null ? '' : x.def).trim().toUpperCase();
+    if (['TRUE', 'FALSE'].indexOf(v) !== -1 || ['TRUE', 'FALSE'].indexOf(d) !== -1) return 'bool';
+    if (x.def !== null && x.def !== '' && /^-?\d+(\.\d+)?$/.test(String(x.def)) && (x.value === '' || /^-?\d+(\.\d+)?$/.test(String(x.value)))) return 'num';
+    return String(x.value).length > 70 || String(x.def || '').length > 70 ? 'long' : 'text';
+  }
+  function cfgDraw() {
+    var q = $('cfgQ').value.trim().toLowerCase(), g = {}, order = CFG_GROUPS.map(function (x) { return x[0]; }).concat(['Other']);
+    CFGE.items.forEach(function (x, i) { if (q && (x.key + ' ' + x.notes + ' ' + x.value).toLowerCase().indexOf(q) === -1) return; (g[cfgGroup(x.key)] = g[cfgGroup(x.key)] || []).push(i); });
+    var h = '';
+    order.forEach(function (name) {
+      if (!g[name]) return;
+      h += '<details class="cfgg"' + (q ? ' open' : '') + '><summary>' + esc(name) + ' <span class="sub" style="margin:0">(' + g[name].length + ')</span></summary>';
+      g[name].forEach(function (i) {
+        var x = CFGE.items[i], k = cfgKind(x), id = 'cfgv' + i, inp;
+        if (x.locked) inp = '<div class="sub" style="margin:4px 0 0">🔒 Change this only in the spreadsheet.</div>';
+        else if (x.secret) inp = '<input type="password" id="' + id + '" placeholder="' + (x.set ? '•••••• (set – type to replace)' : '(not set)') + '" autocomplete="new-password">';
+        else if (k === 'bool') inp = '<select id="' + id + '"><option>TRUE</option><option>FALSE</option></select>';
+        else if (k === 'num') inp = '<input type="number" id="' + id + '" step="any">';
+        else if (k === 'long') inp = '<textarea id="' + id + '" rows="3"></textarea>';
+        else inp = '<input type="text" id="' + id + '">';
+        h += '<div class="cfgrow"><div class="cfgk"><code>' + esc(x.key) + '</code>' + (x.confirm ? ' <span class="cfgw" title="Asks before saving">⚠</span>' : '') + '</div><div class="cfgn">' + esc(x.notes) + '</div>' + inp +
+          (x.locked ? '' : '<div class="cfgb"><button class="btn alt" type="button" id="cfgs' + i + '" disabled onclick="cfgSaveRow(' + i + ')">Save</button>' + (x.def !== null && !x.secret && String(x.def) !== String(x.value) ? '<button class="link" type="button" onclick="cfgDefault(' + i + ')">Use default (' + esc(String(x.def).slice(0, 40)) + (String(x.def).length > 40 ? '…' : '') + ')</button>' : '') + '<span class="sub" id="cfgm' + i + '" style="margin:0"></span></div>') + '</div>';
+      });
+      h += '</details>';
+    });
+    $('cfgList').innerHTML = h || '<p class="sub">No setting matches.</p>';
+    CFGE.items.forEach(function (x, i) {
+      var el = $('cfgv' + i); if (!el) return;
+      if (!x.secret) el.value = cfgKind(x) === 'bool' ? (String(x.value).trim().toUpperCase() === 'FALSE' ? 'FALSE' : String(x.value).trim() === '' ? String(x.def || 'TRUE').toUpperCase() : 'TRUE') : x.value;
+      el.oninput = el.onchange = function () { $('cfgs' + i).disabled = x.secret ? !el.value : el.value === String(x.value); $('cfgm' + i).textContent = ''; };
+    });
+  }
+  function cfgDefault(i) { var x = CFGE.items[i], el = $('cfgv' + i); el.value = x.def; el.oninput(); }
+  function cfgSaveRow(i) {
+    var x = CFGE.items[i], el = $('cfgv' + i), v = el.value, b = $('cfgs' + i);
+    if (x.confirm && !window.confirm('Change ' + x.key + '?\n\nThis setting affects everyone using the portal (it may hide features, change folders or lock people out).\n\nNew value: ' + (x.secret ? '(hidden)' : v))) return;
+    b.disabled = true; $('cfgm' + i).textContent = 'Saving…';
+    run('cfgSave', token, x.key, v).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { b.disabled = false; $('cfgm' + i).textContent = r.msg; $('cfgm' + i).className = 'sub err'; return; }
+      if (!x.secret) x.value = r.value; else { x.set = !!v; el.value = ''; }
+      $('cfgm' + i).className = 'sub ok'; $('cfgm' + i).textContent = '✓ ' + r.msg;
+    }).catch(function (e) { b.disabled = false; $('cfgm' + i).textContent = 'Could not save: ' + ((e && e.message) || e); });
+  }
+  /* ================= /TABS · NOTICE · DASHBOARD · SETTINGS ================= */
 
 
   /* ================= X-RAY PACS: its own page (pacs.html, next to this one on GitHub Pages) ================= */
