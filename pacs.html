@@ -393,6 +393,10 @@
   .pbar img { width:34px; height:34px; border-radius:8px; }
   .pbar .pt { font-weight:700; font-size:16px; margin-right:auto; line-height:1.15; } .pbar .pt small { display:block; font-weight:400; font-size:12px; opacity:.75; }
   .ptabs { display:flex; gap:6px; flex-wrap:wrap; }
+  .xrth .st.warn { background:#b45309; color:#fff; }
+  #xeBlurBtn.on { background:#e9c46a; color:#10344e; font-weight:700; }
+  .privchk { margin-top:12px; padding:10px 12px; border:2px solid #d97706; border-radius:10px; background:color-mix(in srgb,#d97706 9%,transparent); }
+  .privchk.ok { border-color:#16a34a; background:color-mix(in srgb,#16a34a 9%,transparent); }
   .opdbar { margin-top:10px; padding:10px 12px; border-radius:10px; font-size:14px; line-height:1.45; border:1px solid var(--line); }
   .opdbar.ok { background:color-mix(in srgb,#16a34a 12%,transparent); } .opdbar.low { background:color-mix(in srgb,#d97706 16%,transparent); } .opdbar.full { background:color-mix(in srgb,#dc2626 13%,transparent); }
   .opdbar .days { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:4px; font-size:12px; color:var(--muted); }
@@ -514,7 +518,10 @@
           </div>
           <div class="xrdrop" id="xrDrop"><span id="xrDropTxt">Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop or rotate it.</span></div>
           <label class="crit" style="margin-top:6px"><input type="checkbox" id="xrGray" checked><span>Convert photos to black &amp; white (removes the colour cast of a monitor or light box)</span></label>
+          <label class="crit"><input type="checkbox" id="xrAutoBlur" checked onchange="lsSet('xr_autoblur', this.checked ? null : '0')"><span>🔒 Auto-blur the patient name and other printed text on new photos (L / R markers stay)</span></label>
+          <div id="xrAddBox" class="ctwarn hidden"></div>
           <div id="xrThumbs" class="xrthumbs"></div>
+          <label class="crit privchk" id="xrPrivRow"><input type="checkbox" id="xrPriv"><span>🔒 I checked every photo: <b>no patient name or ID can be read</b> on the images (tap a photo → ▦ Blur to hide anything missed)</span></label>
           <div class="xrbtns"><button class="btn" id="xrBtn" onclick="xrSend()">Upload &amp; send to radiologist</button></div>
           <button class="link" type="button" style="margin-top:6px" onclick="xrClearForm()">Clear form</button>
           <div id="xrMsg" class="msg"></div><div id="xrNote" class="hidden"></div>
@@ -685,10 +692,10 @@
 <div id="xrToast" class="xrtoast"></div>
 <!-- photo crop / rotate (tech) -->
 <div id="xrEd" class="hidden">
-  <div class="xredtop"><b>Crop / rotate</b><span class="sub" style="margin:0;color:#cbd5e1">Drag over the X-ray to select the part to keep</span></div>
+  <div class="xredtop"><b>Crop / rotate / blur</b><span class="sub" id="xeHint" style="margin:0;color:#cbd5e1">Drag over the X-ray to select the part to keep</span></div>
   <div class="xredstage" id="xrEdStage"><canvas id="xrEdCv"></canvas></div>
   <div class="xredbar">
-    <button type="button" onclick="xeRotate()">⟳ Rotate</button><button type="button" onclick="xeUndo()">↺ Undo</button>
+    <button type="button" onclick="xeRotate()">⟳ Rotate</button><button type="button" id="xeBlurBtn" onclick="xeMode('blur')">▦ Blur</button><button type="button" id="xeFindBtn" onclick="xeFind()">🔍 Find names</button><button type="button" onclick="xeUndo()">↺ Undo</button>
     <button type="button" class="pri" onclick="xeDone()">✓ Done</button><button type="button" onclick="xeCancel()">Cancel</button>
   </div>
 </div>
@@ -905,7 +912,7 @@
     return XR_DB;
   }
   function xdbDo(mode, fn) { return xdb().then(function (db) { return new Promise(function (res, rej) { var tx = db.transaction('files', mode), st = tx.objectStore('files'), out = fn(st); tx.oncomplete = function () { res(out && out.result !== undefined ? out.result : undefined); }; tx.onerror = function () { rej(tx.error); }; }); }); }
-  function xdbPut(x) { if (!x.blob) return Promise.resolve(); return xdbDo('readwrite', function (st) { return st.put({ id: x.id, blob: x.blob, state: x.state === 'done' ? 'done' : '', rot: x.rot || 0, gray: !!x.gray, order: x.order, ts: Date.now() }); }).catch(function () {}); }
+  function xdbPut(x) { if (!x.blob) return Promise.resolve(); return xdbDo('readwrite', function (st) { return st.put({ id: x.id, blob: x.blob, state: x.state === 'done' ? 'done' : '', rot: x.rot || 0, gray: !!x.gray, order: x.order, ts: Date.now(), nb: (x.blurs || []).length + (x.baked > 0 ? x.baked : 0) }); }).catch(function () {}); }
   function xdbDel(id) { return xdbDo('readwrite', function (st) { return st.delete(id); }).catch(function () {}); }
   function xdbClear() { return xdbDo('readwrite', function (st) { return st.clear(); }).catch(function () {}); }
   function xdbAll() { return xdbDo('readonly', function (st) { return st.getAll(); }).catch(function () { return []; }); }
@@ -929,7 +936,7 @@
   function xrFilesRestore() {
     return xdbAll().then(function (recs) {
       recs = (recs || []).filter(function (r) { return Date.now() - r.ts < XR_KEEP_H * 3600e3; }).sort(function (a, b) { return a.order - b.order; });
-      recs.forEach(function (r) { XR_FILES.push({ id: r.id, order: r.order, src: r.blob, blob: r.blob, url: URL.createObjectURL(r.blob), state: r.state || '', rot: 0, gray: r.gray }); });
+      recs.forEach(function (r) { XR_FILES.push({ id: r.id, order: r.order, src: r.blob, blob: r.blob, url: URL.createObjectURL(r.blob), state: r.state || '', rot: 0, gray: r.gray, blurs: [], baked: r.nb || -1 }); });   // blur is already in the saved image
       xrDrawFiles(); return recs.length;
     });
   }
@@ -987,6 +994,8 @@
     if (opdOn()) opdLoad().then(function () { opdShow(); });
     if ($('xrExam').options.length) return;
     $('xrPickup').addEventListener('change', function () { this.dataset.touched = '1'; });
+    $('xrAutoBlur').checked = blurAutoOn();
+    $('xrPriv').addEventListener('change', function () { $('xrPrivRow').classList.toggle('ok', this.checked); });
     var c = xrConf();
     $('xrExam').innerHTML = '<option value="">Select exam…</option>' + (c.exams || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
     $('xrLoc').innerHTML = '<option value="">—</option>' + (c.locations || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
@@ -1014,6 +1023,128 @@
       else if (hadForm || n) setMsg('xrMsg', 'Restored what you entered before' + (n ? ' (' + n + ' photo' + (n === 1 ? '' : 's') + ')' : '') + '.', true);
     });
   }
+
+  /* ================= 🔒 PRIVACY BLUR (X-ray photos, on the phone, before upload) =================
+     Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
+     Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
+     name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
+  var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  var OCR = { p: null };
+  var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
+  function blurAutoOn() { return lsGet('xr_autoblur') !== '0'; }
+  /** Source rectangle → the same rectangle after rotating the photo by rot (0/90/180/270). */
+  function blurRot(r, rot, sw, sh) {
+    var pt = function (x, y) { return rot === 90 ? [sh - y, x] : rot === 180 ? [sw - x, sh - y] : rot === 270 ? [y, sw - x] : [x, y]; };
+    var a = pt(r.x, r.y), b = pt(r.x + r.w, r.y + r.h);
+    return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) };
+  }
+  function blurUnrot(q, rot, sw, sh) {
+    var pt = function (x, y) { return rot === 90 ? [y, sh - x] : rot === 180 ? [sw - x, sh - y] : rot === 270 ? [sw - y, x] : [x, y]; };
+    var a = pt(q.x, q.y), b = pt(q.x + q.w, q.y + q.h);
+    return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) };
+  }
+  /** Heavy mosaic over a canvas area (canvas pixels): blocks about 2/3 of the box height – text cannot be read back. */
+  function blurMosaic(g, x, y, w, h) {
+    var W = g.canvas.width, H = g.canvas.height;
+    x = Math.max(0, Math.floor(x)); y = Math.max(0, Math.floor(y)); w = Math.min(W - x, Math.ceil(w)); h = Math.min(H - y, Math.ceil(h));
+    if (w < 2 || h < 2) return;
+    var b = Math.max(6, Math.ceil(Math.min(w, h) / 1.5)), nw = Math.max(1, Math.ceil(w / b)), nh = Math.max(1, Math.ceil(h / b));
+    var t = document.createElement('canvas'); t.width = nw; t.height = nh;
+    var tg = t.getContext('2d'); tg.imageSmoothingEnabled = true; tg.drawImage(g.canvas, x, y, w, h, 0, 0, nw, nh);
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(t, 0, 0, nw, nh, x, y, w, h); g.restore();
+  }
+  function ocrWorker() {
+    if (OCR.p) return OCR.p;
+    OCR.p = new Promise(function (ok, no) {
+      if (window.Tesseract) return ok();
+      var s = document.createElement('script'); s.src = TESS_URL; s.async = true;
+      s.onload = function () { ok(); }; s.onerror = function () { s.remove(); no(new Error('The auto-blur tool could not be downloaded (check the connection). Blur by hand: tap the photo → ▦ Blur.')); };
+      document.head.appendChild(s);
+    }).then(function () { return window.Tesseract.createWorker('eng', 1); })
+      .catch(function (e) { OCR.p = null; throw e; });
+    return OCR.p;
+  }
+  /** Finds printed text on a photo (bitmap). Returns blur boxes in the photo's pixels. */
+  function blurDetect(src) {
+    var k = Math.min(1, 1800 / Math.max(src.width, src.height)), cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(src.width * k)); cv.height = Math.max(1, Math.round(src.height * k));
+    var g = cv.getContext('2d'); g.drawImage(src, 0, 0, cv.width, cv.height); xrGrayscale(cv);
+    return ocrWorker().then(function (w) { return w.recognize(cv); }).then(function (res) {
+      return blurBoxes((res && res.data && res.data.words) || [], cv.width, cv.height).map(function (r) { return { x: r.x / k, y: r.y / k, w: r.w / k, h: r.h / k, auto: true }; });
+    });
+  }
+  /** Words → blur boxes: real text only (2+ letters/digits, confident, text-shaped, not huge), markers kept, words on one line joined, padded. */
+  function blurBoxes(words, W, H) {
+    var out = [];
+    words.forEach(function (wd) {
+      var t = String(wd.text || '').trim(), bb = wd.bbox || {}, w = bb.x1 - bb.x0, h = bb.y1 - bb.y0;
+      if (!(w > 0 && h > 0)) return;
+      if ((t.match(/[A-Za-z0-9]/g) || []).length < 2 || BLUR_KEEP.test(t.replace(/[^A-Za-z]/g, ''))) return;
+      if ((wd.confidence || 0) < 40 || h > H * 0.08 || h < 5 || w < h * 0.6) return;
+      out.push({ x: bb.x0, y: bb.y0, w: w, h: h });
+    });
+    out.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    var merged = [];
+    out.forEach(function (r) {   // same line and close together → one box
+      var m = merged.filter(function (q) { var cy = r.y + r.h / 2; return cy > q.y && cy < q.y + q.h && r.x - (q.x + q.w) < Math.max(r.h, q.h) * 2.5 && q.x - (r.x + r.w) < Math.max(r.h, q.h) * 2.5; })[0];
+      if (m) { var x1 = Math.max(m.x + m.w, r.x + r.w), y1 = Math.max(m.y + m.h, r.y + r.h); m.x = Math.min(m.x, r.x); m.y = Math.min(m.y, r.y); m.w = x1 - m.x; m.h = y1 - m.y; }
+      else merged.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+    });
+    return merged.map(function (r) { var p = r.h * 0.35; return { x: Math.max(0, r.x - p), y: Math.max(0, r.y - p), w: Math.min(W, r.x + r.w + p) - Math.max(0, r.x - p), h: Math.min(H, r.y + r.h + p) - Math.max(0, r.y - p) }; });
+  }
+  /** Auto-blur a newly added photo (x.ocr: 'run' → number of boxes, or 'err'). */
+  function blurAuto(x, bm) {
+    x.ocr = 'run'; xrDrawFiles();
+    return blurDetect(bm).then(function (rs) { x.blurs = (x.blurs || []).concat(rs); x.ocr = rs.length; })
+      .catch(function (e) { x.ocr = 'err'; setMsg('xrMsg', (e && e.message) || 'Auto-blur failed – blur by hand.'); });
+  }
+  function blurStatus(x) {
+    var n = (x.blurs || []).length;
+    if (x.ocr === 'run') return '<span class="st">🔍 finding names…</span>';
+    if (x.baked) return '<span class="st">' + (x.baked > 0 ? '🔒 ' + x.baked + ' blurred' : '✂ tap to check') + '</span>';
+    if (n) return '<span class="st">🔒 ' + n + ' blurred · tap to check</span>';
+    if (x.ocr === 'err') return '<span class="st warn">⚠ blur by hand</span>';
+    if (x.ocr === 0) return '<span class="st warn">⚠ no text found · check</span>';
+    return '<span class="st">✂ tap to crop / blur</span>';
+  }
+  /** Any change to the photos un-ticks "I checked every photo". */
+  function privReset() { var c = $('xrPriv'); if (c) { c.checked = false; $('xrPrivRow').classList.remove('ok'); } }
+
+  /* ---- "+ Add images" to a study already uploaded: the photos go through the same area (blur + check) ---- */
+  var XR_ADDTO = null;
+  function xrAddTo(o) {
+    if (XR_PENDING) return setMsg('xrMsg', 'Finish or "Start over" the unfinished upload first.');
+    XR_ADDTO = { acc: o.acc, name: o.name, n: o.images || 0 };
+    $('xrAddBox').innerHTML = '➕ Adding images to <b>' + esc(o.name) + '</b> (' + esc(o.acc) + '). Patient details above are not used. <button class="link" type="button" onclick="xrAddToCancel()">Cancel</button>';
+    $('xrAddBox').classList.remove('hidden'); $('xrBtn').textContent = 'Add images to ' + o.acc;
+    $('xrThumbs').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function xrAddToCancel() { XR_ADDTO = null; $('xrAddBox').classList.add('hidden'); if (!XR_BUSY) $('xrBtn').textContent = XR_PENDING ? 'Retry upload' : 'Upload & send to radiologist'; }
+
+  /* ---- editor: ▦ Blur mode and 🔍 Find names ---- */
+  function xeMode(m) {
+    XE.mode = XE.mode === m ? 'crop' : m; XE.sel = null;
+    $('xeBlurBtn').classList.toggle('on', XE.mode === 'blur');
+    $('xeHint').textContent = XE.mode === 'blur' ? 'Drag over a name to blur it · tap a blurred box to remove it' : 'Drag over the X-ray to select the part to keep';
+    xeDraw();
+  }
+  function xeFind() {
+    var b = $('xeFindBtn'); b.disabled = true; b.textContent = '🔍 Finding…';
+    var e = XE;
+    blurDetect(e.src).then(function (rs) {
+      b.disabled = false; b.textContent = '🔍 Find names';
+      if (XE !== e) return;
+      var add = rs.filter(function (r) { return !(e.blurs || []).some(function (q) { return Math.abs(q.x - r.x) < r.h && Math.abs(q.y - r.y) < r.h; }); });
+      e.hist.push({ rot: e.rot, blurs: e.blurs.slice() }); e.blurs = e.blurs.concat(add);
+      $('xeHint').textContent = add.length ? add.length + ' text area' + (add.length === 1 ? '' : 's') + ' blurred – check nothing is missed' : 'No (new) text found – blur by hand if a name is visible';
+      xeDraw();
+    }).catch(function (er) { b.disabled = false; b.textContent = '🔍 Find names'; $('xeHint').textContent = (er && er.message) || 'Could not find text – blur by hand.'; });
+  }
+  /** Editor canvas pixels ↔ photo pixels. */
+  function xeToSrc(q) { var r = { x: (q.x - XE.ox) / XE.k, y: (q.y - XE.oy) / XE.k, w: q.w / XE.k, h: q.h / XE.k }; return blurUnrot(r, XE.rot, XE.src.width, XE.src.height); }
+  function xeToCv(r) { var q = blurRot(r, XE.rot, XE.src.width, XE.src.height); return { x: XE.ox + q.x * XE.k, y: XE.oy + q.y * XE.k, w: q.w * XE.k, h: q.h * XE.k }; }
+  /* ================= /PRIVACY BLUR ================= */
+
   var XR_MAXPX = 3000;   // long edge of an uploaded image (enough for reading, fast on mobile data)
   function xrLoadBitmap(blob) {
     if (window.createImageBitmap) return createImageBitmap(blob, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(blob); }).catch(function () { return xrLoadImg(blob); });
@@ -1027,12 +1158,14 @@
   }
   function xrCanvasBlob(cv, q) { return new Promise(function (res, rej) { cv.toBlob(function (b) { b ? res(b) : rej(new Error('Could not prepare the image.')); }, 'image/jpeg', q || 0.92); }); }
   /** source (bitmap/image) → JPEG blob, optional rotation (0/90/180/270) and crop {x,y,w,h} in rotated pixels */
-  function xrRender(src, rot, crop, gray) {
+  function xrRender(src, rot, crop, gray, blurs) {
     var sw = src.width, sh = src.height, rw = rot % 180 ? sh : sw, rh = rot % 180 ? sw : sh;
     var c = crop || { x: 0, y: 0, w: rw, h: rh }, k = Math.min(1, XR_MAXPX / Math.max(c.w, c.h));
     var cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(c.w * k)); cv.height = Math.max(1, Math.round(c.h * k));
     var g = cv.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
     g.scale(k, k); g.translate(-c.x, -c.y); g.translate(rw / 2, rh / 2); g.rotate(rot * Math.PI / 180); g.drawImage(src, -sw / 2, -sh / 2);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    (blurs || []).forEach(function (r) { var q = blurRot(r, rot, sw, sh); blurMosaic(g, (q.x - c.x) * k, (q.y - c.y) * k, q.w * k, q.h * k); });
     if (gray) xrGrayscale(cv);
     return xrCanvasBlob(cv);
   }
@@ -1041,9 +1174,10 @@
     Array.prototype.forEach.call(list || [], function (f) {
       if (!/^image\//.test(f.type) && !/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)) { skipped.push(f.name + ' (not an image)'); return; }
       if (f.size > max) { skipped.push(f.name + ' (too large)'); return; }
-      var x = { id: 'f' + Date.now() + Math.random().toString(36).slice(2, 7), order: Date.now() + XR_FILES.length, src: f, blob: null, url: '', state: 'proc', gray: gray };
-      XR_FILES.push(x);
-      xrLoadBitmap(f).then(function (bm) { return xrRender(bm, 0, null, gray); }).then(function (b) {
+      var x = { id: 'f' + Date.now() + Math.random().toString(36).slice(2, 7), order: Date.now() + XR_FILES.length, src: f, blob: null, url: '', state: 'proc', gray: gray, blurs: [] };
+      XR_FILES.push(x); privReset();
+      var auto = $('xrAutoBlur').checked;
+      xrLoadBitmap(f).then(function (bm) { return (auto ? blurAuto(x, bm) : Promise.resolve()).then(function () { return xrRender(bm, 0, null, gray, x.blurs); }); }).then(function (b) {
         x.blob = b; x.url = URL.createObjectURL(b); x.state = ''; xrDrawFiles(); xdbPut(x);
       }).catch(function (e) { XR_FILES.splice(XR_FILES.indexOf(x), 1); setMsg('xrMsg', f.name + ': ' + ((e && e.message) || 'could not be opened')); xrDrawFiles(); });
     });
@@ -1052,12 +1186,12 @@
   }
   function xrDrawFiles() {
     $('xrThumbs').innerHTML = XR_FILES.map(function (x, i) {
-      if (x.state === 'proc') return '<div class="xrth"><span class="st">Preparing…</span></div>';
-      return '<div class="xrth ' + x.state + '"><img src="' + x.url + '" alt="" ' + (XR_BUSY ? '' : 'onclick="xrEdit(' + i + ')" title="Crop / rotate"') + '><span class="n">' + (i + 1) + '</span>' +
+      if (x.state === 'proc') return '<div class="xrth"><span class="st">' + (x.ocr === 'run' ? '🔍 finding names…' : 'Preparing…') + '</span></div>';
+      return '<div class="xrth ' + x.state + '"><img src="' + x.url + '" alt="" ' + (XR_BUSY ? '' : 'onclick="xrEdit(' + i + ')" title="Crop / rotate / blur"') + '><span class="n">' + (i + 1) + '</span>' +
         (XR_BUSY ? '' : '<button type="button" class="x" onclick="xrDropFile(' + i + ')" aria-label="Remove">×</button>') +
-        (x.state === 'up' ? '<span class="st">Uploading…</span>' : x.state === 'done' ? '<span class="st">✓</span>' : x.state === 'err' ? '<span class="st">Failed</span>' : '<span class="st">✂ tap to crop</span>') + '</div>';
+        (x.state === 'up' ? '<span class="st">Uploading…</span>' : x.state === 'done' ? '<span class="st">✓</span>' : x.state === 'err' ? '<span class="st">Failed</span>' : blurStatus(x)) + '</div>';
     }).join('');
-    $('xrDropTxt').textContent = XR_FILES.length ? XR_FILES.length + ' image' + (XR_FILES.length === 1 ? '' : 's') + ' ready – take another photo or add more' : 'Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop or rotate it.';
+    $('xrDropTxt').textContent = XR_FILES.length ? XR_FILES.length + ' image' + (XR_FILES.length === 1 ? '' : 's') + ' ready – take another photo or add more' : 'Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop, rotate or blur it.';
   }
 
   /* ---- crop / rotate a photo before upload ---- */
@@ -1066,7 +1200,12 @@
     var x = XR_FILES[i]; if (!x || !x.blob) return;
     if (x.state === 'done') return setMsg('xrMsg', 'This photo is already uploaded.');
     $('xrEd').classList.remove('hidden');
-    xrLoadBitmap(x.src).then(function (bm) { XE = { i: i, src: bm, rot: x.rot || 0, sel: null, hist: [] }; xeFit(); });
+    xrLoadBitmap(x.src).then(function (bm) {
+      XE = { i: i, src: bm, rot: x.rot || 0, sel: null, hist: [], blurs: (x.blurs || []).slice(), mode: 'crop' };
+      $('xeBlurBtn').classList.remove('on'); $('xeFindBtn').disabled = false; $('xeFindBtn').textContent = '🔍 Find names';
+      $('xeHint').textContent = (x.blurs || []).length ? 'Blurred areas are shown pixelated – tap ▦ Blur to add or remove' : 'Drag over the X-ray to select the part to keep · ▦ Blur hides a name';
+      xeFit();
+    });
   }
   function xeFit() {
     var st = $('xrEdStage'), cv = $('xrEdCv'), r = st.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
@@ -1078,7 +1217,19 @@
       var start = null, pt = function (e) { var b = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; return { x: (e.clientX - b.left) * d, y: (e.clientY - b.top) * d }; };
       cv.addEventListener('pointerdown', function (e) { cv.setPointerCapture(e.pointerId); start = pt(e); XE.sel = { x: start.x, y: start.y, w: 0, h: 0 }; });
       cv.addEventListener('pointermove', function (e) { if (!start) return; var q = pt(e); XE.sel = { x: Math.min(start.x, q.x), y: Math.min(start.y, q.y), w: Math.abs(q.x - start.x), h: Math.abs(q.y - start.y) }; xeDraw(); });
-      cv.addEventListener('pointerup', function () { start = null; if (XE.sel && (XE.sel.w < 20 || XE.sel.h < 20)) XE.sel = null; xeDraw(); });
+      cv.addEventListener('pointerup', function (e) {
+        var s0 = start; start = null;
+        if (XE.mode === 'blur') {
+          var q = XE.sel; XE.sel = null;
+          if (q && q.w >= 12 && q.h >= 8) { XE.hist.push({ rot: XE.rot, blurs: XE.blurs.slice() }); XE.blurs.push(xeToSrc(q)); }
+          else if (s0) {   // a tap: remove the blurred box under the finger
+            var hit = -1; XE.blurs.forEach(function (r, i) { var c = xeToCv(r); if (s0.x >= c.x && s0.x <= c.x + c.w && s0.y >= c.y && s0.y <= c.y + c.h) hit = i; });
+            if (hit !== -1) { XE.hist.push({ rot: XE.rot, blurs: XE.blurs.slice() }); XE.blurs.splice(hit, 1); }
+          }
+          return xeDraw();
+        }
+        if (XE.sel && (XE.sel.w < 20 || XE.sel.h < 20)) XE.sel = null; xeDraw();
+      });
       window.addEventListener('resize', function () { if (XE && !$('xrEd').classList.contains('hidden')) xeFit(); });
     }
     xeDraw();
@@ -1087,30 +1238,35 @@
     var cv = $('xrEdCv'), g = cv.getContext('2d'), s = XE.src;
     g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
     g.save(); g.translate(XE.ox + XE.rw * XE.k / 2, XE.oy + XE.rh * XE.k / 2); g.rotate(XE.rot * Math.PI / 180); g.scale(XE.k, XE.k); g.drawImage(s, -s.width / 2, -s.height / 2); g.restore();
-    if (XE.sel) {
+    var cs = (XE.blurs || []).map(xeToCv);
+    cs.forEach(function (c) { blurMosaic(g, c.x, c.y, c.w, c.h); });
+    cs.forEach(function (c) { g.save(); g.setLineDash([8, 6]); g.strokeStyle = '#e9c46a'; g.lineWidth = 2; g.strokeRect(c.x, c.y, c.w, c.h); g.restore(); });
+    if (XE.sel && XE.mode === 'blur') { g.save(); g.strokeStyle = '#e9c46a'; g.lineWidth = 3; g.strokeRect(XE.sel.x, XE.sel.y, XE.sel.w, XE.sel.h); g.restore(); }
+    else if (XE.sel) {
       var q = XE.sel; g.fillStyle = 'rgba(0,0,0,.55)';
       g.fillRect(0, 0, cv.width, q.y); g.fillRect(0, q.y + q.h, cv.width, cv.height - q.y - q.h); g.fillRect(0, q.y, q.x, q.h); g.fillRect(q.x + q.w, q.y, cv.width - q.x - q.w, q.h);
       g.strokeStyle = '#22d3ee'; g.lineWidth = 3; g.strokeRect(q.x, q.y, q.w, q.h);
     }
   }
-  function xeRotate() { XE.hist.push({ rot: XE.rot }); XE.rot = (XE.rot + 90) % 360; XE.sel = null; xeFit(); }
-  function xeUndo() { var h = XE.hist.pop(); if (h) XE.rot = h.rot; XE.sel = null; xeFit(); }
+  function xeRotate() { XE.hist.push({ rot: XE.rot, blurs: XE.blurs.slice() }); XE.rot = (XE.rot + 90) % 360; XE.sel = null; xeFit(); }
+  function xeUndo() { var h = XE.hist.pop(); if (h) { XE.rot = h.rot; if (h.blurs) XE.blurs = h.blurs; } XE.sel = null; xeFit(); }
   function xeCancel() { $('xrEd').classList.add('hidden'); XE = null; }
   function xeDone() {
     var x = XR_FILES[XE.i], crop = null;
-    if (XE.sel) {
+    if (XE.sel && XE.mode !== 'blur') {
       var q = XE.sel, cx = Math.max(0, (q.x - XE.ox) / XE.k), cy = Math.max(0, (q.y - XE.oy) / XE.k);
       crop = { x: cx, y: cy, w: Math.min(XE.rw - cx, q.w / XE.k), h: Math.min(XE.rh - cy, q.h / XE.k) };
       if (crop.w < 10 || crop.h < 10) crop = null;
     }
     var e = XE; $('xrEd').classList.add('hidden'); XE = null;
     x.state = 'proc'; xrDrawFiles();
-    xrRender(e.src, e.rot, crop, x.gray).then(function (b) { URL.revokeObjectURL(x.url); x.blob = b; x.url = URL.createObjectURL(b); x.rot = e.rot; x.state = ''; xrDrawFiles(); xdbPut(x); });
+    x.blurs = e.blurs; if (x.ocr === 0 || x.ocr === 'err') x.ocr = 'seen'; privReset();
+    xrRender(e.src, e.rot, crop, x.gray, e.blurs).then(function (b) { URL.revokeObjectURL(x.url); x.blob = b; x.url = URL.createObjectURL(b); x.rot = e.rot; x.state = ''; xrDrawFiles(); xdbPut(x); });
   }
   function xrDropFile(i) {
     var x = XR_FILES[i];
     if (x.state === 'done') return setMsg('xrMsg', 'This photo is already uploaded. Remove it from the study in the "Uploaded" list below.');
-    if (x.url) URL.revokeObjectURL(x.url); xdbDel(x.id); XR_FILES.splice(i, 1); xrDrawFiles();
+    if (x.url) URL.revokeObjectURL(x.url); xdbDel(x.id); XR_FILES.splice(i, 1); xrDrawFiles(); privReset();
   }
   function xrPri3(v) { xrPri3_(v); if ($('vXrUp')) xrFormSave(); }
   function xrPri3_(v) { Array.prototype.forEach.call(document.querySelectorAll('#xrPriBar button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); }); $('xrPriBar').setAttribute('data-v', v); }
@@ -1122,21 +1278,23 @@
     var b = $('xrBtn');
     setMsg('xrMsg', '');
     if (!XR_FILES.length) return setMsg('xrMsg', 'Add at least one image.');
-    if (XR_FILES.some(function (x) { return x.state === 'proc'; })) return setMsg('xrMsg', 'Images are still being prepared – one moment.');
+    if (XR_FILES.some(function (x) { return x.state === 'proc' || x.ocr === 'run'; })) return setMsg('xrMsg', 'Images are still being prepared – one moment.');
+    if (!$('xrPriv').checked) { $('xrPrivRow').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('xrMsg', 'Check every photo first: no patient name or ID may be readable. Then tick the 🔒 box above the button.'); }
     var d = { last: $('xrLast').value, first: $('xrFirst').value, middle: $('xrMid').value, dob: $('xrDob').value, age: $('xrAge').value,
       sex: $('xrSexBar').getAttribute('data-v') || '', hospNo: $('xrHosp').value, location: $('xrLoc').value, address: $('xrAddr').value, civil: $('xrCivil').value, exam: $('xrExam').value === 'Other' ? ($('xrExamOther').value || 'Other') : $('xrExam').value,
       priority: $('xrPriBar').getAttribute('data-v') || 'Routine', physician: $('xrPhys').value, clinical: $('xrClin').value, assignTo: $('xrAssign').value, pickup: $('xrPickup').value };
     XR_BUSY = true; b.disabled = true; b.textContent = 'Saving patient…';
-    var start = XR_PENDING ? Promise.resolve({ ok: true, acc: XR_PENDING }) : run('xrCreate', token, d);
+    var addTo = !XR_PENDING && XR_ADDTO ? XR_ADDTO : null;
+    var start = XR_PENDING ? Promise.resolve({ ok: true, acc: XR_PENDING }) : addTo ? Promise.resolve({ ok: true, acc: addTo.acc, add: true }) : run('xrCreate', token, d);
     start.then(function (r) {
       if (r.expired) { XR_BUSY = false; return expired(); }
       if (!r.ok) throw new Error(r.msg);
-      XR_PENDING = r.acc; lsSet('xr_pending', r.acc);
+      if (!r.add) { XR_PENDING = r.acc; lsSet('xr_pending', r.acc); }
       var todo = XR_FILES.filter(function (x) { return x.state !== 'done'; }), done = 0;
       b.textContent = 'Uploading images… 0/' + todo.length;
       return Promise.all(todo.map(function (x) {
         x.state = 'up'; xrDrawFiles();
-        return xrB64(x.blob).then(function (b64) { return run('xrAddImage', token, r.acc, 'image-' + (XR_FILES.indexOf(x) + 1) + '.jpg', b64); }).then(function (u) {
+        return xrB64(x.blob).then(function (b64) { return run('xrAddImage', token, r.acc, 'image-' + ((r.add ? addTo.n : 0) + XR_FILES.indexOf(x) + 1) + '.jpg', b64); }).then(function (u) {
           if (!u.ok) throw new Error(u.msg);
           x.state = 'done'; done++; b.textContent = 'Uploading images… ' + done + '/' + todo.length; xrDrawFiles(); xdbPut(x);
         }).catch(function (e) { x.state = 'err'; xrDrawFiles(); throw e; });
@@ -1144,6 +1302,12 @@
     }).then(function (s) {
       XR_BUSY = false; b.disabled = false; b.textContent = 'Upload & send to radiologist';
       if (!s.ok) throw new Error(s.msg);
+      privReset();
+      if (addTo) {   // images added to an existing study: keep the form as it is
+        XR_ADDTO = null; $('xrAddBox').classList.add('hidden');
+        XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xrDrawFiles(); xdbClear();
+        setMsg('xrMsg', '✓ Images added to ' + addTo.acc + '.', true); xrLoadTech(); return;
+      }
       setMsg('xrMsg', '✓ ' + s.msg, true);
       xrNoteShow(s, d.pickup);
       if (opdIs(d.location)) opdLoad(true).then(function () { opdShow(); });
@@ -1186,16 +1350,8 @@
         }
         if (o.status === 'Uploading' || o.status === 'To read') {
           var bar = document.createElement('div'); bar.className = 'xrbar';
-          var add = document.createElement('label'); add.className = 'link'; add.innerHTML = '+ Add images<input type="file" accept=".jpg,.jpeg,.png" multiple class="hidden">';
-          add.querySelector('input').setAttribute('accept', 'image/*');
-          add.querySelector('input').onchange = function () {
-            var fs = Array.prototype.slice.call(this.files); if (!fs.length) return;
-            add.firstChild.textContent = 'Uploading…';
-            var gray = $('xrGray').checked;
-            Promise.all(fs.map(function (f, k) { return xrLoadBitmap(f).then(function (bm) { return xrRender(bm, 0, null, gray); }).then(xrB64).then(function (b) { return run('xrAddImage', token, o.acc, 'image-' + (o.images + k + 1) + '.jpg', b); }); }))
-              .then(function (rs) { var bad = rs.filter(function (x) { return !x.ok; }); if (bad.length) alertRow(el, bad[0].msg); return run('xrSubmit', token, o.acc); })
-              .then(function () { xrLoadTech(); }).catch(function (e) { alertRow(el, (e && e.message) || 'Upload failed'); });
-          };
+          var add = document.createElement('button'); add.type = 'button'; add.className = 'link'; add.textContent = '+ Add images';
+          add.onclick = function () { xrAddTo(o); };
           bar.appendChild(add);
           if (o.status === 'Uploading' && o.images) { var sb = document.createElement('button'); sb.className = 'link'; sb.textContent = 'Send to radiologist'; sb.onclick = function () { run('xrSubmit', token, o.acc).then(xrLoadTech); }; bar.appendChild(sb); }
           var asg = document.createElement('select'); asg.className = 'xrasg'; xrFillAssign(asg, o.assignedTo || ''); asg.title = 'Change radiologist';
