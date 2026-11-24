@@ -523,7 +523,6 @@
           </div>
           <div class="xrdrop" id="xrDrop"><span id="xrDropTxt">Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop or rotate it.</span></div>
           <label class="crit" style="margin-top:6px"><input type="checkbox" id="xrGray" checked><span>Convert photos to black &amp; white (removes the colour cast of a monitor or light box)</span></label>
-          <label class="crit"><input type="checkbox" id="xrAutoBlur" onchange="lsSet('xr_autoblur2', this.checked ? '1' : null)"><span>🔒 Auto-blur printed patient text on new photos <span class="hint" style="display:inline">(only text on the plain border – never the X-ray itself; always check)</span></span></label>
           <div id="xrAddBox" class="ctwarn hidden"></div>
           <div id="xrThumbs" class="xrthumbs"></div>
           <label class="crit privchk" id="xrPrivRow"><input type="checkbox" id="xrPriv"><span>🔒 I checked every photo: <b>no patient name or ID can be read</b> on the images (tap a photo → ▦ Blur to hide anything missed)</span></label>
@@ -702,7 +701,7 @@
   <div class="xredtop"><b>Crop / rotate / blur</b><span class="sub" id="xeHint" style="margin:0;color:#cbd5e1">Drag over the X-ray to select the part to keep</span></div>
   <div class="xredstage" id="xrEdStage"><canvas id="xrEdCv"></canvas></div>
   <div class="xredbar">
-    <button type="button" onclick="xeRotate()">⟳ Rotate</button><button type="button" id="xeBlurBtn" onclick="xeMode('blur')">▦ Blur</button><button type="button" id="xeFindBtn" onclick="xeFind()">🔍 Find names</button><button type="button" onclick="xeUndo()">↺ Undo</button>
+    <button type="button" onclick="xeRotate()">⟳ Rotate</button><button type="button" id="xeBlurBtn" onclick="xeMode('blur')">▦ Blur</button><button type="button" onclick="xeUndo()">↺ Undo</button>
     <button type="button" class="pri" onclick="xeDone()">✓ Done</button><button type="button" onclick="xeCancel()">Cancel</button>
   </div>
 </div>
@@ -1001,7 +1000,6 @@
     if (opdOn()) opdLoad().then(function () { opdShow(); });
     if ($('xrExam').options.length) return;
     $('xrPickup').addEventListener('change', function () { this.dataset.touched = '1'; });
-    $('xrAutoBlur').checked = blurAutoOn();
     $('xrPriv').addEventListener('change', function () { $('xrPrivRow').classList.toggle('ok', this.checked); });
     var c = xrConf();
     $('xrExam').innerHTML = '<option value="">Select exam…</option>' + (c.exams || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
@@ -1038,7 +1036,7 @@
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
-  function blurAutoOn() { return lsGet('xr_autoblur2') === '1'; }   // off unless the tech turns it on
+  function blurAutoOn() { return false; }   // automatic blur is switched off completely (it blurred parts of the X-ray); manual ▦ Blur only
   /** Source rectangle → the same rectangle after rotating the photo by rot (0/90/180/270). */
   function blurRot(r, rot, sw, sh) {
     var pt = function (x, y) { return rot === 90 ? [sh - y, x] : rot === 180 ? [sw - x, sh - y] : rot === 270 ? [y, sw - x] : [x, y]; };
@@ -1213,7 +1211,7 @@
       if (f.size > max) { skipped.push(f.name + ' (too large)'); return; }
       var x = { id: 'f' + Date.now() + Math.random().toString(36).slice(2, 7), order: Date.now() + XR_FILES.length, src: f, blob: null, url: '', state: 'proc', gray: gray, blurs: [] };
       XR_FILES.push(x); privReset();
-      var auto = $('xrAutoBlur').checked;
+      var auto = false;   // no automatic blur
       xrLoadBitmap(f).then(function (bm) { return (auto ? blurAuto(x, bm) : Promise.resolve()).then(function () { return xrRender(bm, 0, null, gray, x.blurs); }); }).then(function (b) {
         x.blob = b; x.url = URL.createObjectURL(b); x.state = ''; xrDrawFiles(); xdbPut(x);
       }).catch(function (e) { XR_FILES.splice(XR_FILES.indexOf(x), 1); setMsg('xrMsg', f.name + ': ' + ((e && e.message) || 'could not be opened')); xrDrawFiles(); });
@@ -1239,8 +1237,8 @@
     $('xrEd').classList.remove('hidden');
     xrLoadBitmap(x.src).then(function (bm) {
       XE = { i: i, src: bm, rot: x.rot || 0, sel: null, hist: [], blurs: (x.blurs || []).slice(), mode: 'crop' };
-      $('xeBlurBtn').classList.remove('on'); $('xeFindBtn').disabled = false; $('xeFindBtn').textContent = '🔍 Find names';
-      $('xeHint').textContent = (x.blurs || []).length ? 'Blurred areas are shown pixelated – tap ▦ Blur to add or remove' : 'Drag over the X-ray to select the part to keep · ▦ Blur hides a name';
+      $('xeBlurBtn').classList.remove('on');
+      $('xeHint').textContent = (x.blurs || []).length ? 'Blurred areas are shown pixelated – tap ▦ Blur to add or remove' : 'Drag over the X-ray to select the part to keep · ▦ Blur hides a name (drag over it)';
       xeFit();
     });
   }
@@ -3296,7 +3294,7 @@
       if (!m.ok) return gate(m.msg, true);
       XR_META = m; XR_ROLE = m.role;
       $('gate').classList.add('hidden');
-      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '');
+      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v28';
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabPrint').classList.toggle('hidden', !(m.role.tech || m.role.admin));
       prnShow(m.printNotice);

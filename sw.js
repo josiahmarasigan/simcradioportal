@@ -3,7 +3,7 @@
  * Only files from this GitHub site are stored. Requests to Google (the /exec link: logins, patient lists, results)
  * and to cdnjs are never touched, so no patient data is ever stored on the phone by this file.
  * Change VERSION whenever you upload a new index.html so phones pick up the new version quickly. */
-const VERSION = 'simc-portal-v27';
+const VERSION = 'simc-portal-v28';
 const SHELL = ['./', 'index.html', 'pacs.html', 'viewer.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png',
   'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'icons/favicon.ico', 'icons/logo-256.png'];
