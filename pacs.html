@@ -1033,6 +1033,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
+ var PACS_VER = 29;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1320,6 +1321,7 @@
       priority: $('xrPriBar').getAttribute('data-v') || 'Routine', physician: $('xrPhys').value, clinical: $('xrClin').value, assignTo: $('xrAssign').value, pickup: $('xrPickup').value };
     XR_BUSY = true; b.disabled = true; b.textContent = 'Saving patient…';
     var addTo = !XR_PENDING && XR_ADDTO ? XR_ADDTO : null;
+    d.cv = PACS_VER;
     var start = XR_PENDING ? Promise.resolve({ ok: true, acc: XR_PENDING }) : addTo ? Promise.resolve({ ok: true, acc: addTo.acc, add: true }) : run('xrCreate', token, d);
     start.then(function (r) {
       if (r.expired) { XR_BUSY = false; return expired(); }
@@ -1329,7 +1331,7 @@
       b.textContent = 'Uploading images… 0/' + todo.length;
       return Promise.all(todo.map(function (x) {
         x.state = 'up'; xrDrawFiles();
-        return xrB64(x.blob).then(function (b64) { return run('xrAddImage', token, r.acc, 'image-' + ((r.add ? addTo.n : 0) + XR_FILES.indexOf(x) + 1) + '.jpg', b64); }).then(function (u) {
+        return xrB64(x.blob).then(function (b64) { return run('xrAddImage', token, r.acc, 'image-' + ((r.add ? addTo.n : 0) + XR_FILES.indexOf(x) + 1) + '.jpg', b64, PACS_VER); }).then(function (u) {
           if (!u.ok) throw new Error(u.msg);
           x.state = 'done'; done++; b.textContent = 'Uploading images… ' + done + '/' + todo.length; xrDrawFiles(); xdbPut(x);
         }).catch(function (e) { x.state = 'err'; xrDrawFiles(); throw e; });
@@ -3294,7 +3296,7 @@
       if (!m.ok) return gate(m.msg, true);
       XR_META = m; XR_ROLE = m.role;
       $('gate').classList.add('hidden');
-      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v28';
+      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabPrint').classList.toggle('hidden', !(m.role.tech || m.role.admin));
       prnShow(m.printNotice);
