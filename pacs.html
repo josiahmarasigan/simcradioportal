@@ -314,6 +314,17 @@
   .xvctrB button#xvCtrIns { background:#0f766e; border-color:#0f766e; color:#fff; font-weight:700; }
   .xrstage.ctr { cursor:crosshair; }
   .xrsmsg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:15px; }
+  .xrcmprow { flex:1; display:flex; min-height:0; }
+  .xrprior { flex:1; display:flex; flex-direction:column; min-width:0; border-left:3px solid #e9c46a; background:#000; }
+  .xrpbar { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:5px 6px; background:#2a2410; color:#fde68a; font-size:12px; }
+  .xrpbar b { margin-right:6px; } .xrpbar button { width:auto; margin:0; padding:5px 9px; border:1px solid #6b5a1e; border-radius:8px; background:#3b3214; color:#fef3c7; font:inherit; font-size:12.5px; cursor:pointer; }
+  .xrpbar button.on { background:#a16207; }
+  .xrpstage { position:relative; flex:1; min-height:0; overflow:hidden; touch-action:none; cursor:grab; }
+  .xrpstage img { position:absolute; left:0; top:0; transform-origin:0 0; user-select:none; max-width:none; }
+  .xrpriors { margin-top:10px; padding:8px 10px; border:1px solid #e9c46a; border-radius:10px; background:color-mix(in srgb,#e9c46a 12%,transparent); font-size:13.5px; }
+  .xrpriors .pr { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .xrpriors .pr button { width:auto; margin:0; padding:5px 10px; border:1px solid #b45309; border-radius:999px; background:var(--card); color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
+  .xrpriors .pr button.on { background:#b45309; color:#fff; }
   .xrside { width:min(440px,40vw); overflow:auto; padding:12px 14px 24px; border-left:1px solid var(--line); background:var(--card); }
   .xrside textarea { font-size:15px; line-height:1.45; }
   .xrinfo { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; font-size:13.5px; }
@@ -326,6 +337,8 @@
   .xrtoast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(100px); z-index:9500; background:#16a34a; color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; transition:transform .3s; max-width:90vw; }
   .xrtoast.show { transform:translateX(-50%) translateY(0); }
   @media (max-width:820px) {
+    .xrcmprow { flex-direction:column; } .xrprior { border-left:0; border-top:3px solid #e9c46a; }
+    #xrv.cmp .xrimg { height:88vh; }
     .xrbody { flex-direction:column; overflow:auto; }
     .xrimg { flex:none; height:58vh; }
     .xrside { width:auto; border-left:0; border-top:1px solid var(--line); overflow:visible; }
@@ -683,7 +696,7 @@
         <button onclick="xvTool('reset')" title="Reset">Reset</button><span id="xrZoom"></span><span id="xrWL"></span>
         <span class="xrstrip" id="xrStrip"></span>
       </div>
-      <div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><canvas id="xrOver"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div>
+      <div class="xrcmprow"><div class="xrstage" id="xrStage"><canvas id="xrCanvas"></canvas><canvas id="xrOver"></canvas><div id="xrStageMsg" class="xrsmsg hidden"></div>
         <div id="xvCtr" class="xvctr hidden">
           <div class="xvctrH"><b id="xvMTitle">Cardiothoracic ratio</b><button type="button" class="xvx" id="xvMX" onclick="xvMeasOff()" title="Close">✕</button></div>
           <div id="xvCtrStep" class="xvctrS"></div>
@@ -691,6 +704,12 @@
           <div class="xvctrB"><button type="button" id="xvCtrIns" class="hidden" onclick="xvMeasInsert()">Insert into report</button><button type="button" onclick="xvMeasClear()">Start again</button></div>
         </div>
       </div>
+      <div class="xrprior hidden" id="xrPrior">
+        <div class="xrpbar"><b id="xrPTitle"></b><span class="xrstrip" id="xrPStrip"></span>
+          <button type="button" id="xrPInv" onclick="xpInvert()">Invert</button><button type="button" onclick="xpFit()">Fit</button>
+          <button type="button" id="xrPRpt" onclick="xpReport()">📄 Report</button><button type="button" onclick="xpInsert()">＋ Comparison line</button><button type="button" onclick="xpClose()" title="Close the prior">✕</button></div>
+        <div class="xrpstage" id="xrPStage"><img id="xrPImg" alt="" draggable="false"><div id="xrPMsg" class="xrsmsg hidden"></div></div>
+      </div></div>
     </div>
     <div class="xrside" id="xrSide"></div>
   </div>
@@ -1033,7 +1052,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 29;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 30;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1528,6 +1547,7 @@
       (p.address ? '<div class="wide"><span>Address</span>' + esc(p.address) + '</div>' : '') +
       (p.clinical ? '<div class="wide"><span>Chief complaint</span>' + esc(p.clinical) + '</div>' : '') + '</div>';
     if (o.note) h += '<div class="ctwarn">' + esc(o.note) + '</div>';
+    h += '<div id="xrPriors" class="xrpriors hidden"></div>';
     if (o.status !== 'Final' && o.status !== 'Cancelled' && XR_META && (XR_META.role.rad || XR_META.role.admin))
       h += '<div class="xrasgrow"><span>Assigned to</span><select id="xrReasg"></select></div>';
     if (o.status === 'Amending' && o.amendReason) h += '<div class="ctwarn">Amending: ' + esc(o.amendReason) + '</div>';
@@ -1557,6 +1577,7 @@
     }
     rteInit('xrF', { plain: !(XR_META && XR_META.rich) });
     var rp = o.report || {}; $('xrF').value = rtJoin(rp.findings, rp.impression); $('xrCrit').checked = !!o.critical;
+    xpClose(true); xrPriorsLoad(o);
     if (ed) {
       var mark = function () { XS.dirty = true; $('xrSaved').textContent = 'Unsaved changes'; clearTimeout(XS.t); XS.t = setTimeout(function () { if (XS && XS.dirty) xrDraft(true); }, 15000); };
       $('xrF').addEventListener('input', mark); $('xrCrit').addEventListener('change', mark);
@@ -1570,10 +1591,118 @@
     var sorted = XTPL.filter(function (t) { return !t.modality || t.modality === 'X-ray'; }).sort(function (a, b) { return (b.exam && ex.indexOf(b.exam.toLowerCase()) !== -1) - (a.exam && ex.indexOf(a.exam.toLowerCase()) !== -1); });
     s.innerHTML = '<option value="">Insert template…</option>' + sorted.map(function (t, i) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
   }
+
+  /* ================= PRIOR X-RAYS: side by side + "Comparison:" line ================= */
+  var XP = { list: [], cur: null, i: 0, inv: false, z: 1, x: 0, y: 0, url: '' };
+  var CMP_RX = /^\s*(<p[^>]*>)?\s*(<b>)?\s*comparison\s*:/i;
+  /** The first paragraph / line if it is a "Comparison:" line, else ''. */
+  function xrCmpOf(v) {
+    v = String(v || ''); if (!CMP_RX.test(v)) return '';
+    var m = /^\s*<p[^>]*>[\s\S]*?<\/p>/i.exec(v); if (m) return m[0];
+    return v.split('\n')[0];
+  }
+  function xrCmpStrip(v) { var c = xrCmpOf(v); return c ? String(v).slice(String(v).indexOf(c) + c.length).replace(/^\s*\n?/, '') : String(v || ''); }
+  function xrCmpText(list) { return 'Comparison: ' + list.map(function (p) { return p.exam + ' dated ' + p.dateLabel; }).join('; ') + '.'; }
+  function xrPriorsLoad(o) {
+    XP.list = []; var box = $('xrPriors'); if (!box) return;
+    run('xrPriors', token, o.acc).then(function (r) {
+      if (!XS || XS.acc !== o.acc || !r.ok) return;
+      XP.list = r.items;
+      if (!r.items.length) { box.classList.add('hidden'); return; }
+      box.innerHTML = '🕘 <b>' + r.items.length + ' prior X-ray' + (r.items.length === 1 ? '' : 's') + '</b> of this patient – tap to compare side by side' +
+        '<div class="pr">' + r.items.map(function (p, k) { return '<button type="button" data-k="' + k + '" onclick="xpOpen(' + k + ')">' + esc(p.exam) + ' · ' + esc(p.dateLabel) + (p.status === 'Final' ? ' ✓' : '') + '</button>'; }).join('') + '</div>';
+      box.classList.remove('hidden');
+      // empty report: start it with the comparison line (most recent prior); the radiologist can edit or delete it
+      if (o.canEdit && !xrCmpOf($('xrF').value) && !rtPlainLines($('xrF').value).join('').trim()) {
+        var line = xrCmpText([r.items[0]]), rich = XR_META && XR_META.rich;
+        $('xrF').value = rich ? '<p>' + esc(line) + '</p>' : line + '\n';
+        $('xrF').dispatchEvent(new Event('input'));
+      }
+    }).catch(function () {});
+  }
+  function xpOpen(k) {
+    var p = XP.list[k]; if (!p) return;
+    XP.cur = p; XP.i = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('#xrPriors .pr button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-k') === k); });
+    $('xrPTitle').textContent = 'PRIOR · ' + p.exam + ' · ' + p.dateLabel + (p.status === 'Final' ? '' : ' · ' + p.status);
+    $('xrPRpt').classList.toggle('hidden', !(p.reportName && p.status === 'Final'));
+    $('xrPStrip').innerHTML = p.imageIds.length > 1 ? p.imageIds.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="xpShow(' + i + ')">' + (i + 1) + '</button>'; }).join('') : '';
+    var was = $('xrPrior').classList.contains('hidden');
+    $('xrPrior').classList.remove('hidden'); $('xrv').classList.add('cmp');
+    var bd = document.querySelector('#xrv .xrbody'); if (bd && window.innerWidth <= 820) bd.scrollTop = 0;   // phone: both images in view
+    if (was) xpRefit();   // the current image re-fits into its half
+    xpShow(0);
+  }
+  function xpShow(i) {
+    var p = XP.cur; if (!p) return; XP.i = i;
+    Array.prototype.forEach.call(document.querySelectorAll('#xrPStrip button'), function (b) { b.classList.toggle('on', +b.getAttribute('data-i') === i); });
+    var img = $('xrPImg'), msg = $('xrPMsg'); img.style.visibility = 'hidden'; msg.textContent = 'Loading the prior…'; msg.classList.remove('hidden');
+    var acc = p.acc, id = p.imageIds[i];
+    run('xrImage', token, acc, id).then(function (r) {
+      if (!XP.cur || XP.cur.acc !== acc || XP.i !== i) return;
+      if (!r.ok) throw new Error(r.msg);
+      var bin = atob(r.b64), u = new Uint8Array(bin.length); for (var k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+      if (XP.url) URL.revokeObjectURL(XP.url);
+      XP.url = URL.createObjectURL(new Blob([u], { type: r.mime }));
+      img.onload = function () { msg.classList.add('hidden'); img.style.visibility = ''; xpFit(); };
+      img.onerror = function () { msg.textContent = 'The prior image could not be shown.'; };
+      img.src = XP.url;
+    }).catch(function (e) { msg.textContent = (e && e.message) || 'Could not load the prior.'; });
+  }
+  function xpRefit() { setTimeout(function () { window.dispatchEvent(new Event('resize')); try { xvTool('fit'); } catch (e) {} if (XP.cur) xpFit(); }, 30); }
+  function xpApply() { var img = $('xrPImg'); img.style.transform = 'translate(' + XP.x + 'px,' + XP.y + 'px) scale(' + XP.z + ')'; img.style.filter = XP.inv ? 'invert(1)' : ''; }
+  function xpFit() {
+    var st = $('xrPStage').getBoundingClientRect(), img = $('xrPImg'), w = img.naturalWidth || 1, h = img.naturalHeight || 1;
+    XP.z = Math.min(st.width / w, st.height / h); XP.x = (st.width - w * XP.z) / 2; XP.y = (st.height - h * XP.z) / 2; xpApply();
+  }
+  function xpInvert() { XP.inv = !XP.inv; $('xrPInv').classList.toggle('on', XP.inv); xpApply(); }
+  function xpReport() { var p = XP.cur; if (p) openFile({ id: p.acc, name: p.reportName }, { fn: 'xrReportFile' }); }
+  /** Adds "Comparison: <prior> dated <date>." as the first line of the report (or adds this prior to an existing comparison line). */
+  function xpInsert() {
+    var p = XP.cur; if (!p || !XS || !XS.canEdit) return xrToast(XS && XS.canEdit ? 'Open a prior first.' : 'This report cannot be edited.');
+    var f = $('xrF'), cur = xrCmpOf(f.value), rich = XR_META && XR_META.rich, item = p.exam + ' dated ' + p.dateLabel;
+    if (cur && cur.indexOf(item) !== -1) return xrToast('That prior is already in the comparison line.');
+    var line = cur ? rtPlainLines(cur).join(' ').replace(/\.\s*$/, '') + '; ' + item + '.' : 'Comparison: ' + item + '.';
+    var rest = xrCmpStrip(f.value);
+    f.value = rich ? '<p>' + esc(line) + '</p>' + rest : line + '\n' + rest;
+    f.dispatchEvent(new Event('input')); xrToast('Comparison line updated.');
+  }
+  function xpClose(quiet) {
+    var was = !$('xrPrior').classList.contains('hidden');
+    $('xrPrior').classList.add('hidden'); XP.cur = null;
+    if (XP.url) { URL.revokeObjectURL(XP.url); XP.url = ''; } $('xrPImg').removeAttribute('src');
+    Array.prototype.forEach.call(document.querySelectorAll('#xrPriors .pr button'), function (b) { b.classList.remove('on'); });
+    $('xrv').classList.remove('cmp');
+    if (was) xpRefit();
+  }
+  (function () {   // wheel zoom / drag pan / double-tap fit on the prior
+    var st = null, drag = null, pts = {};
+    var init = function () {
+      st = $('xrPStage'); if (!st || st.dataset.on) return; st.dataset.on = '1';
+      st.addEventListener('wheel', function (e) { e.preventDefault(); var r = st.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, f = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+        XP.x = mx - (mx - XP.x) * f; XP.y = my - (my - XP.y) * f; XP.z *= f; xpApply(); }, { passive: false });
+      st.addEventListener('pointerdown', function (e) { st.setPointerCapture(e.pointerId); pts[e.pointerId] = { x: e.clientX, y: e.clientY }; drag = { x: e.clientX, y: e.clientY, ox: XP.x, oy: XP.y, d: 0 }; });
+      st.addEventListener('pointermove', function (e) {
+        if (!pts[e.pointerId]) return; var ids = Object.keys(pts);
+        if (ids.length === 2) {   // pinch
+          var a = pts[ids[0]], b = pts[ids[1]], d0 = Math.hypot(a.x - b.x, a.y - b.y); pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+          var a2 = pts[ids[0]], b2 = pts[ids[1]], d1 = Math.hypot(a2.x - b2.x, a2.y - b2.y), r = st.getBoundingClientRect(), mx = (a2.x + b2.x) / 2 - r.left, my = (a2.y + b2.y) / 2 - r.top, f = d0 ? d1 / d0 : 1;
+          XP.x = mx - (mx - XP.x) * f; XP.y = my - (my - XP.y) * f; XP.z *= f; xpApply(); return;
+        }
+        pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (drag) { XP.x = drag.ox + e.clientX - drag.x; XP.y = drag.oy + e.clientY - drag.y; xpApply(); }
+      });
+      var up = function (e) { delete pts[e.pointerId]; drag = null; };
+      st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+      st.addEventListener('dblclick', xpFit);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  })();
+  /* ================= /PRIOR X-RAYS ================= */
   function xrUseTpl() {
     var t = XTPL[+$('xrTpl').value]; $('xrTpl').value = ''; if (!t) return;
-    var f = $('xrF'), txt = rtCat(t.findings, t.impression);
-    if (f.value.trim() && !confirmReplace()) f.value = rtCat(f.value, txt); else f.value = txt;
+    var f = $('xrF'), txt = rtCat(t.findings, t.impression), cmp = xrCmpOf(f.value), rest = xrCmpStrip(f.value);
+    if (rtPlainLines(rest).join('').trim() && !confirmReplace()) f.value = rtCat(f.value, txt); else f.value = cmp ? rtCat(cmp, txt) : txt;   // a "Comparison:" line stays on top
     f.dispatchEvent(new Event('input')); f.focus(); rteCaretEnd(f);
   }
   function confirmReplace() { return window.confirm('Replace the current text with the template? (Cancel adds it at the end instead.)'); }
@@ -2362,23 +2491,57 @@
   function ctdMultiSig() { return (CTD.all || []).map(function (f) { return f.path + ':' + f.size; }).join('|').slice(0, 4000); }
   function ctdMultiSave() {
     if (!CTD.studies) return;
-    try { localStorage.setItem('ctd_multi', JSON.stringify({ sig: CTD.multiSig, at: Date.now(), studies: CTD.studies.map(function (s) { return { key: s.key, form: s.form, on: s.on, uploadId: s.uploadId || '', done: !!s.done, ck: s.ck || '' }; }) })); } catch (e) {}
+    try { localStorage.setItem('ctd_multi', JSON.stringify({ sig: CTD.multiSig, at: Date.now(), studies: CTD.studies.map(function (s) { return { key: s.key, form: s.form, on: s.on, uploadId: s.uploadId || '', done: !!s.done, ck: s.ck || '', role: s.role, attach: s.attach }; }) })); } catch (e) {}
   }
   function ctdMultiForget() { try { localStorage.removeItem('ctd_multi'); } catch (e) {} }
   /** The files to send for one study: loose DICOM files as they are, zip members as one rebuilt zip per source zip. */
-  function ctdStudyFiles(s) {
-    var loose = s.items.filter(function (x) { return x.f; }).map(function (x) { return x.f; }), byZip = [];
-    s.items.forEach(function (x) { if (!x.zip) return; var z = byZip.filter(function (b) { return b.zip === x.zip; })[0]; if (!z) { z = { zip: x.zip, ents: [] }; byZip.push(z); } z.ents.push(x.en); });
+  function ctdStudyFiles(s, si) {
     var safe = function (v) { return String(v || '').replace(/[^A-Za-z0-9 ,.-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60); };
-    return Promise.all(byZip.map(function (z, i) {
-      return zipSubset(z.zip.file, z.ents).then(function (blob) {
-        var nm = safe(s.form.last + ' ' + s.form.first) + ' - ' + safe(s.form.exam || 'CT') + (byZip.length > 1 ? ' (' + (i + 1) + ')' : '') + '.zip';
-        return { file: blob, path: nm, size: blob.size, zip: true };
-      });
-    })).then(function (zs) { return loose.concat(zs); });
+    var one = function (st, dir, base) {   // one study's files: loose files as they are, zip members as one rebuilt zip per source zip
+      var loose = st.items.filter(function (x) { return x.f; }).map(function (x) { return dir ? Object.assign({}, x.f, { path: dir + '/' + x.f.path }) : x.f; }), byZip = [];
+      st.items.forEach(function (x) { if (!x.zip) return; var z = byZip.filter(function (b) { return b.zip === x.zip; })[0]; if (!z) { z = { zip: x.zip, ents: [] }; byZip.push(z); } z.ents.push(x.en); });
+      return Promise.all(byZip.map(function (z, i) {
+        return zipSubset(z.zip.file, z.ents).then(function (blob) {
+          var nm = base + (byZip.length > 1 ? ' (' + (i + 1) + ')' : '') + '.zip';
+          return { file: blob, path: dir ? dir + '/' + nm : nm, size: blob.size, zip: true };
+        });
+      })).then(function (zs) { return loose.concat(zs); });
+    };
+    var parts = [one(s, '', safe(s.form.last + ' ' + s.form.first) + ' - ' + safe(s.form.exam || 'CT'))];
+    if (si !== undefined) CTD.studies.forEach(function (x) {
+      if (x.role !== 'prior' || !x.on || x.attach !== si) return;
+      var d = String(x.tags.date || ''), dl = /^\d{8}$/.test(d) ? d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) : 'undated', nm = 'PRIOR ' + dl + ' - ' + safe(ctdPriorName(x));
+      parts.push(one(x, nm, nm));
+    });
+    return Promise.all(parts).then(function (l) { return [].concat.apply([], l); });
   }
+  /** Same patient (ID, else name + DOB) with 2+ studies: every study dated before that patient's newest one is a comparison, attached to the newest. */
+  function ctdPatKey(t) { var n = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }; return n(t.id) ? 'id:' + n(t.id) : 'nm:' + n(t.name) + '|' + (t.dob || ''); }
+  function ctdPriorRoles(saved) {
+    var S = CTD.studies, by = {};
+    S.forEach(function (x, i) { x.role = 'new'; x.attach = -1; var k = ctdPatKey(x.tags || {}); (by[k] = by[k] || []).push(i); });
+    Object.keys(by).forEach(function (k) {
+      var ix = by[k]; if (ix.length < 2) return;
+      var newest = ix.reduce(function (a, i) { return String(S[i].tags.date || '') > String(S[a].tags.date || '') ? i : a; }, ix[0]), nd = String(S[newest].tags.date || '');
+      ix.forEach(function (i) { var d = String(S[i].tags.date || ''); if (i !== newest && d && nd && d < nd) { S[i].role = 'prior'; S[i].attach = newest; } });
+    });
+    if (saved) S.forEach(function (x) { var sv = saved.studies.filter(function (y) { return y.key === x.key; })[0]; if (sv && sv.role) { x.role = sv.role; x.attach = sv.attach; } });
+  }
+  function ctdDateLabel(d) { var m = /^(\d{4})(\d{2})(\d{2})$/.exec(String(d || '')); return m ? MON[+m[2] - 1] + ' ' + (+m[3]) + ', ' + m[1] : ''; }
+  function ctdPriorName(x) { var t = x.tags || {}; return (x.form.exam || (t.study ? 'CT ' + t.study.replace(/^CT\s*/i, '') : 'CT')).toUpperCase(); }
+  function ctdRole(i, v) {
+    var x = CTD.studies[i];
+    if (v === 'skip') { x.on = false; }
+    else if (v === 'new') { x.role = 'new'; x.on = true; }
+    else { x.role = 'prior'; x.on = true; x.attach = +v; }
+    if (v === 'skip' && x.role !== 'prior') x.role = 'new';
+    ctdMultiDraw(); ctdMultiSave();
+  }
+  /** "CT BRAIN PLAIN dated Oct 3, 2026; …" for the studies attached to study i. */
+  function ctdCmpFor(i) { return CTD.studies.filter(function (x) { return x.role === 'prior' && x.on && x.attach === i; }).map(function (x) { return ctdPriorName(x) + (ctdDateLabel(x.tags.date) ? ' dated ' + ctdDateLabel(x.tags.date) : ''); }).join('; '); }
   function ctdStudyPick(i) {
     if (!CTD.studies || CTD.busy) return;
+    if (CTD.studies[i].role === 'prior') return xrToast('This is a comparison – it is sent with study ' + (CTD.studies[i].attach + 1) + '. Change it with the menu on its row.');
     CTD.studies[CTD.si].form = ctdForm();
     CTD.si = i; CTD.multiLoading = true; ctdFormSet(CTD.studies[i].form); CTD.multiLoading = false;
     ctdMultiDraw(); ctdMultiSave();
@@ -2386,9 +2549,16 @@
   }
   function ctdStudyToggle(i, on) { CTD.studies[i].on = on; ctdMultiDraw(); ctdMultiSave(); }
   function ctdMultiDraw() {
-    var box = $('ctSum'), S = CTD.studies, todo = S.filter(function (s) { return s.on && !s.done; });
+    var box = $('ctSum'), S = CTD.studies, todo = S.filter(function (s) { return s.role !== 'prior' && s.on && !s.done; });
     var h = '<b>This upload has ' + S.length + ' studies.</b> <span class="sub" style="margin:0">Each one is uploaded on its own, with its own report draft. Fill in the details of each study (tap it).</span>';
     S.forEach(function (s, i) {
+      if (s.role === 'prior') {
+        var tg = S[s.attach] || {}, opts = '<option value="' + s.attach + '"' + (s.on ? ' selected' : '') + '>Comparison for study ' + (s.attach + 1) + '</option><option value="new">New study (needs a report)</option><option value="skip"' + (s.on ? '' : ' selected') + '>Don’t send</option>';
+        h += '<div class="ctst prior' + (s.on ? '' : ' off') + '"><span style="font-size:20px">🕘</span><div class="xrl"><b>' + (i + 1) + '. Comparison: ' + esc(ctdPriorName(s)) + ' · ' + esc(ctdDateLabel(s.tags.date) || 'no date') + '</b>' +
+          '<div class="d">' + esc(String(tg.form ? tg.form.last + ', ' + tg.form.first : '')) + ' · ' + s.items.length + ' image' + (s.items.length === 1 ? '' : 's') + ' · ' + esc(ctdMB(s.bytes)) + ' · goes in study ' + (s.attach + 1) + '’s folder, no draft</div></div>' +
+          (s.done ? '<span class="pill xrFinal">✓ uploaded</span>' : '<select onchange="ctdRole(' + i + ', this.value)"' + (CTD.busy ? ' disabled' : '') + ' style="width:auto;margin:0">' + opts + '</select>') + '</div>';
+        return;
+      }
       var miss = ctdMissing(s.form), st = s.done ? '<span class="pill xrFinal">✓ uploaded</span>' : !s.on ? '<span class="pill">not sent</span>' : miss ? '<span class="pill xrToread">needs ' + esc(miss) + '</span>' : '<span class="pill xrFinal">ready</span>';
       var t = s.tags || {};
       h += '<div class="ctst' + (i === CTD.si ? ' cur' : '') + (s.on ? '' : ' off') + '">' +
@@ -2397,10 +2567,13 @@
         '<div class="d">' + esc(s.form.exam || t.study || 'CT') + ' · ' + s.items.length + ' image' + (s.items.length === 1 ? '' : 's') + ' · ' + esc(ctdMB(s.bytes)) + (t.date ? ' · ' + esc(String(t.date).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')) : '') + (t.id ? ' · ID ' + esc(t.id) : '') + '</div></div>' + st + '</div>';
     });
     box.innerHTML = h; box.classList.remove('hidden');
-    var cur = S[CTD.si];
-    $('ctStudyHdr').innerHTML = 'Details for study <b>' + (CTD.si + 1) + ' of ' + S.length + '</b>: ' + esc((cur.form.last || '?') + ', ' + (cur.form.first || '')) + ' · ' + esc(cur.form.exam || 'CT') + (cur.done ? ' <span class="pill xrFinal">✓ uploaded</span>' : '');
+    var cur = S[CTD.si], cmp = ctdCmpFor(CTD.si);
+    $('ctStudyHdr').innerHTML = 'Details for study <b>' + (CTD.si + 1) + ' of ' + S.length + '</b>: ' + esc((cur.form.last || '?') + ', ' + (cur.form.first || '')) + ' · ' + esc(cur.form.exam || 'CT') + (cur.done ? ' <span class="pill xrFinal">✓ uploaded</span>' : '') +
+      (cmp ? '<div style="margin-top:4px;font-size:13px">🕘 On the draft: Comparison: ' + esc(cmp) + '.</div>' : '');
     $('ctStudyHdr').classList.remove('hidden');
     if (!CTD.busy) $('ctBtn').textContent = CTD.run && (CTD.paused || CTD.run.err) ? '▶ Resume upload' : todo.length ? 'Upload ' + todo.length + ' stud' + (todo.length === 1 ? 'y' : 'ies') + ' to Drive' : 'Nothing left to upload';
+    var pc = S.filter(function (x) { return x.role === 'prior' && x.on && !x.done; }).length;
+    if (!CTD.busy && pc && todo.length) $('ctBtn').textContent += ' (+ ' + pc + ' comparison' + (pc === 1 ? '' : 's') + ')';
   }
   function ctdMultiEnd() { CTD.studies = null; CTD.si = 0; $('ctStudyHdr').classList.add('hidden'); ctdMultiForget(); }
   /* ================= /CT MULTI-STUDY ================= */
@@ -2550,8 +2723,9 @@
       if (!sv && keepRad) form.assignTo = keepRad;
       return { key: g.key, tags: g.tags, items: g.items, bytes: g.bytes, form: form, on: sv ? sv.on !== false : true, uploadId: sv ? sv.uploadId : '', done: sv ? !!sv.done : false, ck: sv ? sv.ck || '' : '' };
     });
+    ctdPriorRoles(saved);
     CTD.multiLog = [];
-    var first = 0; CTD.studies.some(function (x, i) { if (x.on && !x.done) { first = i; return true; } return false; });
+    var first = 0; CTD.studies.some(function (x, i) { if (x.role === 'new' && x.on && !x.done) { first = i; return true; } return false; });
     CTD.si = first; CTD.tags = null; CTD.files = [];
     CTD.multiLoading = true; ctdFormSet(CTD.studies[first].form); CTD.multiLoading = false;
     ctdZipWarn(); ctdMultiDraw(); ctdMultiSave();
@@ -2651,7 +2825,9 @@
   }
   function ctdMultiGo() {
     CTD.studies[CTD.si].form = ctdForm(); ctdMultiSave();
-    var todo = []; CTD.studies.forEach(function (x, i) { if (x.on && !x.done) todo.push(i); });
+    var todo = []; CTD.studies.forEach(function (x, i) { if (x.role !== 'prior' && x.on && !x.done) todo.push(i); });
+    var orphan = CTD.studies.filter(function (x) { var t = CTD.studies[x.attach]; return x.role === 'prior' && x.on && !x.done && !(t && t.role !== 'prior' && t.on); })[0];
+    if (orphan) return setMsg('ctMsg', 'A comparison is attached to a study that is not being sent. Set it to "New study" or "Don’t send".');
     if (!todo.length) return setMsg('ctMsg', CTD.studies.some(function (x) { return x.done; }) ? 'All ticked studies are uploaded.' : 'Tick at least one study to send.');
     for (var k = 0; k < todo.length; k++) {
       var x = CTD.studies[todo[k]], miss = ctdMissing(x.form);
@@ -2661,7 +2837,7 @@
     ctdMultiNext();
   }
   function ctdMultiNext() {
-    var i = -1; CTD.studies.some(function (x, k) { if (x.on && !x.done) { i = k; return true; } return false; });
+    var i = -1; CTD.studies.some(function (x, k) { if (x.role !== 'prior' && x.on && !x.done) { i = k; return true; } return false; });
     if (i === -1) {   // all sent
       var log = CTD.multiLog || [];
       $('ctMsg').innerHTML = '✓ Done – ' + log.length + ' stud' + (log.length === 1 ? 'y' : 'ies') + ' uploaded separately:<br>' + log.join('<br>'); $('ctMsg').className = 'msg ok';
@@ -2674,7 +2850,8 @@
     var s = CTD.studies[i];
     CTD.si = i; CTD.multiLoading = true; ctdFormSet(s.form); CTD.multiLoading = false; ctdMultiDraw();
     CTD.busy = true; ctdButtons(); setMsg('ctMsg', 'Preparing study ' + (i + 1) + ' of ' + CTD.studies.length + '…', true);
-    ctdStudyFiles(s).then(function (files) { CTD.busy = false; ctdStartUpload(s.form, files, s.uploadId, s); })
+    var cmpTxt = ctdCmpFor(i);
+    ctdStudyFiles(s, i).then(function (files) { CTD.busy = false; ctdStartUpload(Object.assign({}, s.form, { comparison: cmpTxt }), files, s.uploadId, s); })
       .catch(function (e) { CTD.busy = false; ctdButtons(); setMsg('ctMsg', 'Study ' + (i + 1) + ': ' + ((e && e.message) || e)); });
   }
   function ctdStartUpload(f, files, uploadId, study) {
@@ -2763,9 +2940,11 @@
       if (!r.ok) return setMsg('ctMsg', r.msg);
       if (!r.complete) { setMsg('ctMsg', 'Only ' + r.files + ' of ' + r.expected + ' files are in Drive. ' + (CTD.studies ? 'Press Upload to send the rest.' : 'Choose the same folder again and press Upload to send the rest.')); CTD.run = null; return ctdLoadList(); }
       if (CTD.studies) {
-        var cs = CTD.studies[CTD.si]; cs.done = true; ctdMultiSave();
+        var cs = CTD.studies[CTD.si]; cs.done = true;
+        var npr = 0; CTD.studies.forEach(function (x) { if (x.role === 'prior' && x.on && x.attach === CTD.si) { x.done = true; npr++; } });
+        ctdMultiSave();
         (CTD.multiLog = CTD.multiLog || []).push((CTD.si + 1) + '. <b>' + esc(cs.form.last + ', ' + cs.form.first) + '</b> · ' + esc(cs.form.exam) + ' – ' + r.files + ' file' + (r.files === 1 ? '' : 's') + ' (' + esc(ctdMB(r.bytes)) + ') <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">folder</a>' +
-          (r.reportId ? ' · draft in ' + esc(r.assignedName) + '’s list' : r.reportErr ? ' · <span class="err">no draft: ' + esc(r.reportErr) + '</span>' : ''));
+          (npr ? ' · with ' + npr + ' comparison' + (npr === 1 ? '' : 's') : '') + (r.reportId ? ' · draft in ' + esc(r.assignedName) + '’s list' : r.reportErr ? ' · <span class="err">no draft: ' + esc(r.reportErr) + '</span>' : ''));
         CTD.run = null; CTD.job = null; $('ctProg').classList.add('hidden');
         return ctdMultiNext();
       }
