@@ -394,6 +394,11 @@
   .pbar .pt { font-weight:700; font-size:16px; margin-right:auto; line-height:1.15; } .pbar .pt small { display:block; font-weight:400; font-size:12px; opacity:.75; }
   .ptabs { display:flex; gap:6px; flex-wrap:wrap; }
   .xrth .st.warn { background:#b45309; color:#fff; }
+  .ctst { display:flex; align-items:center; gap:10px; padding:9px 10px; margin-top:8px; border:1px solid var(--line); border-radius:10px; cursor:pointer; }
+  .ctst.cur { border:2px solid var(--brand); background:color-mix(in srgb,var(--brand) 7%,transparent); } .ctst.off { opacity:.55; }
+  .ctst input { width:20px; height:20px; margin:0; flex:none; } .ctst .xrl { flex:1; min-width:0; } .ctst .pill { flex:none; }
+  .ctstudyhdr { margin-top:12px; padding:9px 12px; border-radius:10px; background:var(--brand); color:#fff; font-size:14px; }
+  .ctstudyhdr .pill { background:#fff; }
   #xeBlurBtn.on { background:#e9c46a; color:#10344e; font-weight:700; }
   .privchk { margin-top:12px; padding:10px 12px; border:2px solid #d97706; border-radius:10px; background:color-mix(in srgb,#d97706 9%,transparent); }
   .privchk.ok { border-color:#16a34a; background:color-mix(in srgb,#16a34a 9%,transparent); }
@@ -542,6 +547,8 @@
             <label class="crit" style="margin-top:6px"><input type="checkbox" id="ctOnlyDcm" checked onchange="ctdSummary()"><span>Send DICOM files only (skips viewer programs and other files on a CD)</span></label>
             <div id="ctSum" class="ctbox hidden"></div>
             <div id="ctPendBox" class="ctwarn hidden"></div>
+            <div id="ctZipWarn" class="ctwarn hidden"></div>
+            <div id="ctStudyHdr" class="ctstudyhdr hidden"></div>
             <div class="xrg3">
               <div><label>Last name *</label><input type="text" id="ctLast" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
               <div><label>First name *</label><input type="text" id="ctFirst" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
@@ -2177,6 +2184,197 @@
   }
   /* ================= /DOWNLOAD ================= */
 
+
+  /* ================= CT: SEVERAL STUDIES IN ONE ZIP / FOLDER → ONE UPLOAD PER STUDY =================
+     The zip is opened on the device (only its index and the first 64 KB of each file are read). Files are grouped by
+     DICOM StudyInstanceUID. With 2+ studies each one gets its own form and is uploaded as its own CT upload
+     (own Drive folder, report draft, TAT, print line). A zip's study is sent as a smaller zip built by copying the
+     compressed data as it is (nothing recompressed). Folders are already unpacked: their files are sent per study. */
+  var ZSIG = { eocd: 0x06054b50, loc64: 0x07064b50, eocd64: 0x06064b50, cen: 0x02014b50, loc: 0x04034b50 };
+  function zU64(dv, o) { return dv.getUint32(o, true) + dv.getUint32(o + 4, true) * 4294967296; }
+  function zRead(file, a, b) { return file.slice(a, b).arrayBuffer(); }
+  /** The entries of a zip (from its central directory), or a reason it cannot be read here. */
+  function zipIndex(file) {
+    var n = file.size, tailLen = Math.min(n, 65557 + 20);
+    return zRead(file, n - tailLen, n).then(function (buf) {
+      var dv = new DataView(buf), e = -1;
+      for (var i = buf.byteLength - 22; i >= 0; i--) if (dv.getUint32(i, true) === ZSIG.eocd) { e = i; break; }
+      if (e < 0) throw new Error('not a zip file');
+      var count = dv.getUint16(e + 10, true), cdSize = dv.getUint32(e + 12, true), cdOff = dv.getUint32(e + 16, true);
+      var z64 = count === 0xFFFF || cdSize === 0xFFFFFFFF || cdOff === 0xFFFFFFFF;
+      var p = Promise.resolve();
+      if (z64) {
+        if (e < 20 || dv.getUint32(e - 20, true) !== ZSIG.loc64) throw new Error('large zip without its zip64 index');
+        var recOff = zU64(dv, e - 20 + 8);
+        p = zRead(file, recOff, recOff + 56).then(function (b2) { var d2 = new DataView(b2); if (d2.getUint32(0, true) !== ZSIG.eocd64) throw new Error('bad zip64 index'); count = zU64(d2, 32); cdSize = zU64(d2, 40); cdOff = zU64(d2, 48); });
+      }
+      return p.then(function () { return zRead(file, cdOff, cdOff + cdSize); }).then(function (cd) {
+        var d = new DataView(cd), u8 = new Uint8Array(cd), o = 0, out = [];
+        for (var k = 0; k < count && o + 46 <= cd.byteLength; k++) {
+          if (d.getUint32(o, true) !== ZSIG.cen) throw new Error('damaged zip index');
+          var flags = d.getUint16(o + 8, true), method = d.getUint16(o + 10, true), crc = d.getUint32(o + 16, true), csize = d.getUint32(o + 20, true), usize = d.getUint32(o + 24, true);
+          var nl = d.getUint16(o + 28, true), xl = d.getUint16(o + 30, true), cl = d.getUint16(o + 32, true), lh = d.getUint32(o + 42, true);
+          var nameB = u8.slice(o + 46, o + 46 + nl), x = o + 46 + nl, xe = x + xl;
+          while (x + 4 <= xe) {   // zip64 extra: real sizes / offset
+            var id = d.getUint16(x, true), sz = d.getUint16(x + 2, true), q = x + 4;
+            if (id === 1) { if (usize === 0xFFFFFFFF) { usize = zU64(d, q); q += 8; } if (csize === 0xFFFFFFFF) { csize = zU64(d, q); q += 8; } if (lh === 0xFFFFFFFF) { lh = zU64(d, q); q += 8; } }
+            x += 4 + sz;
+          }
+          var name = ''; try { name = new TextDecoder(flags & 0x800 ? 'utf-8' : 'utf-8', { fatal: false }).decode(nameB); } catch (er) { name = 'file' + k; }
+          if (!/\/$/.test(name)) {
+            if (flags & 1) throw new Error('the zip is password-protected');
+            if (method !== 0 && method !== 8) throw new Error('the zip uses a compression this page cannot read');
+            out.push({ name: name, nameB: nameB, flags: flags, method: method, time: d.getUint16(o + 12, true), date: d.getUint16(o + 14, true), crc: crc, csize: csize, usize: usize, lh: lh, data: -1 });
+          }
+          o += 46 + nl + xl + cl;
+        }
+        return out;
+      });
+    });
+  }
+  function zDataOff(file, en) {
+    if (en.data >= 0) return Promise.resolve(en.data);
+    return zRead(file, en.lh, en.lh + 30).then(function (b) { var d = new DataView(b); if (d.getUint32(0, true) !== ZSIG.loc) throw new Error('damaged zip'); en.data = en.lh + 30 + d.getUint16(26, true) + d.getUint16(28, true); return en.data; });
+  }
+  /** The first `want` bytes of an entry (inflated if needed). */
+  function zPeek(file, en, want) {
+    return zDataOff(file, en).then(function (off) {
+      var blob = file.slice(off, off + Math.min(en.csize, en.method ? Math.max(want, 16384) : want));
+      if (!en.method) return blob.arrayBuffer();
+      if (typeof DecompressionStream === 'undefined') throw new Error('this browser cannot open compressed zips – update it, or use Chrome');
+      var rd = blob.stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader(), parts = [], got = 0;
+      var join = function () { var u = new Uint8Array(got), p = 0; parts.forEach(function (c) { u.set(c, p); p += c.length; }); return u.buffer; };
+      var step = function () {
+        return rd.read().then(function (r) { if (r.done) return join(); parts.push(r.value); got += r.value.length; if (got >= want) { try { rd.cancel(); } catch (e) {} return join(); } return step(); },
+          function () { return join(); });   // the slice ends mid-stream: keep what was inflated
+      };
+      return step();
+    });
+  }
+  /** A zip holding only these entries: local headers rebuilt (sizes / CRC known, no data descriptors), data copied from the original zip. */
+  function zipSubset(file, ents) {
+    return Promise.all(ents.map(function (en) { return zDataOff(file, en); })).then(function () {
+      var parts = [], cen = [], off = 0, total = 0;
+      ents.forEach(function (en) { total += 30 + en.nameB.length + en.csize; });
+      if (total > 4294967000 || ents.length > 65000) throw new Error('This study is too big to split here (over 4 GB). Export it on its own at the CT console.');
+      ents.forEach(function (en) {
+        var nl = en.nameB.length, h = new DataView(new ArrayBuffer(30)), fl = en.flags & ~0x0008;
+        h.setUint32(0, ZSIG.loc, true); h.setUint16(4, 20, true); h.setUint16(6, fl, true); h.setUint16(8, en.method, true); h.setUint16(10, en.time, true); h.setUint16(12, en.date, true);
+        h.setUint32(14, en.crc, true); h.setUint32(18, en.csize, true); h.setUint32(22, en.usize, true); h.setUint16(26, nl, true); h.setUint16(28, 0, true);
+        parts.push(new Uint8Array(h.buffer), en.nameB, file.slice(en.data, en.data + en.csize));
+        var c = new DataView(new ArrayBuffer(46));
+        c.setUint32(0, ZSIG.cen, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, fl, true); c.setUint16(10, en.method, true); c.setUint16(12, en.time, true); c.setUint16(14, en.date, true);
+        c.setUint32(16, en.crc, true); c.setUint32(20, en.csize, true); c.setUint32(24, en.usize, true); c.setUint16(28, nl, true); c.setUint32(42, off, true);
+        cen.push(new Uint8Array(c.buffer), en.nameB);
+        off += 30 + nl + en.csize;
+      });
+      var cdSize = cen.reduce(function (a, u) { return a + u.length; }, 0), e = new DataView(new ArrayBuffer(22));
+      e.setUint32(0, ZSIG.eocd, true); e.setUint16(8, ents.length, true); e.setUint16(10, ents.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+      return new Blob(parts.concat(cen, [new Uint8Array(e.buffer)]), { type: 'application/zip' });
+    });
+  }
+  /** Reads study details of every DICOM file (folders) and every file inside zips. Calls back with { items, zipErr }. */
+  function ctdScan(files, progress) {
+    var items = [], zipErr = '', jobs = [];
+    files.forEach(function (f, fi) {
+      if (f.zip) jobs.push(function () {
+        return zipIndex(f.file).then(function (ents) {
+          var k = 0, next = function () {
+            var batch = ents.slice(k, k + 16); k += 16;
+            if (!batch.length) return null;
+            return Promise.all(batch.map(function (en, bi) {
+              var ord = fi * 1e6 + k - 16 + bi;
+              if (en.usize < 132 || /(^|\/)DICOMDIR$/i.test(en.name)) return null;
+              return zPeek(f.file, en, 65536).then(function (b) {
+                var u = new Uint8Array(b, 128, Math.min(4, Math.max(0, b.byteLength - 128)));
+                if (!(u.length === 4 && u[0] === 68 && u[1] === 73 && u[2] === 67 && u[3] === 77)) return;
+                items.push({ zip: f, en: en, tags: dcmTags(b) || {}, size: en.csize, ord: ord });
+              }, function () {});
+            })).then(function () { progress && progress(items.length); return next(); });
+          };
+          return next();
+        }).catch(function (e) { zipErr = (e && e.message) || 'the zip could not be opened'; f.zipErr = zipErr; });
+      });
+      else if (f.dicom && !/(^|\/)DICOMDIR$/i.test(f.path)) items.push({ f: f, size: f.size, ord: fi * 1e6 });
+    });
+    var loose = items.filter(function (x) { return x.f; }), lk = 0;
+    var readLoose = function () {
+      var batch = loose.slice(lk, lk + 32); lk += 32;
+      if (!batch.length) return Promise.resolve();
+      return Promise.all(batch.map(function (x) { return x.f.file.slice(0, Math.min(x.f.size, 65536)).arrayBuffer().then(function (b) { x.tags = dcmTags(b) || {}; }, function () { x.tags = {}; }); }))
+        .then(function () { progress && progress(lk); return readLoose(); });
+    };
+    return jobs.reduce(function (p, j) { return p.then(j); }, Promise.resolve()).then(readLoose).then(function () { return { items: items, zipErr: zipErr }; });
+  }
+  function ctdStudyKey(t) { return t.suid || ((t.id || t.name || '?') + '|' + (t.date || '') + '|' + (t.study || '')); }
+  function ctdGroup(items) {
+    var g = {}, order = [];
+    items.slice().sort(function (a, b) { return a.ord - b.ord; }).forEach(function (x) {
+      var t = x.tags || {}; if (!t.suid && !t.name && !t.id) return;   /* index / viewer files without patient details */
+      var k = ctdStudyKey(x.tags || {}); if (!g[k]) { g[k] = { key: k, tags: x.tags || {}, items: [], bytes: 0 }; order.push(k); } g[k].items.push(x); g[k].bytes += x.size || 0; });
+    return order.map(function (k) { return g[k]; });
+  }
+  /** Form values from a study's DICOM tags (what the single-study form fills automatically). */
+  function ctdFormFromTags(t) {
+    var nm = String(t.name || '').split('^'), f = { last: (nm[0] || '').toUpperCase().trim(), first: (nm[1] || '').toUpperCase().trim(), middle: (nm[2] || '').toUpperCase().trim(), dob: '', age: '', sex: '', hospNo: t.id || '',
+      phys: String(t.phys || '').replace(/\^+/g, ' ').trim(), exam: t.study ? 'CT ' + t.study.replace(/^CT\s*/i, '') : t.part ? 'CT ' + t.part : '', notes: '', assignTo: '', civil: '', location: '', address: '', indication: '', contrast: 'plain', pickup: '' };
+    if (/^\d{8}$/.test(t.dob || '')) f.dob = t.dob.slice(0, 4) + '-' + t.dob.slice(4, 6) + '-' + t.dob.slice(6, 8);
+    else if (t.age) { var a = /^(\d{3})([YMWD])$/.exec(t.age); if (a) f.age = +a[1] + (a[2] === 'Y' ? '' : ' ' + { M: 'mo', W: 'wk', D: 'd' }[a[2]]); }
+    if (t.sex === 'M' || t.sex === 'F') f.sex = t.sex;
+    var sd = String(t.study || '');
+    if (/plain.*contrast|pre.*post/i.test(sd)) f.contrast = 'both'; else if (/contrast|enhanc|\+\s*c\b|\bc\+/i.test(sd) && !/plain|non[- ]?con|without/i.test(sd)) f.contrast = 'contrast';
+    return f;
+  }
+  function ctdMissing(f) {
+    if (!f.last || !f.first) return 'last and first name'; if (!f.sex) return 'sex'; if (!f.exam) return 'CT examination'; if (!f.indication) return 'indication';
+    if (!f.assignTo && !(XR_META.ct && XR_META.ct.onDuty)) return 'radiologist'; return '';
+  }
+  function ctdMultiSig() { return (CTD.all || []).map(function (f) { return f.path + ':' + f.size; }).join('|').slice(0, 4000); }
+  function ctdMultiSave() {
+    if (!CTD.studies) return;
+    try { localStorage.setItem('ctd_multi', JSON.stringify({ sig: CTD.multiSig, at: Date.now(), studies: CTD.studies.map(function (s) { return { key: s.key, form: s.form, on: s.on, uploadId: s.uploadId || '', done: !!s.done, ck: s.ck || '' }; }) })); } catch (e) {}
+  }
+  function ctdMultiForget() { try { localStorage.removeItem('ctd_multi'); } catch (e) {} }
+  /** The files to send for one study: loose DICOM files as they are, zip members as one rebuilt zip per source zip. */
+  function ctdStudyFiles(s) {
+    var loose = s.items.filter(function (x) { return x.f; }).map(function (x) { return x.f; }), byZip = [];
+    s.items.forEach(function (x) { if (!x.zip) return; var z = byZip.filter(function (b) { return b.zip === x.zip; })[0]; if (!z) { z = { zip: x.zip, ents: [] }; byZip.push(z); } z.ents.push(x.en); });
+    var safe = function (v) { return String(v || '').replace(/[^A-Za-z0-9 ,.-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60); };
+    return Promise.all(byZip.map(function (z, i) {
+      return zipSubset(z.zip.file, z.ents).then(function (blob) {
+        var nm = safe(s.form.last + ' ' + s.form.first) + ' - ' + safe(s.form.exam || 'CT') + (byZip.length > 1 ? ' (' + (i + 1) + ')' : '') + '.zip';
+        return { file: blob, path: nm, size: blob.size, zip: true };
+      });
+    })).then(function (zs) { return loose.concat(zs); });
+  }
+  function ctdStudyPick(i) {
+    if (!CTD.studies || CTD.busy) return;
+    CTD.studies[CTD.si].form = ctdForm();
+    CTD.si = i; CTD.multiLoading = true; ctdFormSet(CTD.studies[i].form); CTD.multiLoading = false;
+    ctdMultiDraw(); ctdMultiSave();
+    $('ctStudyHdr').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+  function ctdStudyToggle(i, on) { CTD.studies[i].on = on; ctdMultiDraw(); ctdMultiSave(); }
+  function ctdMultiDraw() {
+    var box = $('ctSum'), S = CTD.studies, todo = S.filter(function (s) { return s.on && !s.done; });
+    var h = '<b>This upload has ' + S.length + ' studies.</b> <span class="sub" style="margin:0">Each one is uploaded on its own, with its own report draft. Fill in the details of each study (tap it).</span>';
+    S.forEach(function (s, i) {
+      var miss = ctdMissing(s.form), st = s.done ? '<span class="pill xrFinal">✓ uploaded</span>' : !s.on ? '<span class="pill">not sent</span>' : miss ? '<span class="pill xrToread">needs ' + esc(miss) + '</span>' : '<span class="pill xrFinal">ready</span>';
+      var t = s.tags || {};
+      h += '<div class="ctst' + (i === CTD.si ? ' cur' : '') + (s.on ? '' : ' off') + '">' +
+        '<input type="checkbox"' + (s.on ? ' checked' : '') + (s.done || CTD.busy ? ' disabled' : '') + ' onchange="ctdStudyToggle(' + i + ', this.checked)" title="Send this study">' +
+        '<div class="xrl" onclick="ctdStudyPick(' + i + ')"><b>' + (i + 1) + '. ' + esc(String(s.form.last || '?') + ', ' + String(s.form.first || '')) + '</b>' +
+        '<div class="d">' + esc(s.form.exam || t.study || 'CT') + ' · ' + s.items.length + ' image' + (s.items.length === 1 ? '' : 's') + ' · ' + esc(ctdMB(s.bytes)) + (t.date ? ' · ' + esc(String(t.date).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')) : '') + (t.id ? ' · ID ' + esc(t.id) : '') + '</div></div>' + st + '</div>';
+    });
+    box.innerHTML = h; box.classList.remove('hidden');
+    var cur = S[CTD.si];
+    $('ctStudyHdr').innerHTML = 'Details for study <b>' + (CTD.si + 1) + ' of ' + S.length + '</b>: ' + esc((cur.form.last || '?') + ', ' + (cur.form.first || '')) + ' · ' + esc(cur.form.exam || 'CT') + (cur.done ? ' <span class="pill xrFinal">✓ uploaded</span>' : '');
+    $('ctStudyHdr').classList.remove('hidden');
+    if (!CTD.busy) $('ctBtn').textContent = CTD.run && (CTD.paused || CTD.run.err) ? '▶ Resume upload' : todo.length ? 'Upload ' + todo.length + ' stud' + (todo.length === 1 ? 'y' : 'ies') + ' to Drive' : 'Nothing left to upload';
+  }
+  function ctdMultiEnd() { CTD.studies = null; CTD.si = 0; $('ctStudyHdr').classList.add('hidden'); ctdMultiForget(); }
+  /* ================= /CT MULTI-STUDY ================= */
+
   /* ================= CT DICOM UPLOAD ================= */
   var CTD = { files: [], skipped: 0, tags: null, job: null, paused: false, busy: false, wake: null };
   function upMode(v) {
@@ -2198,7 +2396,7 @@
     var duty = c.onDuty;
     $('ctAssign').innerHTML = (duty ? '<option value="">On duty for CT: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for CT: choose —</option>') +
       (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
-    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign', 'ctCivil', 'ctLoc', 'ctAddr', 'ctInd'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
+    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctExam', 'ctPhys', 'ctNotes', 'ctAssign', 'ctCivil', 'ctLoc', 'ctAddr', 'ctInd', 'ctPickup'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
     var dz = $('ctDrop');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
@@ -2212,28 +2410,39 @@
     return { last: $('ctLast').value.trim(), first: $('ctFirst').value.trim(), middle: $('ctMid').value.trim(), dob: $('ctDob').value, age: $('ctAge').value.trim(),
       sex: $('ctSexBar').getAttribute('data-v'), hospNo: $('ctHosp').value.trim(), exam: $('ctExam').value.trim(), phys: $('ctPhys').value.trim(),
       notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value, civil: $('ctCivil').value, location: $('ctLoc').value.trim(), address: $('ctAddr').value.trim(),
-      indication: $('ctInd').value.trim(), contrast: $('ctConBar').getAttribute('data-v') || 'plain' };
+      indication: $('ctInd').value.trim(), contrast: $('ctConBar').getAttribute('data-v') || 'plain', pickup: $('ctPickup').value };
   }
-  function ctdFormSave() { try { localStorage.setItem('ctd_form', JSON.stringify(ctdForm())); } catch (e) {} }
+  function ctdFormSave() {
+    if (CTD.multiLoading) return;
+    if (CTD.studies) { CTD.studies[CTD.si].form = ctdForm(); ctdMultiSave(); ctdMultiDraw(); return; }
+    try { localStorage.setItem('ctd_form', JSON.stringify(ctdForm())); } catch (e) {}
+  }
   function ctdFormSet(f) {
     $('ctLast').value = f.last || ''; $('ctFirst').value = f.first || ''; $('ctMid').value = f.middle || ''; $('ctDob').value = f.dob || ''; $('ctAge').value = f.age || '';
     $('ctHosp').value = f.hospNo || ''; $('ctExam').value = f.exam || ''; $('ctPhys').value = f.phys || ''; $('ctNotes').value = f.notes || '';
     $('ctCivil').value = f.civil || ''; $('ctLoc').value = f.location || ''; $('ctAddr').value = f.address || ''; $('ctInd').value = f.indication || '';
-    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; ctdSex(f.sex || ''); ctdCon(f.contrast || 'plain');
+    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; if (f.pickup !== undefined) { $('ctPickup').value = f.pickup; if ($('ctPickup').value !== f.pickup) $('ctPickup').value = ''; }
+    ctdSex(f.sex || ''); ctdCon(f.contrast || 'plain');
   }
   function ctdFormRestore() {
     var f = null, j = null; try { f = JSON.parse(localStorage.getItem('ctd_form') || 'null'); j = JSON.parse(localStorage.getItem('ctd_job') || 'null'); } catch (e) {}
     if (f) ctdFormSet(f);
-    if (j && j.uploadId) {
+    var mu = null; try { mu = JSON.parse(localStorage.getItem('ctd_multi') || 'null'); } catch (e) {}
+    if (mu && mu.studies && Date.now() - (mu.at || 0) < 7 * 864e5 && mu.studies.some(function (x) { return x.on && !x.done; })) {
+      var dn = mu.studies.filter(function (x) { return x.done; }).length;
+      $('ctPendBox').innerHTML = '⏸ Unfinished CT upload of <b>' + mu.studies.length + ' studies</b> (' + dn + ' uploaded). Choose the same zip / folder again – the details you entered are kept and only what is missing is sent. <button class="link" type="button" onclick="ctdForget()">Forget it</button>';
+      $('ctPendBox').classList.remove('hidden');
+    } else if (j && j.uploadId) {
       CTD.job = j;
       $('ctPendBox').innerHTML = '⏸ Unfinished CT upload: <b>' + esc(j.label || '') + '</b> (' + (j.sent || 0) + ' of ' + j.total + ' files sent). Choose the same folder again and press Upload – only the missing files are sent. <button class="link" type="button" onclick="ctdForget()">Forget it</button>';
       $('ctPendBox').classList.remove('hidden');
     }
   }
-  function ctdForget() { CTD.job = null; try { localStorage.removeItem('ctd_job'); } catch (e) {} $('ctPendBox').classList.add('hidden'); }
+  function ctdForget() { CTD.job = null; try { localStorage.removeItem('ctd_job'); localStorage.removeItem('ctd_ck'); } catch (e) {} ctdMultiForget(); $('ctPendBox').classList.add('hidden'); }
   function ctdClear() {
     if (CTD.busy) return;
-    ctdFormSet({ assignTo: '' }); CTD.files = []; CTD.tags = null; CTD.skipped = 0; ctdForget(); ctdSummary();
+    if (CTD.studies) ctdMultiEnd(); CTD.all = []; CTD.zipErr = '';
+    ctdFormSet({ assignTo: '', pickup: '' }); CTD.files = []; CTD.tags = null; CTD.skipped = 0; ctdForget(); ctdSummary();
     try { localStorage.removeItem('ctd_form'); } catch (e) {} setMsg('ctMsg', '');
   }
 
@@ -2276,12 +2485,17 @@
     checkNext();
   }
   function ctdChecked(files) {
-    CTD.all = files; $('ctDropTxt').textContent = 'Choose another folder to change the selection.';
-    var first = files.filter(function (f) { return f.dicom; })[0];
-    if (!first) { CTD.tags = null; ctdSummary(); return; }
-    first.file.slice(0, Math.min(first.size, 1048576)).arrayBuffer().then(function (b) {
-      CTD.tags = dcmTags(b); ctdSummary();
-      var t = CTD.tags; if (!t) return;
+    CTD.all = files; CTD.studies = null; CTD.zipErr = ''; $('ctStudyHdr').classList.add('hidden');
+    $('ctDropTxt').textContent = 'Reading the study details…';
+    ctdScan(files, function (n) { $('ctDropTxt').textContent = 'Reading the study details… ' + n; }).then(function (res) {
+      $('ctDropTxt').textContent = 'Choose another folder to change the selection.';
+      CTD.zipErr = res.zipErr;
+      var groups = ctdGroup(res.items);
+      if (groups.length >= 2) return ctdMultiStart(groups);
+      if (CTD.studies) ctdMultiEnd();
+      var t = groups[0] ? groups[0].tags : null;
+      CTD.tags = t; ctdSummary();
+      if (!t) return;
       // fill empty fields from the images (the technologist checks them)
       var nm = String(t.name || '').split('^'), fill = function (id, v) { if (v && !$(id).value.trim()) $(id).value = v; };
       fill('ctLast', (nm[0] || '').toUpperCase()); fill('ctFirst', (nm[1] || '').toUpperCase()); fill('ctMid', (nm[2] || '').toUpperCase());
@@ -2294,12 +2508,38 @@
       if (/contrast|enhanc|\+\s*c\b|\bc\+/i.test(sd) && !/plain|non[- ]?con|without/i.test(sd)) ctdCon('contrast');
       else if (/plain.*contrast|pre.*post/i.test(sd)) ctdCon('both');
       ctdFormSave();
+    }).catch(function (e) { $('ctDropTxt').textContent = 'Could not read the files: ' + ((e && e.message) || e); });
+  }
+  function ctdMultiStart(groups) {
+    CTD.multiSig = ctdMultiSig();
+    var saved = null; try { saved = JSON.parse(localStorage.getItem('ctd_multi') || 'null'); } catch (e) {}
+    if (saved && saved.sig !== CTD.multiSig) saved = null;
+    var keepRad = $('ctAssign').value;
+    CTD.studies = groups.map(function (g) {
+      var sv = saved && saved.studies.filter(function (x) { return x.key === g.key; })[0], form = sv ? sv.form : ctdFormFromTags(g.tags);
+      if (!sv && keepRad) form.assignTo = keepRad;
+      return { key: g.key, tags: g.tags, items: g.items, bytes: g.bytes, form: form, on: sv ? sv.on !== false : true, uploadId: sv ? sv.uploadId : '', done: sv ? !!sv.done : false, ck: sv ? sv.ck || '' : '' };
     });
+    CTD.multiLog = [];
+    var first = 0; CTD.studies.some(function (x, i) { if (x.on && !x.done) { first = i; return true; } return false; });
+    CTD.si = first; CTD.tags = null; CTD.files = [];
+    CTD.multiLoading = true; ctdFormSet(CTD.studies[first].form); CTD.multiLoading = false;
+    ctdZipWarn(); ctdMultiDraw(); ctdMultiSave();
+    if (saved) setMsg('ctMsg', 'Continuing the earlier upload – the details you entered are kept' + (CTD.studies.some(function (x) { return x.done; }) ? ' and uploaded studies are skipped' : '') + '.', true);
+  }
+  function ctdZipWarn() {
+    var w = $('ctZipWarn');
+    if (!CTD.zipErr) { w.classList.add('hidden'); return; }
+    w.innerHTML = '⚠ A .zip could not be opened on this device (' + esc(CTD.zipErr) + '), so its studies cannot be separated. <b>Export one study per zip at the CT console</b>, or tick below if you are sure it holds only this patient’s study.' +
+      '<label class="crit" style="margin-top:6px"><input type="checkbox" id="ctZipOk"><span>This zip holds <b>only one patient’s study</b></span></label>';
+    w.classList.remove('hidden');
   }
   function ctdSelected() { var only = $('ctOnlyDcm').checked; return (CTD.all || []).filter(function (f) { return !only || f.dicom || f.zip; }); }
   function ctdMB(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
   function ctdSummary() {
+    if (CTD.studies) { ctdZipWarn(); return ctdMultiDraw(); }
     var box = $('ctSum'), sel = ctdSelected(), all = CTD.all || [];
+    ctdZipWarn();
     CTD.files = sel;
     if (!all.length) { box.classList.add('hidden'); return; }
     var bytes = sel.reduce(function (a, f) { return a + f.size; }, 0), dcm = all.filter(function (f) { return f.dicom; }).length, other = all.length - dcm - all.filter(function (f) { return f.zip; }).length;
@@ -2317,7 +2557,7 @@
     try {
       var dv = new DataView(buf), u8 = new Uint8Array(buf), n = buf.byteLength, pos = 132, out = {}, UNDEF = 0xFFFFFFFF;
       if (n < 140) return null;
-      var want = { '00100010': 'name', '00100020': 'id', '00100030': 'dob', '00100040': 'sex', '00101010': 'age', '00081030': 'study', '00080020': 'date', '00080090': 'phys', '00080060': 'modality', '00180015': 'part', '00020010': 'ts' };
+      var want = { '00100010': 'name', '00100020': 'id', '00100030': 'dob', '00100040': 'sex', '00101010': 'age', '00081030': 'study', '00080020': 'date', '00080090': 'phys', '00080060': 'modality', '00180015': 'part', '00020010': 'ts', '0020000D': 'suid' };
       var h4 = function (x) { return ('000' + x.toString(16).toUpperCase()).slice(-4); };
       var str = function (o, l) { var s = ''; for (var i = 0; i < l && o + i < n; i++) s += String.fromCharCode(u8[o + i]); try { s = decodeURIComponent(escape(s)); } catch (e) {} return s.replace(/\0/g, '').trim(); };
       var el = function (expl) {
@@ -2343,7 +2583,7 @@
       var ts = (out.ts || '').replace(/\0/g, ''), expl = ts !== '1.2.840.10008.1.2';
       if (ts === '1.2.840.10008.1.2.2' || ts === '1.2.840.10008.1.2.1.99') return out;   // big-endian / deflated: not read
       while ((x = el(expl))) {
-        if (x.g > 0x0018 && x.g !== 0xFFFE) break;
+        if (x.g > 0x0020 && x.g !== 0xFFFE) break;
         if (x.len === UNDEF) { skipUndef(expl, 0); continue; }
         if (want[x.tag] && x.len < 512) out[want[x.tag]] = str(pos, x.len);
         pos += x.len;
@@ -2368,6 +2608,8 @@
   function ctdGo() {
     if (CTD.busy) return;
     if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; setMsg('ctMsg', 'Uploading…', true); return ctdPump(); }   // resume
+    if (CTD.zipErr && !($('ctZipOk') && $('ctZipOk').checked)) { $('ctZipWarn').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('ctMsg', 'A zip could not be opened here – export one study per zip, or tick that it holds only one patient’s study.'); }
+    if (CTD.studies) return ctdMultiGo();
     var f = ctdForm(), files = ctdSelected();
     if (!files.length) return setMsg('ctMsg', 'Choose the CT folder or files first.');
     if (!f.last || !f.first) return setMsg('ctMsg', 'Enter the patient’s last and first name.');
@@ -2375,15 +2617,51 @@
     if (!f.exam) return setMsg('ctMsg', 'Enter the CT examination.');
     if (!f.indication) return setMsg('ctMsg', 'Enter the indication (clinical history) – it goes on the report.');
     if (!f.assignTo && !(XR_META.ct && XR_META.ct.onDuty)) return setMsg('ctMsg', 'Nobody is on duty for CT – choose the radiologist.');
+    ctdStartUpload(f, files, CTD.job && CTD.job.uploadId, null);
+  }
+  function ctdMultiGo() {
+    CTD.studies[CTD.si].form = ctdForm(); ctdMultiSave();
+    var todo = []; CTD.studies.forEach(function (x, i) { if (x.on && !x.done) todo.push(i); });
+    if (!todo.length) return setMsg('ctMsg', CTD.studies.some(function (x) { return x.done; }) ? 'All ticked studies are uploaded.' : 'Tick at least one study to send.');
+    for (var k = 0; k < todo.length; k++) {
+      var x = CTD.studies[todo[k]], miss = ctdMissing(x.form);
+      if (miss) { ctdStudyPick(todo[k]); return setMsg('ctMsg', 'Study ' + (todo[k] + 1) + ' (' + (x.form.last || '?') + '): enter the ' + miss + '.'); }
+    }
+    CTD.multiLog = CTD.multiLog || [];
+    ctdMultiNext();
+  }
+  function ctdMultiNext() {
+    var i = -1; CTD.studies.some(function (x, k) { if (x.on && !x.done) { i = k; return true; } return false; });
+    if (i === -1) {   // all sent
+      var log = CTD.multiLog || [];
+      $('ctMsg').innerHTML = '✓ Done – ' + log.length + ' stud' + (log.length === 1 ? 'y' : 'ies') + ' uploaded separately:<br>' + log.join('<br>'); $('ctMsg').className = 'msg ok';
+      xrToast('✓ ' + log.length + ' CT studies uploaded');
+      ctdMultiEnd(); CTD.run = null; CTD.job = null; CTD.all = []; CTD.files = []; CTD.tags = null; CTD.zipErr = ''; ctdZipWarn();
+      try { localStorage.removeItem('ctd_job'); localStorage.removeItem('ctd_form'); } catch (e) {}
+      ctdFormSet({ assignTo: '', pickup: '' }); ctdSummary(); $('ctProg').classList.add('hidden'); ctdButtons(); ctdLoadList();
+      return;
+    }
+    var s = CTD.studies[i];
+    CTD.si = i; CTD.multiLoading = true; ctdFormSet(s.form); CTD.multiLoading = false; ctdMultiDraw();
+    CTD.busy = true; ctdButtons(); setMsg('ctMsg', 'Preparing study ' + (i + 1) + ' of ' + CTD.studies.length + '…', true);
+    ctdStudyFiles(s).then(function (files) { CTD.busy = false; ctdStartUpload(s.form, files, s.uploadId, s); })
+      .catch(function (e) { CTD.busy = false; ctdButtons(); setMsg('ctMsg', 'Study ' + (i + 1) + ': ' + ((e && e.message) || e)); });
+  }
+  function ctdStartUpload(f, files, uploadId, study) {
     var dirs = files.map(function (x) { var p = x.path.split('/'); p.pop(); return p.join('/'); }).filter(function (d, i, a) { return d && a.indexOf(d) === i; });
     var bytes = files.reduce(function (a, x) { return a + x.size; }, 0);
-    var req = Object.assign({}, f, { files: files.length, bytes: bytes, dirs: dirs, uploadId: CTD.job && CTD.job.uploadId, pickup: $('ctPickup').value });
+    var ck;   // start key, saved before asking: a refresh mid-start continues the same upload
+    if (study) { if (!study.ck) { study.ck = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); ctdMultiSave(); } ck = study.ck; }
+    else { ck = lsGet('ctd_ck'); if (!ck) { ck = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); lsSet('ctd_ck', ck); } }
+    var req = Object.assign({}, f, { files: files.length, bytes: bytes, dirs: dirs, uploadId: uploadId || '', pickup: f.pickup || '', clientKey: ck });
     CTD.busy = true; ctdButtons(); setMsg('ctMsg', 'Starting…', true);
     run('ctdStart', token, req).then(function (r) {
       if (r.expired) { CTD.busy = false; return expired(); }
       if (!r.ok) { CTD.busy = false; ctdButtons(); return setMsg('ctMsg', r.msg); }
       var job = { uploadId: r.uploadId, folderUrl: r.folderUrl, total: files.length, sent: 0, label: f.last.toUpperCase() + ', ' + f.first.toUpperCase() + ' · ' + f.exam };
-      CTD.job = job; try { localStorage.setItem('ctd_job', JSON.stringify(job)); } catch (e) {}
+      CTD.job = job;
+      if (study) { study.uploadId = r.uploadId; ctdMultiSave(); }
+      else { try { localStorage.setItem('ctd_job', JSON.stringify(job)); } catch (e) {} }
       $('ctPendBox').classList.add('hidden');
       var start = function (have) {
         have = have || {};
@@ -2411,16 +2689,16 @@
     var j = CTD.run; if (!j) return;
     CTD.busy = true; ctdButtons();
     while (!CTD.paused && !j.err && j.active < 3 && j.tasks.length) ctdDo(j, j.tasks.shift());
-    if (!j.active && (CTD.paused || j.err)) { CTD.busy = false; ctdButtons(); ctdProg();
+    if (!j.active && !j.waiting && (CTD.paused || j.err)) { CTD.busy = false; ctdButtons(); ctdProg();
       if (j.err) setMsg('ctMsg', 'Upload stopped: ' + j.err + ' Press “Resume upload” to try again – files already sent are kept.');
       else setMsg('ctMsg', 'Paused. Press “Resume upload” to continue.', true);
       ctdWakeOff(); }
-    if (!j.active && !j.tasks.length && !j.err && !CTD.paused) ctdFinish(j);
+    if (!j.active && !j.waiting && !j.tasks.length && !j.err && !CTD.paused) ctdFinish(j);
   }
   function ctdDo(j, t) {
     j.active++;
     var fail = function (msg) { j.active--; t.tries = (t.tries || 0) + 1;
-      if (t.tries <= 3 && !j.err) { setTimeout(function () { j.tasks.unshift(t); ctdPump(); }, 1500 * t.tries); }
+      if (t.tries <= 3 && !j.err) { j.waiting = (j.waiting || 0) + 1; setTimeout(function () { j.waiting--; j.tasks.unshift(t); ctdPump(); }, 1500 * t.tries); }   // waiting to retry: not finished yet
       else { j.err = j.err || msg; j.tasks.unshift(t); t.tries = 0; ctdPump(); } };
     var ok = function () { j.active--; ctdProg(); ctdPump(); };
     if (t.big) {
@@ -2440,7 +2718,7 @@
       }).catch(function (e) { fail((e && e.message) || String(e)); });
       return;
     }
-    Promise.all(t.list.map(function (x) { return ctdB64(x.file).then(function (b) { return { path: x.path, type: 'application/dicom', b64: b }; }); }))
+    Promise.all(t.list.map(function (x) { return ctdB64(x.file).then(function (b) { return { path: x.path, type: /\.zip$/i.test(x.path) ? 'application/zip' : 'application/dicom', b64: b }; }); }))
       .then(function (arr) { return run('ctdPut', token, j.id, arr); })
       .then(function (r) {
         if (r.expired) { j.err = 'your session ended'; j.active--; return ctdPump(); }
@@ -2453,13 +2731,20 @@
     run('ctdFinish', token, j.id).then(function (r) {
       CTD.busy = false; ctdWakeOff(); ctdButtons();
       if (!r.ok) return setMsg('ctMsg', r.msg);
-      if (!r.complete) { setMsg('ctMsg', 'Only ' + r.files + ' of ' + r.expected + ' files are in Drive. Choose the same folder again and press Upload to send the rest.'); return ctdLoadList(); }
+      if (!r.complete) { setMsg('ctMsg', 'Only ' + r.files + ' of ' + r.expected + ' files are in Drive. ' + (CTD.studies ? 'Press Upload to send the rest.' : 'Choose the same folder again and press Upload to send the rest.')); CTD.run = null; return ctdLoadList(); }
+      if (CTD.studies) {
+        var cs = CTD.studies[CTD.si]; cs.done = true; ctdMultiSave();
+        (CTD.multiLog = CTD.multiLog || []).push((CTD.si + 1) + '. <b>' + esc(cs.form.last + ', ' + cs.form.first) + '</b> · ' + esc(cs.form.exam) + ' – ' + r.files + ' file' + (r.files === 1 ? '' : 's') + ' (' + esc(ctdMB(r.bytes)) + ') <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">folder</a>' +
+          (r.reportId ? ' · draft in ' + esc(r.assignedName) + '’s list' : r.reportErr ? ' · <span class="err">no draft: ' + esc(r.reportErr) + '</span>' : ''));
+        CTD.run = null; CTD.job = null; $('ctProg').classList.add('hidden');
+        return ctdMultiNext();
+      }
       $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' +
         (r.reportId ? '<br>📝 The report draft is in ' + esc(r.assignedName) + '’s list, and they were emailed.' : r.reportErr ? '<br><span class="err">The report draft could not be made: ' + esc(r.reportErr) + '</span> – use “📝 Generate report” in the list below.' : '');
       $('ctMsg').className = 'msg ok';
       xrToast('✓ CT uploaded');
       CTD.run = null; CTD.job = null; CTD.all = []; CTD.files = []; CTD.tags = null;
-      try { localStorage.removeItem('ctd_job'); localStorage.removeItem('ctd_form'); } catch (e) {}
+      try { localStorage.removeItem('ctd_job'); localStorage.removeItem('ctd_form'); localStorage.removeItem('ctd_ck'); } catch (e) {}
       ctdFormSet({ assignTo: '' }); ctdSummary(); $('ctProg').classList.add('hidden');
       ctdLoadList();
     }).catch(function (e) { CTD.busy = false; ctdButtons(); setMsg('ctMsg', 'Uploaded, but the final check failed: ' + ((e && e.message) || e) + '. Press “Resume upload” to check again.'); CTD.run.tasks = []; CTD.paused = true; ctdButtons(); });
@@ -2471,6 +2756,7 @@
     b.disabled = running; b.textContent = running ? 'Uploading…' : CTD.run && (CTD.paused || CTD.run.err) ? '▶ Resume upload' : 'Upload CT to Drive';
     $('ctPause').classList.toggle('hidden', !running);
     ['ctDir', 'ctFiles'].forEach(function (id) { $(id).disabled = CTD.busy; });
+    if (CTD.studies && !running) ctdMultiDraw();
   }
   function ctdLoadList() {
     var box = $('ctList'); box.innerHTML = '<p class="sub">Loading…</p>';
