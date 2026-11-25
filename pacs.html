@@ -284,6 +284,17 @@
   .xrrm { width:100%; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .xrrm img { width:110px; height:110px; object-fit:contain; background:#000; border-radius:8px; cursor:pointer; border:3px solid transparent; }
   .xrrm img.sure { border-color:#dc2626; }
+  .xrrm img.sel { border-color:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent); }
+  .xrrm .xrsplitrow { width:100%; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .xrrm .xrsplitrow select, .xrrm .xrsplitrow input { width:auto; flex:1 1 180px; margin:0; }
+  .xrgrp { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:8px 0; }
+  .xrghead { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:14px; margin:6px 0 2px; }
+  .xrghead select, .xrghead input { width:auto; flex:1 1 200px; margin:0; }
+  .xrghead .x { border:0; background:transparent; color:var(--muted); font-size:18px; padding:0 6px; }
+  .xrgrp .xrcam { margin-top:6px; }
+  .chipsib { display:inline-block; padding:1px 7px; border-radius:999px; background:color-mix(in srgb,#7c3aed 12%,transparent); color:#6d28d9; font-size:12px; font-weight:600; }
+  .xrsibs { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0; padding:6px 8px; border-radius:8px; background:color-mix(in srgb,#7c3aed 8%,transparent); font-size:13px; }
+  .xrsibs button { width:auto; margin:0; }
   .pill.xrTo { } .pill.xrToread { background:#dc2626; color:#fff; } .pill.xrReading, .pill.xrAmending { background:color-mix(in srgb,#2563eb 18%,transparent); color:#2563eb; }
   .pill.xrFinal { background:color-mix(in srgb,#16a34a 18%,transparent); color:#16a34a; } .pill.xrUploading { background:color-mix(in srgb,#d97706 18%,transparent); color:#b45309; }
   .pill.xrCancelled { background:color-mix(in srgb,#64748b 18%,transparent); color:#64748b; }
@@ -525,7 +536,7 @@
             <div><label>Location</label><select id="xrLoc" onchange="xrLocChanged()"></select></div>
             <div><label>Pickup (print batch)</label><select id="xrPickup" onchange="xrFormSave()"></select></div>
             <div class="xrw2"><label>Address</label><input type="text" id="xrAddr" maxlength="200" autocomplete="off" autocapitalize="characters" placeholder="e.g. San Benito, Surigao del Norte"></div>
-            <div><label>Examination requested *</label><select id="xrExam" onchange="$('xrExamOther').classList.toggle('hidden', this.value !== 'Other')"></select><input type="text" id="xrExamOther" class="hidden" maxlength="100" placeholder="Which exam? e.g. Chest AP supine"></div>
+            <div><label>Examination requested *</label><select id="xrExam" onchange="$('xrExamOther').classList.toggle('hidden', this.value !== 'Other'); xrG0Head()"></select><input type="text" id="xrExamOther" class="hidden" maxlength="100" placeholder="Which exam? e.g. Chest AP supine"></div>
             <div><label>Requesting physician</label><input type="text" id="xrPhys" maxlength="100" placeholder="e.g. Dr. Aguirre"></div>
             <div><label>Chief complaint</label><input type="text" id="xrClin" maxlength="300" placeholder="e.g. loss of consciousness"></div>
             <div><label>Radiologist</label><select id="xrAssign"></select></div>
@@ -541,7 +552,11 @@
           <div class="xrdrop" id="xrDrop"><span id="xrDropTxt">Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop or rotate it.</span></div>
           <label class="crit" style="margin-top:6px"><input type="checkbox" id="xrGray" checked><span>Convert photos to black &amp; white (removes the colour cast of a monitor or light box)</span></label>
           <div id="xrAddBox" class="ctwarn hidden"></div>
+          <div id="xrG0Head" class="xrghead hidden"></div>
           <div id="xrThumbs" class="xrthumbs"></div>
+          <div id="xrMore"></div>
+          <button class="btn alt" id="xrAddExam" type="button" onclick="xrExamAdd()" style="width:auto">+ Add another exam (same patient)</button>
+          <div class="hint" id="xrAddExamHint">Each exam becomes its own study with its own report and TAT. Example: Chest PA and Knee AP/LAT → add the knee as a second exam with its own photos.</div>
           <label class="crit privchk" id="xrPrivRow"><input type="checkbox" id="xrPriv"><span>🔒 I checked every photo: <b>no patient name or ID can be read</b> on the images (tap a photo → ▦ Blur to hide anything missed)</span></label>
           <div class="xrbtns"><button class="btn" id="xrBtn" onclick="xrSend()">Upload &amp; send to radiologist</button></div>
           <button class="link" type="button" style="margin-top:6px" onclick="xrClearForm()">Clear form</button>
@@ -941,7 +956,7 @@
     return XR_DB;
   }
   function xdbDo(mode, fn) { return xdb().then(function (db) { return new Promise(function (res, rej) { var tx = db.transaction('files', mode), st = tx.objectStore('files'), out = fn(st); tx.oncomplete = function () { res(out && out.result !== undefined ? out.result : undefined); }; tx.onerror = function () { rej(tx.error); }; }); }); }
-  function xdbPut(x) { if (!x.blob) return Promise.resolve(); return xdbDo('readwrite', function (st) { return st.put({ id: x.id, blob: x.blob, state: x.state === 'done' ? 'done' : '', rot: x.rot || 0, gray: !!x.gray, order: x.order, ts: Date.now(), nb: (x.blurs || []).length + (x.baked > 0 ? x.baked : 0) }); }).catch(function () {}); }
+  function xdbPut(x) { if (!x.blob) return Promise.resolve(); return xdbDo('readwrite', function (st) { return st.put({ id: x.id, blob: x.blob, state: x.state === 'done' ? 'done' : '', rot: x.rot || 0, gray: !!x.gray, order: x.order, ts: Date.now(), nb: (x.blurs || []).length + (x.baked > 0 ? x.baked : 0), g: x.g || 0, acc: x.acc || '' }); }).catch(function () {}); }
   function xdbDel(id) { return xdbDo('readwrite', function (st) { return st.delete(id); }).catch(function () {}); }
   function xdbClear() { return xdbDo('readwrite', function (st) { return st.clear(); }).catch(function () {}); }
   function xdbAll() { return xdbDo('readonly', function (st) { return st.getAll(); }).catch(function () { return []; }); }
@@ -951,6 +966,7 @@
     XR_SAVE_T = setTimeout(function () {
       var f = { ts: Date.now(), sex: $('xrSexBar').getAttribute('data-v') || '', pri: $('xrPriBar').getAttribute('data-v') || 'Routine', gray: $('xrGray').checked };
       XR_FIELDS.forEach(function (id) { f[id] = $(id).value; });
+      f.exams = XR_EXAMS;
       lsSet('xr_form', JSON.stringify(f));
     }, 250);
   }
@@ -960,12 +976,13 @@
     XR_FIELDS.forEach(function (id) { if (f[id] != null && $(id)) { $(id).value = f[id]; } });
     if (f.sex) xrSex(f.sex); xrPri3(f.pri || 'Routine'); $('xrGray').checked = f.gray !== false;
     $('xrExamOther').classList.toggle('hidden', $('xrExam').value !== 'Other'); $('xrAge').disabled = !!$('xrDob').value;
+    XR_EXAMS = Array.isArray(f.exams) ? f.exams.filter(function (e) { return e && e.k; }) : []; xrExamsDraw();
     return XR_FIELDS.some(function (id) { return id !== 'xrLoc' && id !== 'xrAssign' && f[id]; });
   }
   function xrFilesRestore() {
     return xdbAll().then(function (recs) {
       recs = (recs || []).filter(function (r) { return Date.now() - r.ts < XR_KEEP_H * 3600e3; }).sort(function (a, b) { return a.order - b.order; });
-      recs.forEach(function (r) { XR_FILES.push({ id: r.id, order: r.order, src: r.blob, blob: r.blob, url: URL.createObjectURL(r.blob), state: r.state || '', rot: 0, gray: r.gray, blurs: [], baked: r.nb || -1 }); });   // blur is already in the saved image
+      recs.forEach(function (r) { XR_FILES.push({ id: r.id, order: r.order, src: r.blob, blob: r.blob, url: URL.createObjectURL(r.blob), state: r.state || '', rot: 0, gray: r.gray, blurs: [], baked: r.nb || -1, g: r.g || 0, acc: r.acc || '' }); });   // blur is already in the saved image
       xrDrawFiles(); return recs.length;
     });
   }
@@ -973,9 +990,9 @@
     var p = XR_PENDING, box = $('xrPendBox');
     box.classList.toggle('hidden', !p);
     XR_FIELDS.concat(['xrGray']).forEach(function (id) { if ($(id) && id !== 'xrAge') $(id).disabled = !!p; });
-    Array.prototype.forEach.call(document.querySelectorAll('#xrSexBar button, #xrPriBar button'), function (b) { b.disabled = !!p; });
+    Array.prototype.forEach.call(document.querySelectorAll('#xrSexBar button, #xrPriBar button, #xrMore .xrghead select, #xrMore .xrghead input, #xrMore .xrghead .x, #xrAddExam'), function (b) { b.disabled = !!p; });
     if (p) {
-      $('xrPendTxt').innerHTML = 'The upload for <b>' + esc(p) + '</b> did not finish. The patient is already saved – <b>Retry upload</b> sends the remaining photos to the same patient. ' +
+      $('xrPendTxt').innerHTML = 'The upload for <b>' + esc(p.split(',').join(', ')) + '</b> did not finish. The patient is already saved – <b>Retry upload</b> sends the remaining photos to the same patient. ' +
         '<b>Start over</b> cancels it so you can correct the details.';
       $('xrBtn').textContent = 'Retry upload';
     } else if (!XR_BUSY) $('xrBtn').textContent = 'Upload & send to radiologist';
@@ -983,15 +1000,15 @@
   function xrStartOver() {
     var acc = XR_PENDING; if (!acc) return;
     var b = $('xrRestart'); b.disabled = true;
-    run('xrCancel', token, acc, 'Upload restarted by the technologist').catch(function () {}).then(function () {
+    Promise.all(acc.split(',').map(function (a) { return run('xrCancel', token, a, 'Upload restarted by the technologist').catch(function () {}); })).then(function () {
       b.disabled = false; XR_PENDING = null; lsSet('xr_pending', null);
-      XR_FILES.forEach(function (x) { x.state = x.state === 'done' ? '' : x.state; xdbPut(x); });
+      XR_FILES.forEach(function (x) { x.state = x.state === 'done' ? '' : x.state; x.acc = ''; xdbPut(x); });
       xrPendingShow(); xrDrawFiles(); setMsg('xrMsg', acc + ' cancelled. Correct the details and upload again.', true); xrLoadTech();
     });
   }
   function xrClearForm(b) {
     if (XR_PENDING) return setMsg('xrMsg', 'Finish or "Start over" the unfinished upload first.');
-    XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xdbClear(); xrDrawFiles();
+    XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xdbClear(); XR_EXAMS = []; xrExamsDraw(); xrDrawFiles();
     XR_FIELDS.forEach(function (id) { if (id !== 'xrLoc') $(id).value = ''; });
     $('xrAge').disabled = false; $('xrExamOther').classList.add('hidden'); xrSex(''); xrPri3('Routine');
     lsSet('xr_form', null); xrFormSave(); setMsg('xrMsg', ''); $('xrLast').focus();
@@ -1056,7 +1073,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 31;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 32;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1173,12 +1190,14 @@
   var XR_ADDTO = null;
   function xrAddTo(o) {
     if (XR_PENDING) return setMsg('xrMsg', 'Finish or "Start over" the unfinished upload first.');
+    if (XR_EXAMS.length) return setMsg('xrMsg', 'Remove the extra exams first (+ Add images adds photos to one study).');
     XR_ADDTO = { acc: o.acc, name: o.name, n: o.images || 0 };
+    $('xrAddExam').classList.add('hidden');
     $('xrAddBox').innerHTML = '➕ Adding images to <b>' + esc(o.name) + '</b> (' + esc(o.acc) + '). Patient details above are not used. <button class="link" type="button" onclick="xrAddToCancel()">Cancel</button>';
     $('xrAddBox').classList.remove('hidden'); $('xrBtn').textContent = 'Add images to ' + o.acc;
     $('xrThumbs').scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
-  function xrAddToCancel() { XR_ADDTO = null; $('xrAddBox').classList.add('hidden'); if (!XR_BUSY) $('xrBtn').textContent = XR_PENDING ? 'Retry upload' : 'Upload & send to radiologist'; }
+  function xrAddToCancel() { XR_ADDTO = null; $('xrAddBox').classList.add('hidden'); $('xrAddExam').classList.remove('hidden'); if (!XR_BUSY) $('xrBtn').textContent = XR_PENDING ? 'Retry upload' : 'Upload & send to radiologist'; }
 
   /* ---- editor: ▦ Blur mode and 🔍 Find names ---- */
   function xeMode(m) {
@@ -1228,12 +1247,13 @@
     if (gray) xrGrayscale(cv);
     return xrCanvasBlob(cv);
   }
-  function xrAddFiles(list) {
+  function xrAddFiles(list, g) {
+    g = g || 0;
     var max = (xrConf().maxMb || 25) * 1048576 * 3, skipped = [], gray = $('xrGray').checked;
     Array.prototype.forEach.call(list || [], function (f) {
       if (!/^image\//.test(f.type) && !/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)) { skipped.push(f.name + ' (not an image)'); return; }
       if (f.size > max) { skipped.push(f.name + ' (too large)'); return; }
-      var x = { id: 'f' + Date.now() + Math.random().toString(36).slice(2, 7), order: Date.now() + XR_FILES.length, src: f, blob: null, url: '', state: 'proc', gray: gray, blurs: [] };
+      var x = { id: 'f' + Date.now() + Math.random().toString(36).slice(2, 7), order: Date.now() + XR_FILES.length, src: f, blob: null, url: '', state: 'proc', gray: gray, blurs: [], g: g };
       XR_FILES.push(x); privReset();
       var auto = false;   // no automatic blur
       xrLoadBitmap(f).then(function (bm) { return (auto ? blurAuto(x, bm) : Promise.resolve()).then(function () { return xrRender(bm, 0, null, gray, x.blurs); }); }).then(function (b) {
@@ -1243,14 +1263,55 @@
     xrDrawFiles();
     if (skipped.length) setMsg('xrMsg', 'Skipped: ' + skipped.join(', '));
   }
+  /* ---- several exams for one patient: each exam = its own study (own accession, report and TAT) ---- */
+  var XR_EXAMS = [];   // the 2nd, 3rd … exams: [{ k, exam, other }]; photos of exam 1 have g = 0, others g = k
+  function xrExamName(sel, other) { return sel === 'Other' ? (String(other || '').trim() || 'Other') : sel; }
+  function xrExamAdd() {
+    if (XR_PENDING) return setMsg('xrMsg', 'Finish or "Start over" the unfinished upload first.');
+    if (XR_EXAMS.length >= 5) return setMsg('xrMsg', 'Up to 6 exams per patient in one upload.');
+    var k = 1; XR_EXAMS.forEach(function (e) { if (e.k >= k) k = e.k + 1; });
+    XR_EXAMS.push({ k: k, exam: '', other: '' }); xrExamsDraw(); xrDrawFiles(); xrFormSave(); privReset();
+    var sec = document.querySelector('#xrMore .xrgrp[data-k="' + k + '"] select'); if (sec) { sec.scrollIntoView({ block: 'center', behavior: 'smooth' }); sec.focus(); }
+  }
+  function xrExamDel(k) {
+    var moved = 0; XR_FILES.forEach(function (x) { if (x.g === k) { x.g = 0; moved++; xdbPut(x); } });
+    XR_EXAMS = XR_EXAMS.filter(function (e) { return e.k !== k; }); xrExamsDraw(); xrDrawFiles(); xrFormSave();
+    if (moved) setMsg('xrMsg', moved + ' photo' + (moved === 1 ? '' : 's') + ' moved back to exam 1.', true);
+  }
+  function xrExamSet(k, f, v) { XR_EXAMS.forEach(function (e) { if (e.k === k) e[f] = v; }); if (f === 'exam') { var o = $('xrGo_' + k); if (o) o.classList.toggle('hidden', v !== 'Other'); } xrFormSave(); xrG0Head(); }
+  function xrExamsDraw() {
+    var box = $('xrMore'); if (!box) return;
+    var opts = (xrConf().exams || []);
+    box.innerHTML = XR_EXAMS.map(function (e, n) {
+      return '<div class="xrgrp" data-k="' + e.k + '"><div class="xrghead"><b>Exam ' + (n + 2) + '</b>' +
+        '<select aria-label="Exam ' + (n + 2) + '" onchange="xrExamSet(' + e.k + ', \'exam\', this.value)"><option value="">Select exam…</option>' + opts.map(function (x) { return '<option' + (x === e.exam ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>' +
+        '<input type="text" id="xrGo_' + e.k + '" class="' + (e.exam === 'Other' ? '' : 'hidden') + '" maxlength="100" placeholder="Which exam?" value="' + esc(e.other || '') + '" oninput="xrExamSet(' + e.k + ', \'other\', this.value)">' +
+        '<button type="button" class="x" title="Remove this exam (its photos go back to exam 1)" aria-label="Remove exam ' + (n + 2) + '" onclick="xrExamDel(' + e.k + ')">✕</button></div>' +
+        '<div class="xrcam"><label class="btn xrcambtn">📷 Take photo<input type="file" accept="image/*" capture="environment" class="hidden" onchange="xrAddFiles(this.files, ' + e.k + '); this.value=\'\'"></label>' +
+        '<label class="btn alt xrcambtn">🖼 Choose images<input type="file" accept="image/*,.jpg,.jpeg,.png" multiple class="hidden" onchange="xrAddFiles(this.files, ' + e.k + '); this.value=\'\'"></label></div>' +
+        '<div class="xrthumbs" id="xrTh_' + e.k + '"></div></div>';
+    }).join('');
+    $('xrAddExamHint').classList.toggle('hidden', XR_EXAMS.length > 0);
+    xrG0Head();
+  }
+  function xrG0Head() {
+    var h = $('xrG0Head'); if (!h) return;
+    h.classList.toggle('hidden', !XR_EXAMS.length);
+    if (XR_EXAMS.length) { var ex = xrExamName($('xrExam').value, $('xrExamOther').value); h.innerHTML = '<b>Exam 1</b> <span>' + esc(ex || '(choose the exam above)') + '</span> <span class="hint" style="display:inline">· photos from the buttons above</span>'; }
+  }
   function xrDrawFiles() {
-    $('xrThumbs').innerHTML = XR_FILES.map(function (x, i) {
+    var th = function (x, i) {
       if (x.state === 'proc') return '<div class="xrth"><span class="st">' + (x.ocr === 'run' ? '🔍 finding names…' : 'Preparing…') + '</span></div>';
       return '<div class="xrth ' + x.state + '"><img src="' + x.url + '" alt="" ' + (XR_BUSY ? '' : 'onclick="xrEdit(' + i + ')" title="Crop / rotate / blur"') + '><span class="n">' + (i + 1) + '</span>' +
         (XR_BUSY ? '' : '<button type="button" class="x" onclick="xrDropFile(' + i + ')" aria-label="Remove">×</button>') +
         (x.state === 'up' ? '<span class="st">Uploading…</span>' : x.state === 'done' ? '<span class="st">✓</span>' : x.state === 'err' ? '<span class="st">Failed</span>' : blurStatus(x)) + '</div>';
-    }).join('');
-    $('xrDropTxt').textContent = XR_FILES.length ? XR_FILES.length + ' image' + (XR_FILES.length === 1 ? '' : 's') + ' ready – take another photo or add more' : 'Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop, rotate or blur it.';
+    };
+    var inG = function (g) { return XR_FILES.map(function (x, i) { return (x.g || 0) === g ? th(x, i) : ''; }).join(''); };
+    $('xrThumbs').innerHTML = inG(0);
+    XR_EXAMS.forEach(function (e) { var b = $('xrTh_' + e.k); if (b) b.innerHTML = inG(e.k) || '<span class="hint">No photos yet for this exam.</span>'; });
+    xrG0Head();
+    var n0 = XR_FILES.filter(function (x) { return !x.g; }).length;
+    $('xrDropTxt').textContent = n0 ? n0 + ' image' + (n0 === 1 ? '' : 's') + ' ready' + (XR_EXAMS.length ? ' for exam 1' : '') + ' – take another photo or add more' : 'Take a photo of the X-ray, or choose / drop / paste images. Tap a photo to crop, rotate or blur it.';
   }
 
   /* ---- crop / rotate a photo before upload ---- */
@@ -1339,26 +1400,48 @@
     if (!XR_FILES.length) return setMsg('xrMsg', 'Add at least one image.');
     if (XR_FILES.some(function (x) { return x.state === 'proc' || x.ocr === 'run'; })) return setMsg('xrMsg', 'Images are still being prepared – one moment.');
     if (!$('xrPriv').checked) { $('xrPrivRow').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('xrMsg', 'Check every photo first: no patient name or ID may be readable. Then tick the 🔒 box above the button.'); }
+    var groups = [{ g: 0, exam: $('xrExam').value === 'Other' ? ($('xrExamOther').value || 'Other') : $('xrExam').value }].concat(XR_EXAMS.map(function (e) { return { g: e.k, exam: e.exam ? xrExamName(e.exam, e.other) : '' }; }));
+    if (!XR_PENDING && !XR_ADDTO && groups.length > 1) {
+      for (var gi = 0; gi < groups.length; gi++) {
+        if (!groups[gi].exam) return setMsg('xrMsg', 'Choose the exam for exam ' + (gi + 1) + '.');
+        if (!XR_FILES.some(function (x) { return (x.g || 0) === groups[gi].g; })) return setMsg('xrMsg', 'Exam ' + (gi + 1) + ' (' + groups[gi].exam + ') has no photos. Add photos or remove that exam.');
+      }
+    }
     var d = { last: $('xrLast').value, first: $('xrFirst').value, middle: $('xrMid').value, dob: $('xrDob').value, age: $('xrAge').value,
       sex: $('xrSexBar').getAttribute('data-v') || '', hospNo: $('xrHosp').value, location: $('xrLoc').value, address: $('xrAddr').value, civil: $('xrCivil').value, exam: $('xrExam').value === 'Other' ? ($('xrExamOther').value || 'Other') : $('xrExam').value,
       priority: $('xrPriBar').getAttribute('data-v') || 'Routine', physician: $('xrPhys').value, clinical: $('xrClin').value, assignTo: $('xrAssign').value, pickup: $('xrPickup').value };
     XR_BUSY = true; b.disabled = true; b.textContent = 'Saving patient…';
     var addTo = !XR_PENDING && XR_ADDTO ? XR_ADDTO : null;
     d.cv = PACS_VER;
-    var start = XR_PENDING ? Promise.resolve({ ok: true, acc: XR_PENDING }) : addTo ? Promise.resolve({ ok: true, acc: addTo.acc, add: true }) : run('xrCreate', token, d);
+    if (!addTo && groups.length > 1) d.exams = groups.map(function (g) { return g.exam; });
+    var start = XR_PENDING ? Promise.resolve({ ok: true, acc: XR_PENDING.split(',')[0], accs: XR_PENDING.split(','), pending: true }) : addTo ? Promise.resolve({ ok: true, acc: addTo.acc, add: true }) : run('xrCreate', token, d);
+    var accs = [];
     start.then(function (r) {
       if (r.expired) { XR_BUSY = false; return expired(); }
       if (!r.ok) throw new Error(r.msg);
-      if (!r.add) { XR_PENDING = r.acc; lsSet('xr_pending', r.acc); }
+      accs = r.accs && r.accs.length ? r.accs : [r.acc];
+      if (!r.add && !r.pending) {   // new studies: each photo is tied to its study (kept on the phone for a retry)
+        XR_FILES.forEach(function (x) { var gi = 0; groups.forEach(function (g, j) { if (g.g === (x.g || 0)) gi = j; }); x.acc = accs[gi] || accs[0]; xdbPut(x); });
+        XR_PENDING = accs.join(','); lsSet('xr_pending', XR_PENDING);
+      }
       var todo = XR_FILES.filter(function (x) { return x.state !== 'done'; }), done = 0;
       b.textContent = 'Uploading images… 0/' + todo.length;
       return Promise.all(todo.map(function (x) {
         x.state = 'up'; xrDrawFiles();
-        return xrB64(x.blob).then(function (b64) { return run('xrAddImage', token, r.acc, 'image-' + ((r.add ? addTo.n : 0) + XR_FILES.indexOf(x) + 1) + '.jpg', b64, PACS_VER); }).then(function (u) {
+        var to = r.add ? r.acc : (x.acc || r.acc);
+        return xrB64(x.blob).then(function (b64) { return run('xrAddImage', token, to, 'image-' + ((r.add ? addTo.n : 0) + XR_FILES.indexOf(x) + 1) + '.jpg', b64, PACS_VER); }).then(function (u) {
           if (!u.ok) throw new Error(u.msg);
           x.state = 'done'; done++; b.textContent = 'Uploading images… ' + done + '/' + todo.length; xrDrawFiles(); xdbPut(x);
         }).catch(function (e) { x.state = 'err'; xrDrawFiles(); throw e; });
-      })).then(function () { return run('xrSubmit', token, r.acc); });
+      })).then(function () {   // send each study, one after the other (the 2nd follows the 1st's radiologist)
+        var all = [], chain = Promise.resolve();
+        accs.forEach(function (a) { chain = chain.then(function () { return run('xrSubmit', token, a).then(function (s) { if (!s.ok) throw new Error(a + ': ' + s.msg); all.push(s); }); }); });
+        return chain.then(function () {
+          var s = all[all.length - 1];
+          if (all.length > 1) s = Object.assign({}, s, { msg: all.length + ' studies sent' + (s.assignedName ? ' to ' + s.assignedName : '') + ': ' + accs.map(function (a, j) { return a + ' (' + groups[j].exam + ')'; }).join(', ') + '. Each has its own report.' });
+          return s;
+        });
+      });
     }).then(function (s) {
       XR_BUSY = false; b.disabled = false; b.textContent = 'Upload & send to radiologist';
       if (!s.ok) throw new Error(s.msg);
@@ -1377,6 +1460,7 @@
       XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xrDrawFiles(); xdbClear();
       ['xrLast', 'xrFirst', 'xrMid', 'xrDob', 'xrAge', 'xrHosp', 'xrClin', 'xrExamOther', 'xrAddr', 'xrCivil', 'xrAssign'].forEach(function (id) { $(id).value = ''; });
       $('xrAge').disabled = false; $('xrExam').value = ''; $('xrExamOther').classList.add('hidden'); xrSex(''); xrPri3('Routine');
+      XR_EXAMS = []; xrExamsDraw();
       lsSet('xr_form', null); xrFormSave(); xrPendingShow();
       $('xrLast').focus();
       xrLoadTech();
@@ -1397,7 +1481,7 @@
       r.items.forEach(function (o) {
         var el = document.createElement('div'); el.className = 'xrrow';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' image' + (o.images === 1 ? '' : 's') +
-          ' · ' + esc(o.acc) + ' · ' + esc(xrTime(o.created)) + ' · ' + esc(o.tech) + (o.readDate && o.status !== 'Final' && o.status !== 'Cancelled' ? ' · <span class="chipk">📅 read ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + (o.status === 'Final' ? ' · read by ' + esc(o.finalName) : (o.status !== 'Cancelled' ? ' · → ' + esc(o.assignedName || 'any radiologist') : '')) + (o.cancelReason ? ' · ' + esc(o.cancelReason) : '') + '</div></div>' + xrPill(o.status);
+          ' · ' + esc(o.acc) + ' · ' + esc(xrTime(o.created)) + ' · ' + esc(o.tech) + (o.readDate && o.status !== 'Final' && o.status !== 'Cancelled' ? ' · <span class="chipk">📅 read ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + (o.status === 'Final' ? ' · read by ' + esc(o.finalName) : (o.status !== 'Cancelled' ? ' · → ' + esc(o.assignedName || 'any radiologist') : '')) + (o.cancelReason ? ' · ' + esc(o.cancelReason) : '') + xrSibChip(o) + '</div></div>' + xrPill(o.status);
         if (o.images && o.imageIds && o.imageIds.length) {
           var pb = document.createElement('button'); pb.className = 'xrdl'; pb.type = 'button'; pb.textContent = '👁 Preview'; pb.title = 'See the uploaded images';
           pb.onclick = function () { pvXray(o); };
@@ -1418,6 +1502,7 @@
           asg.onchange = function () { asg.disabled = true; run('xrAssign', token, o.acc, asg.value).then(function (x) { if (!x.ok) alertRow(el, x.msg); xrLoadTech(); }); };
           bar.appendChild(asg);
           if (o.images) { var rb = document.createElement('button'); rb.className = 'link'; rb.textContent = 'Remove an image…'; rb.onclick = function () { xrPickRemove(o, el); }; bar.appendChild(rb); }
+          if (o.status === 'To read' && o.images > 1) { var spb = document.createElement('button'); spb.className = 'link'; spb.textContent = '✂ Split study…'; spb.title = 'Two exams uploaded together? Move the images of one exam to its own study'; spb.onclick = function () { xrSplitBox(el, o, xrLoadTech); }; bar.appendChild(spb); }
           bar.appendChild(rpButton('Cancel study', true, 'Tap again to cancel', function (bt) {
             var why = (bar.querySelector('[data-why]') || {}).value || '';
             if (why.trim().length < 3) { var i = document.createElement('input'); i.type = 'text'; i.setAttribute('data-why', ''); i.placeholder = 'Reason (e.g. wrong patient, repeat)'; if (!bar.querySelector('[data-why]')) bar.appendChild(i); i.focus(); return; }
@@ -1428,6 +1513,47 @@
         list.appendChild(el);
       });
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  /** "👥 also: Knee AP/LAT" – the other studies of the same patient visit */
+  function xrSibChip(o) {
+    if (!o.sibs || !o.sibs.length) return '';
+    return ' <span class="chipsib" title="Same patient, same visit – each study has its own report">👥 ' + (o.sibs.length + 1) + ' studies · also ' + o.sibs.map(function (x) { return esc(x.exam); }).join(', ') + '</span>';
+  }
+  /** ✂ Split: choose the images of the other exam and its name → a new study (own report and TAT, from the original upload time) */
+  function xrSplitBox(el, o, done) {
+    var box = el.querySelector('.xrsplit'); if (box) { box.remove(); return; }
+    box = document.createElement('div'); box.className = 'xrrm xrsplit'; box.textContent = 'Loading images…'; el.appendChild(box);
+    var ids = o.imageIds || [], pick = {};
+    Promise.all(ids.map(function (id) { return (XIMG[id] ? XIMG[id].then(function (u) { return { ok: true, url: u.src }; }, function () { return run('xrImage', token, o.acc, id); }) : run('xrImage', token, o.acc, id)); })).then(function (rs) {
+      box.innerHTML = '<div class="sub" style="width:100%">✂ Tap the images of the <b>other exam</b> – they move to a new study with its own report:</div>';
+      rs.forEach(function (r, i) {
+        if (!r.ok) return;
+        var im = document.createElement('img'); im.src = r.url || ('data:' + r.mime + ';base64,' + r.b64); im.title = 'Image ' + (i + 1); im.alt = 'Image ' + (i + 1);
+        im.onclick = function () { pick[ids[i]] = !pick[ids[i]]; im.classList.toggle('sel', !!pick[ids[i]]); };
+        box.appendChild(im);
+      });
+      var row = document.createElement('div'); row.className = 'xrsplitrow';
+      row.innerHTML = '<select aria-label="Exam of the new study"><option value="">Exam of the new study…</option>' + (xrConf().exams || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select>' +
+        '<input type="text" class="hidden" maxlength="100" placeholder="Which exam?"><button type="button" class="btn" style="width:auto;margin:0">✂ Make new study</button><button type="button" class="link">Cancel</button>';
+      box.appendChild(row);
+      var sel = row.querySelector('select'), oth = row.querySelector('input'), go = row.querySelector('.btn');
+      sel.onchange = function () { oth.classList.toggle('hidden', sel.value !== 'Other'); };
+      row.querySelector('.link').onclick = function () { box.remove(); };
+      go.onclick = function () {
+        var chosen = ids.filter(function (id) { return pick[id]; }), ex = xrExamName(sel.value, oth.value);
+        var m = box.querySelector('.msg') || box.appendChild(document.createElement('div')); m.className = 'msg err';
+        if (!chosen.length) { m.textContent = 'Tap the images that belong to the other exam.'; return; }
+        if (chosen.length === ids.length) { m.textContent = 'Leave at least one image in this study.'; return; }
+        if (!sel.value) { m.textContent = 'Choose the exam of the new study.'; return; }
+        go.disabled = true; go.textContent = 'Splitting…';
+        run('xrSplit', token, o.acc, chosen, ex).then(function (x) {
+          if (x.expired) return expired();
+          go.disabled = false; go.textContent = '✂ Make new study';
+          if (!x.ok) { m.textContent = x.msg; return; }
+          m.className = 'msg ok'; m.textContent = x.msg; if (done) done(x);
+        }).catch(function (e) { go.disabled = false; go.textContent = '✂ Make new study'; m.textContent = (e && e.message) || 'Could not split.'; });
+      };
+    });
   }
   function alertRow(el, msg) { var m = el.querySelector('.msg') || el.appendChild(document.createElement('div')); m.className = 'msg err'; m.textContent = msg; }
   function xrPickRemove(o, el) {
@@ -1512,7 +1638,7 @@
           : o.status === 'To read' ? ' · → ' + (o.assignedTo === r.me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) : '';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
           ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') +
-          (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup && o.status !== 'Final' ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + '</div></div>' +
+          (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup && o.status !== 'Final' ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + xrSibChip(o) + '</div></div>' +
           xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>' + (o.images ? '<span class="xrdl" role="button" tabindex="0" title="Download the images">⬇ Download</span>' : '');
         el.onclick = function () { xrOpenStudy(o.acc); };
         if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('xr', o.acc, e); };
@@ -1551,6 +1677,9 @@
       (p.address ? '<div class="wide"><span>Address</span>' + esc(p.address) + '</div>' : '') +
       (p.clinical ? '<div class="wide"><span>Chief complaint</span>' + esc(p.clinical) + '</div>' : '') + '</div>';
     if (o.note) h += '<div class="ctwarn">' + esc(o.note) + '</div>';
+    if (o.sibs && o.sibs.length) h += '<div class="xrsibs" id="xrSibs"><span>👥 Same patient, same visit – <b>separate report</b> for each:</span>' + o.sibs.map(function (x) {
+      return '<button type="button" class="btn alt" onclick="xrOpenSib(\'' + esc(x.acc) + '\')" title="' + esc(x.acc) + '">' + esc(x.exam) + ' · ' + esc(x.status) + ' ▸</button>'; }).join('') + '</div>';
+    if (o.canSplit) h += '<div id="xrSplitHost"><button class="link" type="button" onclick="xrSplitBox($(\'xrSplitHost\'), XS, function () { xrOpenStudy(XS.acc); })">✂ Two exams in this study? Split it…</button></div>';
     h += '<div id="xrPriors" class="xrpriors hidden"></div>';
     if (o.status !== 'Final' && o.status !== 'Cancelled' && XR_META && (XR_META.role.rad || XR_META.role.admin))
       h += '<div class="xrasgrow"><span>Assigned to</span><select id="xrReasg"></select></div>';
@@ -1589,6 +1718,8 @@
       if (!$('xrF').value) setTimeout(function () { $('xrF').focus(); }, 50);
     }
   }
+  /** open another study of the same visit (saves this draft first) */
+  function xrOpenSib(acc) { var go = function () { xrOpenStudy(acc); }; if (XS && XS.canEdit && XS.dirty) xrDraft(true).then(go, go); else go(); }
   function xrFillTpl() {
     var s = $('xrTpl'); if (!s || !XTPL) return;
     var ex = XS ? XS.exam.toLowerCase() : '';
