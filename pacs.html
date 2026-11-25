@@ -1079,7 +1079,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 36;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 37;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -3468,6 +3468,7 @@
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
     } else {
       if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button></div>';
+      if (r.preRich !== undefined) h += '<label>Clinical data / Technique</label>' + rteHtml('rptP', 3, 'Technique, clinical history / clinical data, comparison', ed);
       h += '<label>Findings</label>' + rteHtml('rptF', 10, 'One finding per line', ed, !!r.tables) +
         '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed, !!r.tables);
     }
@@ -3483,10 +3484,11 @@
     if (r.parsed) {
       rteInit('rptF', { plain: !r.rich }); rteInit('rptI', { plain: !r.rich });
       $('rptF').value = r.rich ? r.findingsRich : r.findings.join('\n'); $('rptI').value = r.rich ? r.impressionRich : r.impression.join('\n');
+      if ($('rptP')) { rteInit('rptP', {}); $('rptP').value = r.preRich || ''; r.pre0 = $('rptP').value; }
     }
     if (ed && r.parsed) {
       var mark = function () { r.dirty = true; $('rptSaved').textContent = 'Unsaved changes'; clearTimeout(RPT.t); RPT.t = setTimeout(function () { if (RPT.cur === r && r.dirty) rptSaveDraft(true); }, 20000); };
-      $('rptF').addEventListener('input', mark); $('rptI').addEventListener('input', mark);
+      $('rptF').addEventListener('input', mark); $('rptI').addEventListener('input', mark); if ($('rptP')) $('rptP').addEventListener('input', mark);
       rptFillTpl();
     }
     if ($('rptDest')) $('rptDest').onchange = function () { r.modality = this.value; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; rptFillTpl(); };
@@ -3522,7 +3524,8 @@
   function rptEdits() {
     if (!$('rptF')) return { findings: null, impression: null };
     var f = $('rptF').value, i = $('rptI').value;
-    return RPT.cur && RPT.cur.rich ? { findings: f, impression: i } : { findings: f.split('\n'), impression: i.split('\n') };
+    var pre = $('rptP') && RPT.cur && $('rptP').value !== RPT.cur.pre0 ? ($('rptP').value || '<p></p>') : null;   // sent only when changed
+    return RPT.cur && RPT.cur.rich ? { findings: f, impression: i, pre: pre } : { findings: f.split('\n'), impression: i.split('\n') };
   }
   function rptSaveDraft(auto) {
     var r = RPT.cur; if (!r || !r.canEdit || !r.parsed) return Promise.resolve();
@@ -3532,13 +3535,15 @@
       if (RPT.cur !== r) return;
       if (x.expired) return expired();
       if (!x.ok) { r.dirty = true; setMsg('rptMsg', x.msg); $('rptSaved').textContent = ''; return; }
+      if (e.pre != null) r.pre0 = e.pre === '<p></p>' ? '' : e.pre;
       $('rptSaved').textContent = (auto ? 'Saved automatically ' : 'Saved ') + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }).catch(function () { r.dirty = true; if ($('rptSaved')) $('rptSaved').textContent = 'Not saved – check the connection'; });
   }
   function rptPreview() {
     var r = RPT.cur, e = rptEdits();
     if (r.canEdit) { r.dirty = false; clearTimeout(RPT.t); if ($('rptSaved')) $('rptSaved').textContent = 'Saved with the preview'; }
-    openFile({ id: JSON.stringify({ id: r.id, findings: e.findings, impression: e.impression, edit: !!(r.canEdit && r.parsed) }), name: r.name }, { fn: 'rptPreview' });
+    if (e.pre != null && r.canEdit) r.pre0 = e.pre === '<p></p>' ? '' : e.pre;
+    openFile({ id: JSON.stringify({ id: r.id, findings: e.findings, impression: e.impression, pre: e.pre, edit: !!(r.canEdit && r.parsed) }), name: r.name }, { fn: 'rptPreview' });
   }
   function rptFinal() {
     var r = RPT.cur, b = $('rptFin'), e = rptEdits();
@@ -3546,7 +3551,7 @@
     if (XR_SIG && !XR_SIG.name && r.parsed) { /* signature is only used if the template has {{SIGNATURE}} – not required here */ }
     if (!RPT.sure) { RPT.sure = 1; b.textContent = 'Tap again to finalize'; setTimeout(function () { RPT.sure = 0; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; }, 5000); return; }
     RPT.sure = 0; b.disabled = true; b.textContent = 'Finalizing…'; clearTimeout(RPT.t);
-    run('rptFinalize', token, r.id, { modality: r.modality, findings: r.parsed ? e.findings : null, impression: r.parsed ? e.impression : null }).then(function (x) {
+    run('rptFinalize', token, r.id, { modality: r.modality, findings: r.parsed ? e.findings : null, impression: r.parsed ? e.impression : null, pre: r.parsed ? e.pre : null }).then(function (x) {
       if (x.expired) return expired();
       if (!x.ok) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; return setMsg('rptMsg', x.msg); }
       xrToast('✓ ' + x.msg);
