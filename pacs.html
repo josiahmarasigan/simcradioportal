@@ -1073,7 +1073,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 32;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 33;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1930,10 +1930,14 @@
   function xrToast(t) { var d = $('xrToast'); d.textContent = t; d.classList.add('show'); setTimeout(function () { d.classList.remove('show'); }, 5000); }
 
   /* ---------- image viewer: zoom, pan, brightness/contrast (window/level), invert, rotate, flip ---------- */
+  var IMG_WAIT = 0;   // X-ray images on their way (a CT download running in the background makes way for them)
+  function imgWait(d) { IMG_WAIT = Math.max(0, IMG_WAIT + d); if (!IMG_WAIT && DL && DL.resume) { var f = DL.resume; DL.resume = null; f(); } }
   function xrGetImg(id) {
     if (XIMG[id]) return XIMG[id];
     var acc = XS.acc;
-    XIMG[id] = run('xrImage', token, acc, id).then(function (r) {
+    imgWait(1);
+    var req = run('xrImage', token, acc, id); req.then(function () { imgWait(-1); }, function () { imgWait(-1); });
+    XIMG[id] = req.then(function (r) {
       if (!r.ok) throw new Error(r.msg);
       var bin = atob(r.b64), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
       var url = URL.createObjectURL(new Blob([u], { type: r.mime }));
@@ -2559,7 +2563,9 @@
         dlPanel('⬇ <b>' + esc(r.name) + '</b><div class="ctbar"><i style="width:' + pct + '%"></i></div>' + done + ' of ' + r.files.length + ' files · ' + ctdMB(doneB) + ' of ' + ctdMB(r.total) +
           (secs > 5 && left > 1 ? ' · about ' + (left > 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s') + ' left' : ''));
       };
+      var over = false;
       var finish = function () {
+        over = true; DL.resume = null;
         dlStop();
         r.files.forEach(function (f) { if (bigChunks[f.id]) parts[f.id] = Object.keys(bigChunks[f.id]).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return bigChunks[f.id][k]; }); });
         var blob = zipBlob(r.files.map(function (f) { return { name: f.path, parts: parts[f.id] }; }));
@@ -2567,9 +2573,14 @@
         dlPanel('✓ Saved <b>' + esc(r.name) + '.zip</b> (' + r.files.length + ' files, ' + ctdMB(blob.size) + ') to your Downloads. Unzip it and open the folder in your DICOM viewer.', true);
       };
       var pump = function () {
-        if (err || DL.cancel) { if (!active) fail(err || 'cancelled.'); return; }
+        if (over) return;
+        DL.resume = null;
+        if (err || DL.cancel) { if (!active) { over = true; fail(err || 'cancelled.'); } return; }
         if (!tasks.length && !active) return finish();
-        while (active < 3 && tasks.length) go(tasks.shift());
+        // X-ray images being opened go first: the download drops to one request at a time meanwhile, and picks up again after
+        var lim = IMG_WAIT > 0 ? 1 : 3;
+        while (active < lim && tasks.length) go(tasks.shift());
+        if (IMG_WAIT > 0 && tasks.length) { DL.resume = pump; }
       };
       var go = function (t) {
         active++; t.tries = t.tries || 0;
