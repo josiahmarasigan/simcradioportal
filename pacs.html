@@ -287,6 +287,18 @@
   .xrrm img.sel { border-color:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent); }
   .xrrm .xrsplitrow { width:100%; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
   .xrrm .xrsplitrow select, .xrrm .xrsplitrow input { width:auto; flex:1 1 180px; margin:0; }
+  .tplmgr { position:fixed; inset:0; z-index:60; background:var(--bg); display:flex; flex-direction:column; }
+  .tplmgr.hidden { display:none; }
+  .tplbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--card); }
+  .tplwrap { flex:1; display:flex; min-height:0; }
+  .tplside { width:300px; max-width:40%; border-right:1px solid var(--line); padding:10px; overflow:auto; }
+  .tplside input[type=search] { width:100%; box-sizing:border-box; margin:0; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:inherit; font:inherit; }
+  #tplMod button { white-space:nowrap; padding:6px 12px; }
+  .tplmain { flex:1; padding:12px 16px; overflow:auto; }
+  .tplit { display:block; width:100%; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:8px; padding:7px 10px; margin:4px 0; cursor:pointer; font:inherit; color:inherit; }
+  .tplit.on { border-color:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 25%,transparent); }
+  .tplit small { color:var(--muted); display:block; }
+  @media (max-width:700px) { .tplwrap { flex-direction:column; } .tplside { width:auto; max-width:none; border-right:0; border-bottom:1px solid var(--line); max-height:35vh; } }
   .ctx { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0; padding:6px 8px; border:1px dashed var(--line); border-radius:8px; }
   .ctx select { width:auto; flex:1 1 160px; margin:0; } .ctx input { flex:1 1 100%; margin:0; } .ctx .x { border:0; background:transparent; color:var(--muted); font-size:18px; padding:0 6px; }
   .xrgrp { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:8px 0; }
@@ -654,7 +666,7 @@
         <div class="xrnext"><button class="btn" id="xrStart" onclick="xrNext()">▶ Start reading</button>
           <label class="crit" style="margin:0"><input type="checkbox" id="xrAuto" onchange="xrAutoSet(this.checked)"><span>Open the next X-ray automatically after I finalize</span></label></div>
         <div class="meta"><select id="xrScope" onchange="xrLoadWork()" style="width:auto"><option value="myopen">To read – mine</option><option value="open">To read – everyone</option><option value="queue">OPD queue (later days)</option><option value="final">Finalized (7 days)</option><option value="mine">My finalized (7 days)</option></select>
-          <span id="xrAllCount" class="sub" style="margin:0"></span><button class="link" onclick="xrLoadWork()">↻ Refresh</button><button class="link" onclick="xrSigToggle()">✍ My report signature</button></div>
+          <span id="xrAllCount" class="sub" style="margin:0"></span><button class="link" onclick="xrLoadWork()">↻ Refresh</button><button class="link" onclick="xrSigToggle()">✍ My report signature</button><button class="link" onclick="tplOpen('X-ray')">📝 Templates</button></div>
         <div id="xrSigBox" class="ctbox hidden">
           <b>My report signature</b>
           <p class="sub" style="margin:4px 0 0">Printed at the bottom right of your X-ray reports, like the Word template.</p>
@@ -680,7 +692,7 @@
           <select id="rptScope" onchange="rptLoad()" style="width:auto;margin:0"><option value="pending">To finalize (generated)</option><option value="final">Finalized (recent)</option><option value="ctimg">CT images (uploads)</option></select>
           <select id="rptMod" onchange="rptLoad()" style="width:auto;margin:0"><option value="">Ultrasound + CT</option><option value="Ultrasound">Ultrasound</option><option value="CT">CT</option></select>
           <select id="rptWho" class="hidden" onchange="rptLoad()" style="width:auto;margin:0"></select>
-          <button class="link" onclick="rptLoad()">↻ Refresh</button>
+          <button class="link" onclick="rptLoad()">↻ Refresh</button><button class="link" onclick="tplOpen('Ultrasound')">📝 Templates</button>
           <a id="rptDicom" class="link hidden" target="_blank" rel="noopener">📂 CT DICOM uploads</a>
           <button class="link" id="rptNewUsBtn" onclick="rptNewUs()">＋ New US report</button>
         </div>
@@ -1079,7 +1091,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 37;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 38;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1690,7 +1702,7 @@
     if (o.status !== 'Final' && o.status !== 'Cancelled' && XR_META && (XR_META.role.rad || XR_META.role.admin))
       h += '<div class="xrasgrow"><span>Assigned to</span><select id="xrReasg"></select></div>';
     if (o.status === 'Amending' && o.amendReason) h += '<div class="ctwarn">Amending: ' + esc(o.amendReason) + '</div>';
-    if (ed) h += '<div class="xrtpl"><select id="xrTpl" onchange="xrUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="xrSaveTpl()">Save as my template</button></div>';
+    if (ed) h += '<div class="xrtpl"><select id="xrTpl" onchange="xrUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="xrSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(\'X-ray\')">📝 Edit templates</button></div>';
     if (ed && XR_SIG && !XR_SIG.name) h += '<div class="ctwarn">Set up your report signature before finalizing. <button class="link" onclick="xrClose(); setTimeout(function(){ xrSigToggle(true); }, 300)">✍ Set up now</button></div>';
     h += '<label>X-ray report</label>' + rteHtml('xrF', 14, 'e.g. Both lung fields are clear.\nHeart is not enlarged. …', ed) +
       '<label class="crit"><input type="checkbox" id="xrCrit" ' + (ed ? '' : 'disabled') + '><span>Critical finding (communicate per POL-002 §2.3)</span></label>';
@@ -3467,7 +3479,7 @@
       h += '<div class="ctwarn">This report has no "FINDINGS" and "IMPRESSION" headings, so it can’t be edited here.' + (r.canFix ? ' <button class="btn alt" type="button" id="rptFixBtn" onclick="rptFix()" style="width:auto;margin:6px 0 0">🔧 Add the headings for me</button><div class="sub" style="margin:4px 0 0">Findings = the text after “IMAGING REPORT”; Impression = the numbered lines at the end. Or edit it in Google Docs' + (ed ? ', then press Finalize.' : '.') + '</div>' : ' Edit it in Google Docs' + (ed ? ', then press Finalize.' : '.')) + '</div>' +
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
     } else {
-      if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button></div>';
+      if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(RPT.cur.modality)">📝 Edit templates</button></div>';
       if (r.preRich !== undefined) h += '<label>Clinical data / Technique</label>' + rteHtml('rptP', 3, 'Technique, clinical history / clinical data, comparison', ed);
       h += '<label>Findings</label>' + rteHtml('rptF', 10, 'One finding per line', ed, !!r.tables) +
         '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed, !!r.tables);
@@ -3503,6 +3515,72 @@
     if (!XTPL) { run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; rptFillTpl(); } }); return; }
     var mod = RPT.cur.modality;
     s.innerHTML = '<option value="">Insert ' + esc(mod) + ' template…</option>' + tplAZ(XTPL.filter(function (t) { return t.modality === mod; })).map(function (t) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
+  }
+  /* ================= 📝 TEMPLATE EDITOR: change your templates (admins: the shared ones too), add new ones ================= */
+  var TPLM = { mod: 'X-ray', cur: null, admin: false, dirty: false };
+  function tplOpen(mod) {
+    TPLM.mod = mod === 'CT' || mod === 'Ultrasound' ? mod : 'X-ray'; TPLM.cur = null; TPLM.dirty = false;
+    $('tplMgr').classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    $('tplItems').innerHTML = '<p class="sub">Loading…</p>'; $('tplMain').innerHTML = '<p class="sub">Choose a template on the left, or add a new one.</p>';
+    tplSeg();
+    run('xrTemplates', token).then(function (t) { if (t.expired) return expired(); if (!t.ok) return; XTPL = t.items; TPLM.admin = !!t.admin; tplList(); });
+  }
+  function tplLeave() { return !TPLM.dirty || window.confirm('Discard the changes to this template?'); }
+  function tplClose() { if (!tplLeave()) return; $('tplMgr').classList.add('hidden'); document.body.style.overflow = ''; TPLM.dirty = false; if ($('xrTpl')) xrFillTpl(); if ($('rptTpl')) rptFillTpl(); }
+  function tplSeg() { Array.prototype.forEach.call(document.querySelectorAll('#tplMod button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === TPLM.mod); }); }
+  function tplMod(m) { if (!tplLeave()) return; TPLM.mod = m; TPLM.cur = null; TPLM.dirty = false; tplSeg(); tplList(); $('tplMain').innerHTML = '<p class="sub">Choose a template on the left, or add a new one.</p>'; }
+  function tplOf(t) { return (t.modality || 'X-ray') === TPLM.mod; }
+  function tplList() {
+    var q = ($('tplQ').value || '').trim().toLowerCase();
+    var l = tplAZ((XTPL || []).filter(tplOf).filter(function (t) { return !q || (t.name + ' ' + (t.exam || '')).toLowerCase().indexOf(q) !== -1; }));
+    $('tplItems').innerHTML = l.length ? l.map(function (t) {
+      return '<button type="button" class="tplit' + (TPLM.cur && TPLM.cur.id === t.id ? ' on' : '') + '" onclick="tplEdit(' + t.id + ')">' + esc(t.name) + '<small>' + (t.mine ? 'mine' : 'shared') + (t.exam ? ' · ' + esc(t.exam) : '') + (t.canEdit ? '' : ' · view only') + '</small></button>';
+    }).join('') : '<p class="sub">No ' + esc(TPLM.mod) + ' templates' + (q ? ' match' : ' yet') + '.</p>';
+  }
+  function tplEdit(id) {
+    if (!tplLeave()) return;
+    var t = id == null ? { id: 0, name: '', exam: '', findings: '', impression: '', mine: true, canEdit: true, modality: TPLM.mod } : (XTPL || []).filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    TPLM.cur = t; TPLM.dirty = false; tplList();
+    var ed = t.canEdit, rich = function (v, kind) { return rtIsRich(v) ? v : rtStore(rtBlocks(v, kind, kind === 'ol')); };
+    var h = '<div class="grid2"><div><label>Template name *</label><input type="text" id="tplName" maxlength="80" value="' + esc(t.name) + '"' + (ed ? '' : ' disabled') + '></div>' +
+      '<div><label>Exam (optional)</label><input type="text" id="tplExam" maxlength="100" placeholder="e.g. Chest PA" value="' + esc(t.exam || '') + '"' + (ed ? '' : ' disabled') + '></div></div>' +
+      (t.id ? '<p class="sub" style="margin:4px 0">' + (t.mine ? 'Your template – only you see it.' : 'Shared template – every radiologist sees it.' + (ed ? '' : ' Only an admin can change it; you can save your own copy.')) + '</p>' :
+        (TPLM.admin ? '<label class="crit" style="margin:6px 0"><input type="checkbox" id="tplShared"><span>Shared – every radiologist sees it (otherwise only you)</span></label>' : '<p class="sub" style="margin:4px 0">New templates are yours – only you see them.</p>')) +
+      '<label>Findings</label>' + rteHtml('tplF', 10, 'Findings of this template', true, TPLM.mod !== 'X-ray') +
+      '<label>Impression</label>' + rteHtml('tplI', 4, 'Impression of this template', true, TPLM.mod !== 'X-ray') +
+      '<div class="xrbtns">' + (ed ? '<button class="btn" type="button" onclick="tplSave(false)">💾 Save</button>' : '') +
+      (t.id ? '<button class="btn alt" type="button" onclick="tplSave(true)">Save as my own copy</button>' : '') +
+      (t.id && ed ? '<button class="btn alt" type="button" id="tplDel" onclick="tplDel()" style="color:#dc2626">🗑 Delete</button>' : '') + '</div><div class="msg" id="tplMsg"></div>';
+    $('tplMain').innerHTML = h;
+    rteInit('tplF', {}); rteInit('tplI', {});
+    $('tplF').value = rich(t.findings || '', TPLM.mod === 'X-ray' ? 'p' : 'ul'); $('tplI').value = rich(t.impression || '', TPLM.mod === 'X-ray' ? 'p' : 'ol');
+    var mark = function () { TPLM.dirty = true; };
+    ['tplF', 'tplI', 'tplName', 'tplExam'].forEach(function (k) { $(k).addEventListener('input', mark); });
+    if (!t.id) $('tplName').focus();
+  }
+  function tplSave(copy) {
+    var t = TPLM.cur; if (!t) return;
+    var d = { id: copy ? 0 : t.id, was: copy ? '' : t.name, name: $('tplName').value.trim(), exam: $('tplExam').value.trim(), findings: $('tplF').value, impression: $('tplI').value, modality: TPLM.mod, shared: !!($('tplShared') && $('tplShared').checked) };
+    if (copy && d.name.toLowerCase() === t.name.toLowerCase() && t.mine) d.name += ' (copy)';
+    if (!d.name) return setMsg('tplMsg', 'Name the template.');
+    run('xrTplSave', token, d).then(function (x) {
+      if (x.expired) return expired();
+      setMsg('tplMsg', x.msg, x.ok); if (!x.ok) return;
+      TPLM.dirty = false;
+      run('xrTemplates', token).then(function (r) { if (!r.ok) return; XTPL = r.items; var n = XTPL.filter(function (y) { return y.id === x.id; })[0]; tplEdit(n ? n.id : null); setMsg('tplMsg', x.msg, true); });
+    }).catch(function (e) { setMsg('tplMsg', (e && e.message) || 'Not saved – check the connection.'); });
+  }
+  function tplDel() {
+    var t = TPLM.cur, b = $('tplDel'); if (!t || !t.id) return;
+    if (!TPLM.sure) { TPLM.sure = 1; b.textContent = 'Tap again to delete “' + t.name + '”'; setTimeout(function () { TPLM.sure = 0; if ($('tplDel')) $('tplDel').textContent = '🗑 Delete'; }, 5000); return; }
+    TPLM.sure = 0; b.disabled = true;
+    run('xrTplDelete', token, t.id, t.name).then(function (x) {
+      if (x.expired) return expired();
+      if (!x.ok) { b.disabled = false; return setMsg('tplMsg', x.msg); }
+      xrToast(x.msg); TPLM.cur = null; TPLM.dirty = false;
+      run('xrTemplates', token).then(function (r) { if (r.ok) XTPL = r.items; tplList(); $('tplMain').innerHTML = '<p class="sub">' + esc(x.msg) + '</p>'; });
+    });
   }
   /** templates A → Z by name (numbers in order: "Knee 2" before "Knee 10") */
   function tplAZ(list) { return list.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'en', { sensitivity: 'base', numeric: true }); }); }
@@ -3851,4 +3929,12 @@
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
   })();
 </script>
+<div id="tplMgr" class="tplmgr hidden" role="dialog" aria-modal="true" aria-label="Report templates">
+  <div class="tplbar"><b>📝 Report templates</b><div class="seg" id="tplMod" style="margin:0"><button type="button" data-v="X-ray" onclick="tplMod('X-ray')">X-ray</button><button type="button" data-v="Ultrasound" onclick="tplMod('Ultrasound')">Ultrasound</button><button type="button" data-v="CT" onclick="tplMod('CT')">CT</button></div>
+    <span style="flex:1"></span><button class="btn alt" type="button" onclick="tplClose()" style="width:auto;margin:0">Close</button></div>
+  <div class="tplwrap">
+    <div class="tplside"><input type="search" id="tplQ" placeholder="Search templates…" oninput="tplList()"><button class="btn" type="button" onclick="tplEdit(null)" style="margin:6px 0">+ New template</button><div id="tplItems"></div></div>
+    <div class="tplmain" id="tplMain"><p class="sub">Choose a template on the left, or add a new one.</p></div>
+  </div>
+</div>
 </body></html>
