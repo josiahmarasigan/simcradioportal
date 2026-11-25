@@ -287,6 +287,18 @@
   .xrrm img.sel { border-color:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 30%,transparent); }
   .xrrm .xrsplitrow { width:100%; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
   .xrrm .xrsplitrow select, .xrrm .xrsplitrow input { width:auto; flex:1 1 180px; margin:0; }
+  .dtiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .dtile { border:1px solid var(--line); border-radius:12px; padding:12px; } .dtile .dt { font-weight:700; } .dtile .dv { font-size:26px; font-weight:700; margin:2px 0; } .dtile .ds { font-size:12px; color:var(--muted); margin-top:2px; }
+  .dpct { font-weight:700; } .dpct.g { color:#15803d; } .dpct.a { color:#b45309; } .dpct.r { color:#dc2626; }
+  .dh { font-size:15px; margin:16px 0 6px; }
+  .dtab { width:100%; border-collapse:collapse; font-size:13px; } .dtab th, .dtab td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); } .dtab th { color:var(--muted); font-weight:600; }
+  .dleg { font-size:12px; color:var(--muted); display:flex; gap:6px; align-items:center; } .dleg .k { width:10px; height:10px; border-radius:2px; display:inline-block; margin-left:8px; }
+  .dbars { display:flex; gap:4px; align-items:flex-end; overflow-x:auto; padding:8px 0 4px; }
+  .dday { flex:0 0 auto; width:34px; text-align:center; } .dcol { height:120px; display:flex; gap:2px; align-items:flex-end; justify-content:center; border-bottom:1px solid var(--line); }
+  .dcol .b { width:8px; border-radius:2px 2px 0 0; display:block; } .dlab { font-size:10px; color:var(--muted); margin-top:2px; }
+  .b.XR, .k.XR { background:#475569; } .b.CT, .k.CT { background:#7c3aed; } .b.US, .k.US { background:#0f766e; }
+  .dscroll { overflow-x:auto; } .dfail td { vertical-align:top; } .dfail .ds { font-size:11px; color:var(--muted); }
+  .dctl { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .tplmgr { position:fixed; inset:0; z-index:60; background:var(--bg); display:flex; flex-direction:column; }
   .tplmgr.hidden { display:none; }
   .tplbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--card); }
@@ -528,6 +540,7 @@
     <button id="tabRead" class="hidden" onclick="schedView('xrread')">🩻 X-ray <span id="xrBadge" class="badge hidden"></span></button>
     <button id="tabRpt" class="hidden" onclick="schedView('rpt')">📝 US / CT <span id="rptBadge" class="badge hidden"></span></button>
     <button id="tabPrint" class="hidden" onclick="schedView('print')">🖨 Print</button>
+    <button id="tabTat" class="hidden" onclick="schedView('tat')">📊 TAT</button>
   </div>
   <a class="pback" href="index.html" id="pBack">← Portal</a>
 </div>
@@ -680,6 +693,13 @@
           <div id="xrSigMsg" class="msg"></div>
         </div>
         <div id="xrWork"></div>
+      </div>
+      <div id="vTat" class="hidden pcard">
+        <h2 style="margin:0 0 6px;font-size:18px">📊 Turnaround time (TAT)</h2>
+        <div class="dctl"><select id="dRange" onchange="dashOpen()" style="width:auto;margin:0"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="custom">Custom…</option></select>
+          <span id="dCustom" class="hidden"><input type="date" id="dFrom" style="width:auto;margin:0"> to <input type="date" id="dTo" style="width:auto;margin:0"> <button class="link" onclick="dashOpen(true)">Show</button></span>
+          <button class="link" onclick="dashOpen(true)">↻ Refresh</button><button class="link" id="dCsv" onclick="dashCsv()">⬇ Download log (CSV)</button></div>
+        <div id="dBody"></div>
       </div>
       <div id="vPrint" class="hidden pcard">
         <div class="xrnext"><input type="date" id="prDay" onchange="prLoad()" style="width:auto;margin:0"><div class="seg" id="prBatch" style="margin:0"></div><button class="link" onclick="prLoad()">↻ Refresh</button></div>
@@ -1091,7 +1111,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 38;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 39;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -3887,19 +3907,120 @@
       }).join('');
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
+  /* ---- 📊 TAT dashboard (radiologists & admins): one call when the tab is opened, kept 5 minutes ---- */
+  var DASH = { data: null, at: 0, key: '' };
+  function dashAlert(m) { if (typeof alertBox === 'function') alertBox(m); else if (typeof xrToast === 'function') xrToast(m); }
+  function dashRange() {
+    var v = $('dRange').value, to = new Date(), from = new Date();
+    if (v === 'custom') return { from: $('dFrom').value, to: $('dTo').value };
+    from.setDate(from.getDate() - (Number(v) - 1));
+    var f = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+    return { from: f(from), to: f(to) };
+  }
+  function dashOpen(force) {
+    $('dCustom').classList.toggle('hidden', $('dRange').value !== 'custom');
+    var r = dashRange(), key = r.from + '_' + r.to;
+    if (!force && DASH.data && DASH.key === key && Date.now() - DASH.at < 300000) return;
+    $('dBody').innerHTML = '<p class="sub">Loading…</p>';
+    run('tatStats', token, r.from, r.to).then(function (d) {
+      if (d.expired) return expired();
+      if (!d.ok) { $('dBody').innerHTML = '<p class="sub err">' + esc(d.msg) + '</p>'; return; }
+      DASH = { data: d, at: Date.now(), key: key }; DFAIL = null; dashDraw(d);
+    }).catch(function (e) { $('dBody').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function dashDur(m) { if (m === null || m === undefined) return '—'; return m < 60 ? Math.round(m) + ' min' : m < 2880 ? (m / 60).toFixed(m < 600 ? 1 : 0) + ' h' : (m / 1440).toFixed(1) + ' d'; }
+  function dashPct(p) { return p === null || p === undefined ? '—' : '<span class="dpct ' + (p >= 85 ? 'g' : p >= 70 ? 'a' : 'r') + '">' + p + '%</span>'; }
+  function dashDraw(d) {
+    var M = { XR: 'X-ray', CT: 'CT', US: 'Ultrasound' }, t = d.targets || {};
+    var h = '<div class="dtiles">' + ['XR', 'CT', 'US'].map(function (m) {
+      var x = d.byMod[m];
+      return '<div class="dtile"><div class="dt">' + M[m] + '</div><div class="dv">' + dashDur(x.med) + '</div><div class="ds">median TAT · ' + x.n + ' case' + (x.n === 1 ? '' : 's') + '</div>' +
+        '<div class="ds">90% within ' + dashDur(x.p90) + ' · on target ' + dashPct(x.pct) + '</div>' + (x.queued ? '<div class="ds">' + x.queued + ' OPD queued · median wait ' + dashDur(x.wait) + ' (not counted in TAT)</div>' : '') + '</div>';
+    }).join('') + '</div>';
+    h += '<p class="hint">Targets (POL-002 §2.2): ER / STAT ' + (t.fastH || 4) + ' h · ultrasound same day · routine X-ray and CT ' + (t.routineH || 48) + ' h · goal 85% on target. TAT runs from images available to report finalized.</p>';
+    h += '<h3 class="dh">By category</h3><table class="dtab"><tr><th>Modality</th><th>Category</th><th>Cases</th><th>Median</th><th>90%</th><th>On target</th></tr>';
+    ['XR', 'CT', 'US'].forEach(function (m) { Object.keys(d.byCat[m] || {}).forEach(function (c) { var x = d.byCat[m][c]; h += '<tr><td>' + M[m] + '</td><td>' + esc(c) + '</td><td>' + x.n + '</td><td>' + dashDur(x.med) + '</td><td>' + dashDur(x.p90) + '</td><td>' + dashPct(x.pct) + '</td></tr>'; }); });
+    h += '</table>';
+    if (d.byRad.length) {
+      h += '<h3 class="dh">By radiologist</h3><table class="dtab"><tr><th>Radiologist</th><th>X-ray</th><th>CT</th><th>US</th><th>Median</th><th>On target</th></tr>';
+      d.byRad.forEach(function (r) { h += '<tr><td>' + esc(r.name) + '</td><td>' + r.mods.XR + '</td><td>' + r.mods.CT + '</td><td>' + r.mods.US + '</td><td>' + dashDur(r.med) + '</td><td>' + dashPct(r.pct) + '</td></tr>'; });
+      h += '</table>';
+    }
+    if (d.byDay.length) {
+      var max = 1; d.byDay.forEach(function (x) { ['XR', 'CT', 'US'].forEach(function (m) { if (x[m] > max) max = x[m]; }); });
+      h += '<h3 class="dh">Median TAT per day</h3><div class="dleg"><span class="k XR"></span>X-ray <span class="k CT"></span>CT <span class="k US"></span>Ultrasound</div><div class="dbars">' + d.byDay.map(function (x) {
+        return '<div class="dday" title="' + esc(x.ymd) + ' · ' + x.n + ' cases"><div class="dcol">' + ['XR', 'CT', 'US'].map(function (m) { return x[m] === null ? '<i class="b ' + m + '" style="height:0"></i>' : '<i class="b ' + m + '" style="height:' + Math.max(2, Math.round(x[m] / max * 100)) + '%" title="' + M[m] + ': ' + dashDur(x[m]) + ' (' + x[m + 'n'] + ')"></i>'; }).join('') + '</div><div class="dlab">' + esc(x.ymd.slice(5)) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    var nf = d.total.n - d.total.met;
+    if (d.total.n) h += '<h3 class="dh">Cases that missed the target' + (nf ? ' <span class="dpct r">' + nf + '</span>' : '') + '</h3>' + (nf ?
+      '<p class="hint" style="margin:0 0 6px">For audit: each case with its patient, radiologist, TAT and how far over the target it went (most overdue first).</p><div class="dctl"><button class="btn alt" type="button" id="dFailBtn" onclick="dashFails()" style="width:auto;margin:0">📋 Show the ' + nf + ' case' + (nf === 1 ? '' : 's') + '</button><button class="link hidden" id="dFailCsv" type="button" onclick="dashFailCsv()">⬇ Download this list (CSV)</button></div><div id="dFails"></div>' :
+      '<p class="sub">None – every case in this period was on target. 🎉</p>');
+    if (!d.total.n) h = '<p class="sub">No finalized cases in this period yet. Cases are logged from now on as reports are finalized.</p>';
+    $('dBody').innerHTML = h;
+  }
+  /** 📋 the cases that missed their TAT target – loaded only when asked (patient names are looked up on the server, not cached) */
+  var DFAIL = null;
+  function dashWhen(ms) { if (!ms) return '—'; var d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function dashFails() {
+    var r = dashRange(), b = $('dFailBtn'); b.disabled = true; b.textContent = 'Loading…';
+    run('tatFails', token, r.from, r.to).then(function (d) {
+      b.disabled = false;
+      if (d.expired) return expired();
+      if (!d.ok) { b.textContent = '📋 Show the cases'; $('dFails').innerHTML = '<p class="sub err">' + esc(d.msg) + '</p>'; return; }
+      DFAIL = d; b.textContent = '↻ Reload the list'; $('dFailCsv').classList.remove('hidden');
+      var M = { XR: 'X-ray', CT: 'CT', US: 'Ultrasound' };
+      $('dFails').innerHTML = !d.items.length ? '<p class="sub">No cases.</p>' : '<div class="dscroll"><table class="dtab dfail"><tr><th>Finalized</th><th>Modality</th><th>Patient</th><th>Exam</th><th>Category</th><th>Location</th><th>Radiologist</th><th>TAT</th><th>Target</th><th>Over by</th><th></th></tr>' +
+        d.items.map(function (x, k) {
+          return '<tr><td>' + esc(dashWhen(x.final)) + '</td><td>' + esc(M[x.mod] || x.mod) + '</td><td>' + esc(x.patient || '—') + '</td><td>' + esc(x.exam) + '</td><td>' + esc(x.cat) + (x.priority && x.priority !== x.cat ? ' · ' + esc(x.priority) : '') + '</td><td>' + esc(x.location || '—') + '</td><td>' + esc(x.rad) + '</td>' +
+            '<td>' + dashDur(x.tat) + (x.wait ? '<div class="ds">+ ' + dashDur(x.wait) + ' OPD queue</div>' : '') + '</td><td>' + dashDur(x.target) + '</td><td><b class="dpct r">' + dashDur(x.over) + '</b></td>' +
+            '<td>' + (x.open ? '<button class="link" type="button" onclick="dashOpenCase(' + k + ')">Open</button>' : '') + '</td></tr>';
+        }).join('') + '</table></div>' + (d.more ? '<p class="sub">Showing the latest 500 of ' + (d.items.length + d.more) + '. Narrow the dates to see the others.</p>' : '') +
+        '<p class="hint">Started = images available (OPD: 8 AM on its reading day). TAT does not include days an OPD case waited in the queue.</p>';
+    }).catch(function (e) { b.disabled = false; b.textContent = '📋 Show the cases'; $('dFails').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function dashOpenCase(k) {
+    var x = DFAIL && DFAIL.items[k]; if (!x || !x.open) return;
+    if (x.open.kind === 'doc') return window.open('https://docs.google.com/document/d/' + encodeURIComponent(x.open.id) + '/edit', '_blank', 'noopener');
+    if (typeof xrOpenStudy === 'function') { schedView('xrread'); xrOpenStudy(x.open.id); }
+    else window.open('pacs.html#xr=' + encodeURIComponent(x.open.id), '_blank');
+  }
+  function dashFailCsv() {
+    if (!DFAIL) return;
+    var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var hd = ['Finalized', 'Modality', 'Patient', 'Exam', 'Category', 'Priority', 'Location', 'Radiologist', 'Images available', 'TAT started', 'TAT (min)', 'Target (min)', 'Over by (min)', 'OPD queue wait (min)', 'Ref'];
+    var rows = DFAIL.items.map(function (x) { return [dashWhen(x.final), x.mod, x.patient, x.exam, x.cat, x.priority, x.location, x.rad, dashWhen(x.images), dashWhen(x.start), x.tat, x.target, x.over, x.wait, x.ref]; });
+    var csv = [hd].concat(rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'TAT_missed_' + DFAIL.from + '_to_' + DFAIL.to + '.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function dashCsv() {
+    var r = dashRange(), b = $('dCsv'); b.disabled = true;
+    run('tatStats', token, r.from, r.to, true).then(function (d) {
+      b.disabled = false;
+      if (d.expired) return expired();
+      if (!d.ok) return dashAlert(d.msg);
+      var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      var csv = [d.header].concat(d.rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = 'TAT_' + d.from + '_to_' + d.to + '.csv';
+      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    }).catch(function (e) { b.disabled = false; dashAlert('Could not export: ' + ((e && e.message) || e)); });
+  }
+
   /* ================= /OPD QUEUE · PRINT · TAT · US ================= */
 
   /* ---------- page start: same login as the portal ---------- */
   function gate(text, showBtn) {
     $('gate').classList.remove('hidden'); $('gateMsg').textContent = text; $('gateBtn').style.display = showBtn ? '' : 'none';
-    ['vXrUp', 'vXrRead', 'vRpt', 'vPrint'].forEach(function (id) { $(id).classList.add('hidden'); });
+    ['vXrUp', 'vXrRead', 'vRpt', 'vPrint', 'vTat'].forEach(function (id) { $(id).classList.add('hidden'); });
   }
   function expired() { gate('Your session has ended. Log in again in the portal, then open the PACS.', true); }
   function schedView(v) {
     var rd = XR_ROLE.rad || XR_ROLE.admin;
-    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt') && !rd) v = 'xrup'; if (v === 'print' && !(XR_ROLE.tech || rd)) v = 'xrup';
+    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat') && !rd) v = 'xrup'; if (v === 'print' && !(XR_ROLE.tech || rd)) v = 'xrup';
     curView = v;
-    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vPrint').classList.toggle('hidden', v !== 'print');
+    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vPrint').classList.toggle('hidden', v !== 'print'); $('vTat').classList.toggle('hidden', v !== 'tat');
+    $('tabTat').classList.toggle('on', v === 'tat');
     $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt'); $('tabPrint').classList.toggle('on', v === 'print');
     if (v === 'print') prInit();
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
@@ -3910,6 +4031,7 @@
     }
     if (v === 'xrread') xrLoadWork();
     if (v === 'rpt') rptInit();
+    if (v === 'tat') dashOpen();
   }
   (function start() {
     token = getTok();
@@ -3923,9 +4045,12 @@
       $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabPrint').classList.toggle('hidden', !(m.role.tech || m.role.admin));
+      $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       prnShow(m.printNotice);
       var want = ''; try { want = sessionStorage.getItem('pacs_tab') || ''; } catch (e) {}
-      schedView(want || (m.role.rad ? 'xrread' : 'xrup'));
+      var hx = /^#xr=([A-Z0-9-]+)$/i.exec(location.hash || '');
+      if (hx && (m.role.rad || m.role.admin)) { schedView('xrread'); xrOpenStudy(decodeURIComponent(hx[1])); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
+      else schedView(want || (m.role.rad ? 'xrread' : 'xrup'));
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
   })();
 </script>
