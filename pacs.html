@@ -1079,7 +1079,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 35;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 36;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1728,8 +1728,7 @@
   function xrOpenSib(acc) { var go = function () { xrOpenStudy(acc); }; if (XS && XS.canEdit && XS.dirty) xrDraft(true).then(go, go); else go(); }
   function xrFillTpl() {
     var s = $('xrTpl'); if (!s || !XTPL) return;
-    var ex = XS ? XS.exam.toLowerCase() : '';
-    var sorted = XTPL.filter(function (t) { return !t.modality || t.modality === 'X-ray'; }).sort(function (a, b) { return (b.exam && ex.indexOf(b.exam.toLowerCase()) !== -1) - (a.exam && ex.indexOf(a.exam.toLowerCase()) !== -1); });
+    var sorted = tplAZ(XTPL.filter(function (t) { return !t.modality || t.modality === 'X-ray'; }));
     s.innerHTML = '<option value="">Insert template…</option>' + sorted.map(function (t, i) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
   }
 
@@ -3501,8 +3500,10 @@
     var s = $('rptTpl'); if (!s) return;
     if (!XTPL) { run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; rptFillTpl(); } }); return; }
     var mod = RPT.cur.modality;
-    s.innerHTML = '<option value="">Insert ' + esc(mod) + ' template…</option>' + XTPL.map(function (t, i) { return t.modality === mod ? '<option value="' + i + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>' : ''; }).join('');
+    s.innerHTML = '<option value="">Insert ' + esc(mod) + ' template…</option>' + tplAZ(XTPL.filter(function (t) { return t.modality === mod; })).map(function (t) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
   }
+  /** templates A → Z by name (numbers in order: "Knee 2" before "Knee 10") */
+  function tplAZ(list) { return list.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'en', { sensitivity: 'base', numeric: true }); }); }
   function rptUseTpl() {
     var t = XTPL[+$('rptTpl').value]; $('rptTpl').value = ''; if (!t) return;
     var f = $('rptF'), i = $('rptI'), rep = !(f.value.trim() || i.value.trim()) || confirmReplace();
