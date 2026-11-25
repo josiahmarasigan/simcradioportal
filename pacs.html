@@ -456,6 +456,10 @@
   .rtebox:empty:before { content:attr(data-ph); color:var(--muted); white-space:pre-line; pointer-events:none; }
   .rtebox ul, .rtebox ol { margin:2px 0; padding-left:26px; } .rtebox li { margin:1px 0; }
   .rtebox .i1 { margin-left:2em; } .rtebox .i2 { margin-left:4em; } .rtebox .i3 { margin-left:6em; } .rtebox .i4 { margin-left:8em; }
+  .rtebox table.rtt { border-collapse:collapse; margin:4px 0; max-width:100%; }
+  .rtebox table.rtt td { border:1px dashed color-mix(in srgb,var(--muted) 55%,transparent); padding:2px 8px; min-width:3.5em; vertical-align:top; }
+  .rte:not(.ro) .rtebox table.rtt td:focus-within { background:color-mix(in srgb,var(--brand) 7%,transparent); }
+  .rtebar .rttools { display:inline-flex; flex-wrap:wrap; gap:2px; } .rtebar .rttools.hidden { display:none; }
   .rte.ro { background:var(--card); } .rte.ro .rtebox { min-height:0 !important; }
   .upseg { margin:0 0 14px; max-width:420px; }
   .ctbar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:12px; } .ctbar i { display:block; height:100%; width:0; background:var(--brand); transition:width .3s; }
@@ -1052,7 +1056,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 30;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 31;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -2018,17 +2022,32 @@
 
   /* ================= FORMATTING BAR (bold / italic / underline / bullets / numbering) =================
    * A report box's value is the same as the server's: plain text (one paragraph per line),
-   * or <p>, <ul><li>, <ol><li> with <b>, <i>, <u> inside. Anything else is dropped. */
-  function rtIsRich(s) { return /^\s*<(p|ul|ol)[\s>]/i.test(String(s == null ? '' : s)); }
+   * or <p>, <ul><li>, <ol><li>, <table data-k><tr><td> with <b>, <i>, <u> inside. Anything else is dropped.
+   * A table block: { t: 'table', k: which table of the Doc it came from (-1 = new), rows: [[cell runs]] }; a cell's lines are joined with "\n". */
+  var RT_MAXR = 40, RT_MAXC = 10;
+  function rtEmpty(bk) { return bk.t === 'table' ? !(bk.rows || []).length : !bk.runs.some(function (r) { return r.s.trim(); }); }
+  function rtIsRich(s) { return /^\s*<(p|ul|ol|table)[\s>]/i.test(String(s == null ? '' : s)); }
   function rtDec(s) { return s.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, function (m, e) { return { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' }[e]; }); }
   /** text → [{ t: 'p'|'ul'|'ol', runs: [{ s, b, i, u }] }]; plain lines become plainType (list types skip blank lines) */
   function rtBlocks(s, plainType, plainBold) {
     s = String(s == null ? '' : s).replace(/\r/g, '');
     if (!rtIsRich(s)) return s.split('\n').filter(function (l) { return !plainType || plainType === 'p' || l.trim(); })
       .map(function (l) { return { t: plainType || 'p', runs: l ? [{ s: l, b: !!plainBold, i: false, u: false }] : [] }; });
-    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, re = /<(\/?)(p|ul|ol|li|b|i|u|br)(\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
+    var out = [], list = '', cur = null, b = 0, i = 0, u = 0, m, tbl = null, row = null, cell = null, re = /<(\/?)(p|ul|ol|li|b|i|u|br|table|tr|td|th|div)(\s[^>]*)?\/?>|<[^>]*>|([^<]+)/gi;
     var nb = function (attrs) { var k = /\bclass\s*=\s*["'][^"']*\bi([1-4])\b/i.exec(attrs || ''); cur = { t: list || 'p', runs: [], ind: k ? +k[1] : 0 }; out.push(cur); };
     while ((m = re.exec(s))) {
+      if (tbl) {   // inside a table: rows, cells and bold / italic / underline only
+        if (m[4] !== undefined) { var tx = rtDec(m[4].replace(/\n/g, '')); if (tx && cell && (tx.trim() || cell.length)) rtPush(cell, { s: tx, b: b > 0, i: i > 0, u: u > 0 }); continue; }
+        if (!m[2]) continue;
+        var cl = m[1] === '/', tt = m[2].toLowerCase(), dd = cl ? -1 : 1;
+        if (tt === 'b') b = Math.max(0, b + dd); else if (tt === 'i') i = Math.max(0, i + dd); else if (tt === 'u') u = Math.max(0, u + dd);
+        else if (tt === 'table' && cl) { tbl.rows = tbl.rows.filter(function (r) { return r.length; }).slice(0, RT_MAXR).map(function (r) { return r.slice(0, RT_MAXC); }); if (!tbl.rows.length) out.pop(); tbl = row = cell = null; }
+        else if (tt === 'tr' && !cl) { row = []; tbl.rows.push(row); }
+        else if ((tt === 'td' || tt === 'th') && !cl) { if (!row) { row = []; tbl.rows.push(row); } cell = []; row.push(cell); }
+        else if ((tt === 'td' || tt === 'th') && cl) cell = null;
+        else if ((tt === 'br' || ((tt === 'p' || tt === 'div') && !cl)) && cell && cell.length) rtPush(cell, { s: '\n', b: false, i: false, u: false });
+        continue;
+      }
       if (m[4] !== undefined) {
         var txt = rtDec(m[4].replace(/\n/g, '')); if (!txt) continue; if (!cur) nb();
         rtPush(cur.runs, { s: txt, b: b > 0, i: i > 0, u: u > 0 }); continue;
@@ -2039,21 +2058,26 @@
       else if (tg === 'ul' || tg === 'ol') { list = d < 0 ? '' : tg; cur = null; }
       else if (tg === 'p' || tg === 'li') { if (d < 0) cur = null; else nb(m[3]); }
       else if (tg === 'br') { if (!cur) nb(); cur = null; }
+      else if (tg === 'table' && d > 0) { var kk = /\bdata-k\s*=\s*["']?(-?\d+)/i.exec(m[3] || ''); tbl = { t: 'table', k: kk ? +kk[1] : -1, rows: [], runs: [] }; out.push(tbl); cur = null; list = ''; }
     }
-    return out;
+    return out.map(function (bk) { if (bk.t === 'table') bk.rows = bk.rows.map(function (r) { return r.map(function (c) { var l = c[c.length - 1]; if (l) { l.s = l.s.replace(/\n+$/, ''); if (!l.s) c.pop(); } return c; }); }); return bk; });
   }
   function rtPush(runs, r) { var l = runs[runs.length - 1]; if (l && l.b === r.b && l.i === r.i && l.u === r.u) l.s += r.s; else if (r.s) runs.push(r); }
-  function rtRunsHtml(runs) { return runs.map(function (r) { var x = esc(r.s); if (r.u) x = '<u>' + x + '</u>'; if (r.i) x = '<i>' + x + '</i>'; if (r.b) x = '<b>' + x + '</b>'; return x; }).join(''); }
+  function rtRunsHtml(runs) { return runs.map(function (r) { var x = esc(r.s).replace(/\n/g, '<br>'); if (r.u) x = '<u>' + x + '</u>'; if (r.i) x = '<i>' + x + '</i>'; if (r.b) x = '<b>' + x + '</b>'; return x; }).join(''); }
   /** blocks → stored text (plain when there is no formatting at all) */
   function rtStore(blocks) {
     blocks = blocks.slice();
-    var empty = function (bk) { return !bk.runs.some(function (r) { return r.s.trim(); }); };
-    while (blocks.length && empty(blocks[blocks.length - 1])) blocks.pop();
-    while (blocks.length && empty(blocks[0])) blocks.shift();
+    while (blocks.length && rtEmpty(blocks[blocks.length - 1])) blocks.pop();
+    while (blocks.length && rtEmpty(blocks[0])) blocks.shift();
     if (blocks.every(function (bk) { return bk.t === 'p' && !bk.ind && bk.runs.every(function (r) { return !r.b && !r.i && !r.u; }); }))
       return blocks.map(function (bk) { return bk.runs.map(function (r) { return r.s; }).join(''); }).join('\n');
     var h = '', open = '';
     blocks.forEach(function (bk) {
+      if (bk.t === 'table') {
+        if (open) { h += '</' + open + '>'; open = ''; }
+        h += '<table data-k="' + (bk.k >= 0 ? bk.k : -1) + '">' + bk.rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + rtRunsHtml(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+        return;
+      }
       var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p';
       if (open && open !== t) { h += '</' + open + '>'; open = ''; }
       if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
@@ -2075,16 +2099,22 @@
     return rtStore(rtBlocks(a).concat([{ t: 'p', runs: [] }], rtBlocks(b)));
   }
   /** plain text version (for old servers that do not know formatting) */
-  function rtPlainLines(s) { return rtBlocks(s).map(function (bk) { return bk.runs.map(function (r) { return r.s; }).join(''); }); }
+  function rtPlainLines(s) {
+    var txt = function (runs) { return runs.map(function (r) { return r.s; }).join(''); }, out = [];
+    rtBlocks(s).forEach(function (bk) { if (bk.t === 'table') bk.rows.forEach(function (r) { out.push(r.map(function (c) { return txt(c).replace(/\n/g, ' '); }).join(' | ')); }); else out.push(txt(bk.runs)); });
+    return out;
+  }
 
   /** markup for a report box; call rteInit(id) after it is in the page */
-  function rteHtml(id, rows, ph, ed) {
+  function rteHtml(id, rows, ph, ed, tbl) {
     var B = function (cmd, lbl, tip) { return '<button type="button" data-cmd="' + cmd + '" title="' + tip + '" aria-label="' + tip + '">' + lbl + '</button>'; };
     return '<div class="rte' + (ed ? '' : ' ro') + '" id="' + id + 'Wrap">' + (ed ? '<div class="rtebar" role="toolbar" aria-label="Formatting">' +
       B('bold', '<b>B</b>', 'Bold (Ctrl+B)') + B('italic', '<i>I</i>', 'Italic (Ctrl+I)') + B('underline', '<u>U</u>', 'Underline (Ctrl+U)') + '<span class="sep"></span>' +
       B('insertUnorderedList', '• List', 'Bullets') + B('insertOrderedList', '1. List', 'Numbering') + '<span class="sep"></span>' +
       B('rteOut', '⇤', 'Less indent (Shift+Tab)') + B('rteIn', '⇥', 'More indent (Tab)') + '<span class="sep"></span>' +
-      B('removeFormat', '<span class="rx">T</span>', 'Clear bold / italic / underline') + '</div>' : '') +
+      B('removeFormat', '<span class="rx">T</span>', 'Clear bold / italic / underline') +
+      (tbl ? '<span class="sep"></span>' + B('rteTbl', '⊞ Table', 'Insert a table') + '<span class="rttools hidden">' + B('rteRowB', '+ Row', 'Add a row below (Tab in the last cell does it too)') +
+        B('rteColR', '+ Col', 'Add a column to the right') + B('rteRowX', '− Row', 'Delete this row') + B('rteColX', '− Col', 'Delete this column') + B('rteTblX', '✕ Table', 'Delete the whole table') + '</span>' : '') + '</div>' : '') +
       '<div class="rtebox" id="' + id + '" contenteditable="' + (ed ? 'true' : 'false') + '" role="textbox" aria-multiline="true" spellcheck="true" data-ph="' + esc(ph || '') + '" style="min-height:' + (rows * 1.5) + 'em"></div></div>';
   }
   /** turns the box into an editor with .value (get/set) like a textarea. opts.plain: no formatting (older server) */
@@ -2100,11 +2130,11 @@
       var t = (e.clipboardData || window.clipboardData).getData('text/plain'); if (t === undefined) return;
       e.preventDefault(); document.execCommand('insertText', false, t.replace(/\r/g, ''));
     });
-    el.addEventListener('input', function () { if (!el.textContent && !el.querySelector('li')) el.innerHTML = ''; rteState(); });
+    el.addEventListener('input', function () { if (!el.textContent && !el.querySelector('li,table')) el.innerHTML = ''; rteState(); });
     el.addEventListener('keyup', rteState); el.addEventListener('mouseup', rteState); el.addEventListener('focus', rteState);
     el.addEventListener('keydown', function (e) {   // Tab / Shift+Tab = indent (inside the report box)
       if (e.key !== 'Tab' || opts.plain || el.contentEditable !== 'true') return;
-      e.preventDefault(); rteIndent(el, e.shiftKey ? -1 : 1); el.dispatchEvent(new Event('input', { bubbles: true }));
+      e.preventDefault(); if (rteCell(el)) rteTab(el, e.shiftKey ? -1 : 1); else rteIndent(el, e.shiftKey ? -1 : 1); el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     if (wrap.querySelector('.rtebar')) {
       wrap.querySelector('.rtebar').addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });   // keep the selection
@@ -2112,7 +2142,8 @@
         var b = e.target.closest('button'); if (!b || opts.plain) return;
         if (document.activeElement !== el) { el.focus(); rteCaretEnd(el); }
         var cmd = b.getAttribute('data-cmd');
-        if (cmd === 'rteIn' || cmd === 'rteOut') rteIndent(el, cmd === 'rteIn' ? 1 : -1);
+        if (cmd === 'rteIn' || cmd === 'rteOut') { if (rteCell(el)) rteTab(el, cmd === 'rteIn' ? 1 : -1); else rteIndent(el, cmd === 'rteIn' ? 1 : -1); }
+        else if (/^rte(Tbl|Row|Col)/.test(cmd)) rteTable(el, cmd);
         else document.execCommand(cmd, false, null);
         el.dispatchEvent(new Event('input', { bubbles: true })); rteState();
       });
@@ -2138,21 +2169,106 @@
   function rteState() {
     var a = document.activeElement; if (!a || !a.classList || !a.classList.contains('rtebox')) return;
     var bar = a.parentNode.querySelector('.rtebar'); if (!bar) return;
+    var tt = bar.querySelector('.rttools'); if (tt) tt.classList.toggle('hidden', !rteCell(a));
     Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) {
-      var c = b.getAttribute('data-cmd'), on = false; if (c !== 'removeFormat') { try { on = document.queryCommandState(c); } catch (e) {} }
+      var c = b.getAttribute('data-cmd'), on = false; if (c !== 'removeFormat' && !/^rte/.test(c)) { try { on = document.queryCommandState(c); } catch (e) {} }
       b.classList.toggle('on', !!on);
     });
   }
   document.addEventListener('selectionchange', rteState);
   function rteRender(v) {
-    var h = '', open = '';
-    rtBlocks(v).forEach(function (bk) {
+    var h = '', open = '', bks = rtBlocks(v);
+    bks.forEach(function (bk, n) {
+      if (bk.t === 'table') {   // an empty line before (at the top) and after, so the cursor can get out of the table
+        if (open) { h += '</' + open + '>'; open = ''; }
+        h += (n === 0 ? '<div><br></div>' : '') + rteTblHtml(bk) + (n === bks.length - 1 || bks[n + 1].t === 'table' ? '<div><br></div>' : '');
+        return;
+      }
       var t = bk.t === 'ul' || bk.t === 'ol' ? bk.t : 'p', inner = rtRunsHtml(bk.runs) || '<br>', ca = bk.ind > 0 ? ' class="i' + Math.min(4, bk.ind) + '"' : '';
       if (open && open !== t) { h += '</' + open + '>'; open = ''; }
       if (t !== 'p' && !open) { h += '<' + t + '>'; open = t; }
       h += t === 'p' ? '<div' + ca + '>' + inner + '</div>' : '<li' + ca + '>' + inner + '</li>';
     });
     return open ? h + '</' + open + '>' : h;
+  }
+  function rteTblHtml(bk) {
+    return '<table class="rtt" data-k="' + (bk.k >= 0 ? bk.k : -1) + '"><tbody>' + bk.rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + (rtRunsHtml(c).replace(/<br>$/, '<br><br>') || '<br>') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+  }
+  /** bold / italic / underline of an element, given its parent's */
+  function rteSty(n, st) {
+    var tg = n.tagName, sty = n.style || {}, fw = String(sty.fontWeight || '');
+    var s2 = { b: st.b || tg === 'B' || tg === 'STRONG' || fw === 'bold' || +fw >= 600, i: st.i || tg === 'I' || tg === 'EM' || sty.fontStyle === 'italic',
+      u: st.u || tg === 'U' || /underline/.test(sty.textDecoration || sty.textDecorationLine || '') };
+    if (fw === 'normal' || fw === '400') s2.b = false;
+    return s2;
+  }
+  /** a table in the box → a table block (lines inside a cell become "\n") */
+  function rteReadTable(tb) {
+    var rows = [];
+    Array.prototype.forEach.call(tb.rows, function (tr) {
+      if (rows.length >= RT_MAXR) return;
+      var row = [];
+      Array.prototype.forEach.call(tr.cells, function (td) {
+        if (row.length >= RT_MAXC) return;
+        var runs = [], nl = function () { if (runs.length && !/\n$/.test(runs[runs.length - 1].s)) rtPush(runs, { s: '\n', b: false, i: false, u: false }); };
+        var walk = function (n, st) {
+          if (n.nodeType === 3) { var s = n.nodeValue.replace(/[\u200b\ufeff]/g, '').replace(/\u00a0/g, ' ').replace(/\n/g, ' '); if (s && (s.trim() || runs.length)) rtPush(runs, { s: s, b: st.b, i: st.i, u: st.u }); return; }
+          if (n.nodeType !== 1) return;
+          if (n.tagName === 'BR') { if (runs.length) rtPush(runs, { s: '\n', b: false, i: false, u: false }); return; }
+          var blk = /^(DIV|P|LI|H[1-6])$/.test(n.tagName); if (blk) nl();
+          var s2 = rteSty(n, st); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2); });
+        };
+        Array.prototype.forEach.call(td.childNodes, function (c) { walk(c, { b: false, i: false, u: false }); });
+        var l = runs[runs.length - 1]; if (l) { l.s = l.s.replace(/\s+$/, ''); if (!l.s) runs.pop(); }
+        runs.forEach(function (r) { r.s = r.s.replace(/ +\n/g, '\n'); });
+        row.push(runs);
+      });
+      if (row.length) rows.push(row);
+    });
+    var k = parseInt(tb.getAttribute('data-k'), 10);
+    return { t: 'table', k: isNaN(k) ? -1 : k, rows: rows, runs: [] };
+  }
+  /** the table cell the cursor is in (inside this box), or null */
+  function rteCell(box) {
+    var sel = window.getSelection(); if (!sel.rangeCount) return null;
+    var n = sel.anchorNode; while (n && n !== box) { if (n.nodeType === 1 && (n.tagName === 'TD' || n.tagName === 'TH')) return box.contains(n) ? n : null; n = n.parentNode; }
+    return null;
+  }
+  function rteCaretIn(td, end) { try { var r = document.createRange(); r.selectNodeContents(td); r.collapse(!end); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+  function rteNewRow(tr) { var n = document.createElement('tr'); for (var i = 0; i < tr.cells.length; i++) n.appendChild(document.createElement('td')).innerHTML = '<br>'; tr.parentNode.insertBefore(n, tr.nextSibling); return n; }
+  /** Tab / Shift+Tab inside a table: next / previous cell; Tab in the last cell adds a row */
+  function rteTab(box, d) {
+    var td = rteCell(box); if (!td) return;
+    var tb = td.closest('table'), cells = Array.prototype.slice.call(tb.querySelectorAll('td,th')), i = cells.indexOf(td) + d;
+    if (i >= cells.length) { if (tb.rows.length >= RT_MAXR) return; i = cells.length; rteNewRow(td.parentNode); cells = Array.prototype.slice.call(tb.querySelectorAll('td,th')); }
+    if (i < 0) return;
+    rteCaretIn(cells[i], true);
+  }
+  /** ⊞ Table and the row / column buttons */
+  function rteTable(box, cmd) {
+    var td = rteCell(box);
+    if (cmd === 'rteTbl') {
+      if (td) return;   // no tables inside tables
+      var sel = window.getSelection(), n = sel.rangeCount ? sel.anchorNode : null;
+      while (n && n.parentNode !== box) n = n.parentNode;   // the line the cursor is on
+      var tmp = document.createElement('div'); tmp.innerHTML = rteTblHtml({ k: -1, rows: [[[], [], []], [[], [], []]] }) + '<div><br></div>';
+      var tb = tmp.firstChild, after = tmp.lastChild;
+      if (n && n !== box) { box.insertBefore(tb, n.nextSibling); box.insertBefore(after, tb.nextSibling); }
+      else { box.appendChild(tb); box.appendChild(after); }
+      rteCaretIn(tb.rows[0].cells[0], false); return;
+    }
+    if (!td) return;
+    var tr = td.parentNode, tbl = td.closest('table'), ci = td.cellIndex, ri = tr.rowIndex;
+    if (cmd === 'rteRowB') { if (tbl.rows.length < RT_MAXR) rteCaretIn(rteNewRow(tr).cells[Math.min(ci, tr.cells.length - 1)], false); }
+    else if (cmd === 'rteColR') { if (tr.cells.length < RT_MAXC) Array.prototype.forEach.call(tbl.rows, function (r) { var c = document.createElement('td'); c.innerHTML = '<br>'; r.insertBefore(c, r.cells[ci + 1] || null); }); rteCaretIn(tr.cells[ci + 1] || td, false); }
+    else if (cmd === 'rteRowX') { if (tbl.rows.length <= 1) return rteTblDel(box, tbl); tr.remove(); rteCaretIn(tbl.rows[Math.min(ri, tbl.rows.length - 1)].cells[0], true); }
+    else if (cmd === 'rteColX') { if (tr.cells.length <= 1) return rteTblDel(box, tbl); Array.prototype.forEach.call(tbl.rows, function (r) { if (r.cells[ci]) r.cells[ci].remove(); }); rteCaretIn(tr.cells[Math.min(ci, tr.cells.length - 1)], true); }
+    else if (cmd === 'rteTblX') rteTblDel(box, tbl);
+  }
+  function rteTblDel(box, tbl) {
+    var nx = tbl.nextSibling; tbl.remove();
+    if (!nx || nx.nodeType !== 1) { nx = document.createElement('div'); nx.innerHTML = '<br>'; box.appendChild(nx); }
+    rteCaretIn(nx, false);
   }
   /** what the browser made of the box → blocks */
   function rteRead(root) {
@@ -2165,10 +2281,8 @@
         rtPush(cur.runs, { s: s, b: st.b, i: st.i, u: st.u }); return;
       }
       if (n.nodeType !== 1) return;
-      var tg = n.tagName, sty = n.style || {}, fw = String(sty.fontWeight || '');
-      var s2 = { b: st.b || tg === 'B' || tg === 'STRONG' || fw === 'bold' || +fw >= 600, i: st.i || tg === 'I' || tg === 'EM' || sty.fontStyle === 'italic',
-        u: st.u || tg === 'U' || /underline/.test(sty.textDecoration || sty.textDecorationLine || '') };
-      if (fw === 'normal' || fw === '400') s2.b = false;
+      var tg = n.tagName, s2 = rteSty(n, st);
+      if (tg === 'TABLE') { var tb = rteReadTable(n); if (tb.rows.length) blocks.push(tb); cur = null; return; }
       if (tg === 'BR') { if (!cur) nb(listT || 'p'); cur = null; return; }
       if (tg === 'UL' || tg === 'OL') { cur = null; Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, tg.toLowerCase()); }); cur = null; return; }
       if (tg === 'LI') { nb(listT || 'ul', n); Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT || 'ul'); }); cur = null; return; }
@@ -2182,7 +2296,7 @@
       Array.prototype.forEach.call(n.childNodes, function (c) { walk(c, s2, listT); });
     };
     Array.prototype.forEach.call(root.childNodes, function (c) { walk(c, { b: false, i: false, u: false }, ''); });
-    blocks.forEach(function (bk) { if (bk.runs.length) { var l = bk.runs[bk.runs.length - 1]; l.s = l.s.replace(/\s+$/, ''); if (!l.s) bk.runs.pop(); } });
+    blocks.forEach(function (bk) { if (bk.t !== 'table' && bk.runs.length) { var l = bk.runs[bk.runs.length - 1]; l.s = l.s.replace(/\s+$/, ''); if (!l.s) bk.runs.pop(); } });
     return blocks;
   }
   function isTyping(t) { return /textarea|input|select/i.test(t.tagName) || t.isContentEditable; }
@@ -3108,8 +3222,8 @@
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
     } else {
       if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button></div>';
-      h += '<label>Findings</label>' + rteHtml('rptF', 10, 'One finding per line', ed) +
-        '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed);
+      h += '<label>Findings</label>' + rteHtml('rptF', 10, 'One finding per line', ed, !!r.tables) +
+        '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed, !!r.tables);
     }
     if (ed) {
       h += '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button></div>' +
