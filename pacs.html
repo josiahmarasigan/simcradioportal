@@ -492,6 +492,25 @@
   .pback { color:#fff; text-decoration:none; font-size:14px; opacity:.9; padding:8px 4px; }
   .pwrap { max-width:1100px; margin:0 auto; padding:16px; }
   .pcard { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .arlist { margin:10px 0 0; display:flex; flex-direction:column; gap:6px; }
+  .arli { display:flex; flex-wrap:wrap; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .arli b { flex:1; min-width:140px; }
+  .ared { margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
+  .ared h3 { font-size:15px; margin:16px 0 6px; }
+  .ared label { display:block; font-size:12px; color:var(--muted); margin:6px 0 2px; }
+  .ared input, .ared textarea { width:100%; margin:0; font:inherit; font-size:14px; }
+  .ared textarea { min-height:70px; resize:vertical; line-height:1.4; } .arrow textarea { min-height:0; }
+  .arg2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; }
+  .arrow { border:1px solid var(--line); border-radius:12px; padding:8px 10px 10px; margin:8px 0; }
+  .arrow .arrh { display:flex; align-items:center; gap:8px; } .arrow .arrh input { flex:1; font-weight:700; }
+  .arg3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 10px; }
+  .arval { width:100%; border-collapse:collapse; font-size:14px; } .arval th, .arval td { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; }
+  .arval td.num, .arval th.num { text-align:right; white-space:nowrap; } .arval input { padding:4px 6px; }
+  .arval tfoot td { font-weight:800; }
+  .arsum { margin:8px 0; padding:8px 10px; border-radius:10px; background:color-mix(in srgb,var(--brand) 10%,transparent); font-size:14px; line-height:1.5; }
+  .arbar { position:sticky; bottom:0; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 0 4px; background:var(--card); border-top:1px solid var(--line); margin-top:12px; }
+  .arfresh { font-size:13px; color:var(--muted); }
+  @media (max-width:700px) { .arg2, .arg3 { grid-template-columns:1fr; } }
   #rptv { position:fixed; inset:0; z-index:9000; display:flex; flex-direction:column; background:var(--bg); } #rptv.hidden { display:none; }
   #rptv .xrtop select { width:auto; margin:0; }
   .rptscroll { flex:1; overflow:auto; } .rptbody { max-width:920px; margin:0 auto; padding:14px 16px 40px; }
@@ -561,6 +580,7 @@
     <button id="tabRpt" class="hidden" onclick="schedView('rpt')">📝 US / CT <span id="rptBadge" class="badge hidden"></span></button>
     <button id="tabTat" class="hidden" onclick="schedView('tat')">📊 TAT</button>
     <button id="tabRep" class="hidden" onclick="schedView('rep')">🔁 Repeats</button>
+    <button id="tabAr" class="hidden" onclick="schedView('ar')">📄 Accomplishment</button>
   </div>
   <a class="pback manLink" href="https://drive.google.com/drive/folders/196o-rri89xl9V4fGRc0fqXIdpqcoVz1R" target="_blank" rel="noopener" title="User manual">📖 Manual</a>
   <a class="pback" href="index.html" id="pBack">← Portal</a>
@@ -728,6 +748,19 @@
           <span id="rrsCustom" class="hidden"><input type="date" id="rrsFrom" style="width:auto;margin:0"> to <input type="date" id="rrsTo" style="width:auto;margin:0"> <button class="link" onclick="rrsOpen(true)">Show</button></span>
           <button class="link" onclick="rrsOpen(true)">↻ Refresh</button><button class="link" onclick="rrsCsv()">⬇ Download log (CSV)</button></div>
         <div id="rrsBody"></div>
+      </div>
+      <div id="vAr" class="hidden pcard">
+        <h2 style="margin:0 0 6px;font-size:18px">📄 Accomplishment report</h2>
+        <p class="sub" style="margin:0 0 8px">Made from your finalized X-ray, CT and ultrasound reports, outside-facility reads and the duty roster, valued at the PF rates in Settings. It is a Google Doc in the accomplishment reports folder – edit it here or in Google Docs. A draft for last month is made automatically on the 1st.</p>
+        <div class="dctl">
+          <select id="arWho" class="hidden" onchange="arWhoPick()" style="width:auto;margin:0"></select>
+          <label class="sub" for="arMonth" style="margin:0">Month</label><input type="month" id="arMonth" style="width:auto;margin:0">
+          <button class="btn" id="arGo" type="button" onclick="arGo()" style="width:auto;margin:0">Make / open report</button>
+          <button class="link" type="button" onclick="arSetOpen()">⚙ My report settings</button>
+        </div>
+        <div id="arMsg" class="msg"></div>
+        <div id="arList"></div>
+        <div id="arEd"></div>
       </div>
       <div id="vRpt" class="hidden pcard">
         <div class="xrnext">
@@ -1132,7 +1165,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 43;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 44;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1865,6 +1898,186 @@
     $('rrsCustom').classList.toggle('hidden', v !== 'custom');
     if (v === 'custom') return { from: $('rrsFrom').value, to: $('rrsTo').value };
     var t = new Date(), f = new Date(t.getTime() - (Number(v) - 1) * 864e5); return { from: iso(f), to: iso(t) };
+  }
+  /* ---------- 📄 Accomplishment report (radiologists; admins for anyone) ---------- */
+  var AR = { who: '', list: null, ed: null, dirty: false };
+  function arPeso(n) { var v = Math.round((Number(n) || 0) * 100) / 100, neg = v < 0, p = Math.abs(v).toFixed(2).split('.'); return (neg ? '-' : '') + '₱' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + p[1]; }
+  function arNum(v) { var n = Number(String(v == null ? '' : v).replace(/[₱,\s]/g, '')); return isFinite(n) ? n : 0; }
+  function arLastMonth() { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  function arLeave() { return !AR.dirty || window.confirm('Discard the changes to this report?'); }
+  function arOpen(force) {
+    if (!$('arMonth').value) $('arMonth').value = arLastMonth();
+    if (AR.list && !force) return arDrawList();
+    $('arList').innerHTML = '<p class="sub">Loading…</p>';
+    run('arList', token, AR.who).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('arList').innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      AR.list = r; if (!AR.who) AR.who = r.email;
+      var w = $('arWho');
+      if (r.admin && r.rads) {
+        var opts = r.rads.slice(); if (!opts.some(function (x) { return x.email === r.email; })) opts.unshift({ email: r.email, name: r.email });
+        w.innerHTML = opts.map(function (x) { return '<option value="' + esc(x.email) + '"' + (x.email === r.email ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('');
+        w.classList.remove('hidden');
+      }
+      $('arMonth').max = r.thisMonth;
+      arDrawList();
+    }).catch(function (e) { $('arList').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function arWhoPick() { if (!arLeave()) { $('arWho').value = AR.who; return; } AR.who = $('arWho').value; AR.ed = null; AR.dirty = false; $('arEd').innerHTML = ''; arOpen(true); }
+  function arDrawList() {
+    var r = AR.list, it = r.items || [];
+    $('arList').innerHTML = (it.length ? '<div class="arlist">' + it.map(function (x) {
+      return '<div class="arli"><b>' + esc(x.period) + '</b><button class="link" type="button" onclick="arEdit(\'' + esc(x.id) + '\')">✏️ Edit here</button><a class="link" href="' + esc(x.url) + '" target="_blank" rel="noopener">Open in Google Docs ↗</a></div>';
+    }).join('') + '</div>' : '<p class="sub">No reports yet. Pick a month and press <b>Make / open report</b>.</p>') +
+      (r.auto ? '' : '<p class="sub">Automatic drafts on the 1st are off (Settings → AR_AUTO).</p>');
+  }
+  function arGo() {
+    var m = $('arMonth').value; if (!/^\d{4}-\d{2}$/.test(m)) return setMsg('arMsg', 'Pick a month.');
+    if (!arLeave()) return;
+    var b = $('arGo'); b.disabled = true; setMsg('arMsg', 'Counting studies and duty hours…', true);
+    run('arGenerate', token, m, AR.who).then(function (r) {
+      b.disabled = false;
+      if (r.expired) return expired();
+      if (!r.ok) return setMsg('arMsg', r.msg);
+      setMsg('arMsg', r.exists ? 'This month already has a report – opened it.' : 'Report made: ' + r.name, true);
+      AR.list = null; arOpen(true); arEdit(r.id);
+    }).catch(function (e) { b.disabled = false; setMsg('arMsg', 'Could not make the report: ' + ((e && e.message) || e)); });
+  }
+  function arEdit(id) {
+    if (AR.ed && AR.ed.id !== id && !arLeave()) return;
+    $('arEd').innerHTML = '<p class="sub">Opening the document…</p>';
+    run('arRead', token, id).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('arEd').innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      AR.ed = r; AR.dirty = false; arDraw();
+      $('arEd').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }).catch(function (e) { $('arEd').innerHTML = '<p class="sub err">Could not open: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function arIn(id, label, v) { return '<div><label for="' + id + '">' + esc(label) + '</label><input id="' + id + '" value="' + esc(v || '') + '" oninput="arDirty()"></div>'; }
+  function arDraw() {
+    var m = AR.ed.model, h = '';
+    h += '<div class="ared"><div class="dctl" style="justify-content:space-between"><b style="font-size:16px">' + esc(m.title || 'Accomplishment report') + ' – ' + esc(m.period || '') + '</b>' +
+      '<a class="link" href="' + esc(AR.ed.url) + '" target="_blank" rel="noopener">Open in Google Docs ↗</a></div>';
+    h += '<div class="arg2">' + arIn('arName', 'Name of employee', m.name) + arIn('arPos', 'Position', m.position) + arIn('arOff', 'Office/unit/section', m.office) + arIn('arHosp', 'Place of assignment/Hospital', m.hospital) + arIn('arPer', 'For the period', m.period) + '</div>';
+    h += '<h3>Activities</h3><p class="sub" style="margin:0">One line per paragraph. Start a line with <b>•</b> for a bullet or <b>1.</b> for a numbered list; wrap words in <b>**…**</b> for bold.</p><div id="arRows"></div>' +
+      '<button class="link" type="button" onclick="arAddRow()">＋ Add activity (e.g. Admin work, seminar, teleradiology)</button>';
+    h += '<h3>Clinical Service Output and Professional Value Assessment</h3>' + '<div>' + arIn('arStat', 'Stat cases line', m.statLine) + '</div>' + '<div>' + arIn('arBasis', 'Value basis', m.basis) + '</div>';
+    h += '<div style="overflow-x:auto;margin-top:8px"><table class="arval"><thead><tr><th>Service</th><th class="num">Studies</th><th class="num">Rate (₱)</th><th class="num">Amount</th><th></th></tr></thead><tbody id="arItems"></tbody><tfoot><tr><td>TOTAL</td><td class="num" id="arTotN"></td><td></td><td class="num" id="arTot"></td><td></td></tr></tfoot></table></div>' +
+      '<div class="dctl"><button class="link" type="button" onclick="arAddItem()">＋ Add line</button><button class="link" type="button" onclick="arRecount()">↻ Recount from the PACS</button><span class="arfresh" id="arFresh"></span></div>';
+    h += '<div class="arsum" id="arSum"></div>';
+    h += '<h3>Remarks <span class="sub">(optional)</span></h3><textarea id="arNotes" oninput="arDirty()">' + esc(m.notes || '') + '</textarea>';
+    h += '<h3>Signatures</h3><div class="arg2">' + arIn('arPrepN', 'Prepared by – name', m.prepared.name) + arIn('arPrepT', 'Prepared by – title', m.prepared.title) + arIn('arNotN', 'Noted by – name', m.noted.name) + arIn('arNotT', 'Noted by – title', m.noted.title) + '</div>';
+    h += '<div class="arbar"><button class="btn" type="button" id="arSaveBtn" onclick="arSave()" style="width:auto;margin:0">💾 Save to the document</button>' +
+      '<button class="link" type="button" onclick="arRebuild()">Rebuild from fresh counts</button><button class="link" type="button" onclick="arCloseEd()">Close</button><span id="arEdMsg" class="msg" style="margin:0"></span></div>' +
+      '<p class="sub" style="margin:4px 0 0">Saving writes these fields back into the Google Doc in the report layout. Formatting added in Docs is reset; earlier versions stay in Docs under File → Version history.</p></div>';
+    $('arEd').innerHTML = h;
+    arDrawRows(); arDrawItems();
+  }
+  function arDrawRows() {
+    var rows = AR.ed.model.rows;
+    $('arRows').innerHTML = rows.map(function (r, i) {
+      var ta = function (k, label) { return '<div><label for="arR' + k + i + '">' + label + '</label><textarea id="arR' + k + i + '" rows="' + Math.min(14, Math.max(3, Math.ceil(String(r[k] || '').length / 34) + String(r[k] || '').split('\n').length)) + '" data-i="' + i + '" data-k="' + k + '" oninput="arRowIn(this)">' + esc(r[k] || '') + '</textarea></div>'; };
+      return '<div class="arrow"><div class="arrh"><input aria-label="Date" placeholder="Dates, e.g. August 22-23, 29-31" value="' + esc(r.date || '') + '" data-i="' + i + '" data-k="date" oninput="arRowIn(this)">' +
+        (i ? '<button class="link" type="button" title="Move up" onclick="arMoveRow(' + i + ')">↑</button>' : '') + '<button class="link" type="button" title="Remove" onclick="arDelRow(' + i + ')">✕</button></div>' +
+        '<div class="arg3">' + ta('activity', 'Activity') + ta('accomplishment', 'Accomplishment') + ta('competency', 'Technical competency') + '</div></div>';
+    }).join('');
+  }
+  function arRowIn(el) { AR.ed.model.rows[+el.getAttribute('data-i')][el.getAttribute('data-k')] = el.value; arDirty(); }
+  function arAddRow() { AR.ed.model.rows.push({ date: '', activity: '', accomplishment: '', competency: '' }); arDirty(); arDrawRows(); }
+  function arDelRow(i) { var r = AR.ed.model.rows[i]; if ((r.activity || r.accomplishment) && !window.confirm('Remove this activity row?')) return; AR.ed.model.rows.splice(i, 1); arDirty(); arDrawRows(); }
+  function arMoveRow(i) { var a = AR.ed.model.rows; a.splice(i - 1, 0, a.splice(i, 1)[0]); arDirty(); arDrawRows(); }
+  function arDrawItems() {
+    var it = AR.ed.model.items;
+    $('arItems').innerHTML = it.map(function (x, i) {
+      return '<tr><td><input aria-label="Service" value="' + esc(x.label) + '" data-i="' + i + '" data-k="label" oninput="arItemIn(this)"></td>' +
+        '<td class="num"><input type="number" min="0" step="1" style="width:80px" aria-label="Studies" value="' + esc(x.n) + '" data-i="' + i + '" data-k="n" oninput="arItemIn(this)"></td>' +
+        '<td class="num"><input type="number" min="0" step="0.01" style="width:100px" aria-label="Rate" value="' + esc(x.rate) + '" data-i="' + i + '" data-k="rate" oninput="arItemIn(this)"></td>' +
+        '<td class="num" id="arAmt' + i + '">' + arPeso(arNum(x.n) * arNum(x.rate)) + '</td><td><button class="link" type="button" title="Remove" onclick="arDelItem(' + i + ')">✕</button></td></tr>';
+    }).join('');
+    arSum();
+  }
+  function arItemIn(el) { var i = +el.getAttribute('data-i'), k = el.getAttribute('data-k'), x = AR.ed.model.items[i]; x[k] = k === 'label' ? el.value : arNum(el.value); $('arAmt' + i).textContent = arPeso(arNum(x.n) * arNum(x.rate)); arDirty(); arSum(); }
+  function arAddItem() { AR.ed.model.items.push({ key: '', label: '', n: 0, rate: 0 }); arDirty(); arDrawItems(); }
+  function arDelItem(i) { AR.ed.model.items.splice(i, 1); arDirty(); arDrawItems(); }
+  function arTotal() { return AR.ed.model.items.reduce(function (a, x) { return a + arNum(x.n) * arNum(x.rate); }, 0); }
+  function arSum() {
+    var t = arTotal(), n = AR.ed.model.items.reduce(function (a, x) { return a + arNum(x.n); }, 0), sal = arNum(AR.ed.salary), basis = ($('arBasis') && $('arBasis').value) || AR.ed.model.basis;
+    $('arTot').textContent = arPeso(t); $('arTotN').textContent = n;
+    var h = '<b>' + esc(basis) + ':</b> ' + arPeso(t);
+    if (sal > 0) { var ex = t - sal; h += ex >= 0 ? '<br>Amount of work done in excess of salary: <b>' + arPeso(ex) + '</b><br>Work value exceeded salary by approximately <b>' + (ex / sal * 100).toFixed(2) + '%</b>' : '<br>Work value was approximately <b>' + (t / sal * 100).toFixed(2) + '%</b> of salary'; }
+    else h += '<br><span class="sub">Add your monthly salary in <button class="link" type="button" onclick="arSetOpen()">⚙ My report settings</button> to show the work value against salary. Only you and the admins see it.</span>';
+    $('arSum').innerHTML = h;
+  }
+  function arDirty() { if (AR.ed) AR.dirty = true; }
+  /** Fresh numbers from the PACS into the value table, the stat line and the count / hours lines (text the doctor typed elsewhere is left alone). */
+  function arRecount() {
+    var f = AR.ed.fresh, m = arCollect(), c = f.counts, changed = 0, byKey = {};
+    m.items.forEach(function (x) { if (x.key) byKey[x.key] = x; });
+    f.items.forEach(function (x) { var o = byKey[x.key]; if (o) { if (arNum(o.n) !== x.n) { o.n = x.n; changed++; } } else if (x.n) { m.items.push({ key: x.key, label: x.label, n: x.n, rate: x.rate }); changed++; } });
+    var st = m.statLine.replace(/\d+\s*$/, f.stat); if (st !== m.statLine) { m.statLine = st; changed++; }
+    var hrs = function (h) { return (h % 1 ? h.toFixed(1) : String(h)); };
+    m.rows.forEach(function (r) {
+      var a = r.accomplishment || '', b = a;
+      b = b.replace(/^((?:\d+[.)]\s*)?CT:\s*)\d+/m, '$1' + (c.CT + c.ER_CT)).replace(/^((?:\d+[.)]\s*)?Plain radiography:\s*)\d+/m, '$1' + (c.XR + c.ER_XR)).replace(/^((?:\d+[.)]\s*)?Ultrasound:\s*)\d+/m, '$1' + (c.US + c.ER_US));
+      f.sites.forEach(function (s) { b = b.replace(new RegExp('^((?:\\d+[.)]\\s*)?Plain radiography \\(' + s.code + '\\):\\s*)\\d+', 'm'), '$1' + s.n); });
+      var g = /^\s*ultrasound/i.test(r.activity || '') ? f.us : /Total studies released/i.test(a) ? f.read : null;
+      if (g && g.fromRoster) b = b.replace(/^(Hours served:\s*)[\d.]+/m, '$1' + hrs(g.hours));
+      if (b !== a) { r.accomplishment = b; changed++; }
+    });
+    arDraw(); AR.dirty = AR.dirty || !!changed;
+    $('arFresh').textContent = changed ? 'Updated from the PACS – press Save to put it in the document.' : 'The counts already match the PACS.';
+  }
+  function arCollect() {
+    var m = AR.ed.model, v = function (id) { return $(id) ? $(id).value : ''; };
+    m.name = v('arName'); m.position = v('arPos'); m.office = v('arOff'); m.hospital = v('arHosp'); m.period = v('arPer'); m.statLine = v('arStat'); m.basis = v('arBasis');
+    m.notes = v('arNotes'); m.prepared = { name: v('arPrepN'), title: v('arPrepT') }; m.noted = { name: v('arNotN'), title: v('arNotT') };
+    return m;
+  }
+  function arSave() {
+    var m = arCollect(), b = $('arSaveBtn'); b.disabled = true; setMsg('arEdMsg', 'Saving…', true);
+    run('arSave', token, AR.ed.id, m).then(function (r) {
+      b.disabled = false;
+      if (r.expired) return expired();
+      if (!r.ok) return setMsg('arEdMsg', r.msg);
+      AR.dirty = false; setMsg('arEdMsg', 'Saved to the Google Doc ✓', true);
+    }).catch(function (e) { b.disabled = false; setMsg('arEdMsg', 'Could not save: ' + ((e && e.message) || e)); });
+  }
+  function arRebuild() {
+    if (!window.confirm('Rebuild this report from the current PACS counts and duty roster? Everything typed into it (here or in Google Docs) is replaced. Earlier versions stay in the Doc\'s version history.')) return;
+    var id = AR.ed.id, month = AR.ed.month; setMsg('arEdMsg', 'Rebuilding…', true);
+    run('arGenerate', token, month, AR.ed.email, true).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) return setMsg('arEdMsg', r.msg);
+      AR.dirty = false; arEdit(r.id || id);
+    }).catch(function (e) { setMsg('arEdMsg', 'Could not rebuild: ' + ((e && e.message) || e)); });
+  }
+  function arCloseEd() { if (!arLeave()) return; AR.ed = null; AR.dirty = false; $('arEd').innerHTML = ''; }
+  /* private settings */
+  function arSetOpen() {
+    $('arOv').classList.remove('hidden'); $('arSetCard').innerHTML = '<p class="sub">Loading…</p>';
+    run('arSettings', token, AR.who).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('arSetCard').innerHTML = '<p class="sub err">' + esc(r.msg) + '</p><button class="btn alt" type="button" onclick="arSetClose()">Close</button>'; return; }
+      var s = r.settings, f = function (id, label, v, extra) { return '<label for="' + id + '" style="display:block;font-size:13px;margin:8px 0 2px">' + label + '</label><input id="' + id + '" value="' + esc(v == null ? '' : v) + '"' + (extra || '') + ' style="width:100%;margin:0">'; };
+      $('arSetCard').innerHTML = '<h3 style="margin:0 0 4px">⚙ My report settings</h3><p class="sub" style="margin:0">' + esc(r.email) + ' – used for every new report.</p>' +
+        f('arsFull', 'Name of employee (as printed at the top)', s.fullName) + f('arsPos', 'Position', s.position) +
+        f('arsSignN', 'Prepared by – name', s.signName) + f('arsSignT', 'Prepared by – title', s.signTitle) + f('arsSur', 'Surname for the file name', s.surname) +
+        f('arsSal', 'Monthly salary (₱)', s.salary, ' type="number" min="0" step="0.01" inputmode="decimal"') +
+        '<p class="sub" style="margin:4px 0 0">🔒 Private: only you and the portal admins can see the salary. It is used for the "work done in excess of salary" lines.</p>' +
+        '<div class="dctl" style="margin-top:12px"><button class="btn" type="button" id="arsBtn" onclick="arSetSave()" style="width:auto;margin:0">Save</button><button class="btn alt" type="button" onclick="arSetClose()" style="width:auto;margin:0">Cancel</button><span id="arsMsg" class="msg" style="margin:0"></span></div>';
+    }).catch(function (e) { $('arSetCard').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p><button class="btn alt" type="button" onclick="arSetClose()">Close</button>'; });
+  }
+  function arSetClose() { $('arOv').classList.add('hidden'); }
+  function arSetSave() {
+    var s = { fullName: $('arsFull').value, position: $('arsPos').value, signName: $('arsSignN').value, signTitle: $('arsSignT').value, surname: $('arsSur').value, salary: $('arsSal').value };
+    $('arsBtn').disabled = true;
+    run('arSaveSettings', token, s, AR.who).then(function (r) {
+      $('arsBtn').disabled = false;
+      if (r.expired) return expired();
+      if (!r.ok) return setMsg('arsMsg', r.msg);
+      if (AR.ed && AR.ed.email === (AR.who || AR.ed.email)) { AR.ed.salary = r.settings.salary; arSum(); }
+      arSetClose(); setMsg('arMsg', 'Report settings saved. New reports use them; for an open report, edit its fields or rebuild it.', true);
+    }).catch(function (e) { $('arsBtn').disabled = false; setMsg('arsMsg', 'Could not save: ' + ((e && e.message) || e)); });
   }
   function rrsOpen(force) {
     var rg = rrsRange(), key = rg.from + '|' + rg.to;
@@ -4323,15 +4536,15 @@
   /* ---------- page start: same login as the portal ---------- */
   function gate(text, showBtn) {
     $('gate').classList.remove('hidden'); $('gateMsg').textContent = text; $('gateBtn').style.display = showBtn ? '' : 'none';
-    ['vXrUp', 'vXrRead', 'vRpt', 'vTat', 'vRep'].forEach(function (id) { $(id).classList.add('hidden'); });
+    ['vXrUp', 'vXrRead', 'vRpt', 'vTat', 'vRep', 'vAr'].forEach(function (id) { $(id).classList.add('hidden'); });
   }
   function expired() { gate('Your session has ended. Log in again in the portal, then open the PACS.', true); }
   function schedView(v) {
     var rd = XR_ROLE.rad || XR_ROLE.admin;
-    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat' || v === 'rep') && !rd) v = 'xrup'; if (v === 'print') v = XR_ROLE.tech ? 'xrup' : 'xrread';
+    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat' || v === 'rep' || v === 'ar') && !rd) v = 'xrup'; if (v === 'print') v = XR_ROLE.tech ? 'xrup' : 'xrread';
     curView = v;
-    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep');
-    $('tabTat').classList.toggle('on', v === 'tat'); $('tabRep').classList.toggle('on', v === 'rep');
+    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep'); $('vAr').classList.toggle('hidden', v !== 'ar');
+    $('tabTat').classList.toggle('on', v === 'tat'); $('tabRep').classList.toggle('on', v === 'rep'); $('tabAr').classList.toggle('on', v === 'ar');
     $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt');
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
     if (v === 'xrup') {
@@ -4343,6 +4556,7 @@
     if (v === 'rpt') rptInit();
     if (v === 'tat') dashOpen();
     if (v === 'rep') rrsOpen();
+    if (v === 'ar') arOpen();
   }
   (function start() {
     token = getTok();
@@ -4359,6 +4573,7 @@
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabRep').classList.toggle('hidden', !((m.role.rad || m.role.admin) && m.repeat));
+      $('tabAr').classList.toggle('hidden', !!m.site || !(m.role.rad || m.role.admin));
       var want = ''; try { want = sessionStorage.getItem('pacs_tab') || ''; } catch (e) {}
       var hx = /^#xr=([A-Z0-9-]+)$/i.exec(location.hash || '');
       if (hx && (m.role.rad || m.role.admin)) { schedView('xrread'); xrOpenStudy(decodeURIComponent(hx[1])); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
@@ -4367,6 +4582,7 @@
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
   })();
 </script>
+<div id="arOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="My report settings" onclick="if (event.target === this) arSetClose()"><div class="rrcard" id="arSetCard"></div></div>
 <div id="rrOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="Request a repeat" onclick="if (event.target === this) rrClose()"><div class="rrcard" id="rrCard"></div></div>
 <div id="tplMgr" class="tplmgr hidden" role="dialog" aria-modal="true" aria-label="Report templates">
   <div class="tplbar"><b>📝 Report templates</b><div class="seg" id="tplMod" style="margin:0"><button type="button" data-v="X-ray" onclick="tplMod('X-ray')">X-ray</button><button type="button" data-v="Ultrasound" onclick="tplMod('Ultrasound')">Ultrasound</button><button type="button" data-v="CT" onclick="tplMod('CT')">CT</button></div>

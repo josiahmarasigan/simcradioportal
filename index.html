@@ -3305,7 +3305,7 @@
   var CFGE = { items: null };
   var CFG_GROUPS = [['App & login', /^(APP_|SUBTITLE|RESULTS_|SEARCH_|LOGO|ACCENT|DOCTOR_|SUPPORT|REGISTRATION|AUTO_APPROVE|MAINTENANCE|MIN_PASSWORD|SESSION_|BLOCK_IN_APP|EMAIL_|RESET_)/],
     ['Results folders & display', /^(FOLDER_|CACHE_|MAX_|FAST_DRIVE|RAD_FOLDERS)/], ['X-ray PACS & OPD limit', /^(PACS_|XR_|OPD_)/], ['TAT targets', /^TAT_/],
-    ['Ultrasound', /^US_/], ['CT', /^CT_/], ['Peer review', /^PEER_/], ['Reprints', /^REPRINT_/], ['Scheduling', /^(SCHEDULE|SCAN_)/], ['Button labels', /^TAB_/]];
+    ['Ultrasound', /^US_/], ['CT', /^CT_/], ['Peer review', /^PEER_/], ['Reprints', /^REPRINT_/], ['Accomplishment reports', /^AR_/], ['Scheduling', /^(SCHEDULE|SCAN_)/], ['Button labels', /^TAB_/]];
   function cfgGroup(k) { for (var i = 0; i < CFG_GROUPS.length; i++) if (CFG_GROUPS[i][1].test(k)) return CFG_GROUPS[i][0]; return 'Other'; }
   function cfgOpen() {
     $('cfgOpenBtn').classList.add('hidden'); $('cfgBox').classList.remove('hidden');
