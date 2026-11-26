@@ -329,6 +329,10 @@
   .inibox.late { border-color:#dc2626; background:color-mix(in srgb,#dc2626 9%,transparent); }
   .inibox.ok { border-color:#16a34a; background:color-mix(in srgb,#16a34a 9%,transparent); }
   .critbox { border:1.5px solid #dc2626; background:color-mix(in srgb,#dc2626 8%,transparent); border-radius:10px; padding:8px 10px; margin:4px 0 8px; font-size:13px; }
+  .usmup { border:1px dashed var(--line); border-radius:12px; padding:8px 10px; margin:10px 0; } .usmup .xrthumbs:empty { display:none; }
+  .usmclip { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0d1418; color:#e2e8f0; font-size:26px; text-align:center; }
+  .usmclip small { font-size:10px; line-height:1.2; padding:0 4px; word-break:break-all; color:#94a3b8; }
+  .usmpanel { margin:6px 0 10px; } .usmpanel .usmh { display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px; }
   .critlab span { font-weight:600; } .critbox input[type=time] { width:auto; flex:0 0 auto; }
   .inirow { display:flex; gap:6px; flex-wrap:wrap; align-items:center; } .inirow input { flex:2 1 200px; margin:0; } .inirow select { flex:1 1 140px; width:auto; margin:0; } .inirow .btn { width:auto; margin:0; }
   body.siteuser #upMode, body.siteuser #xrLocWrap { display:none !important; }
@@ -712,6 +716,14 @@
               <div><label>Priority</label><div class="seg" id="usPriBar" data-v="Routine"><button type="button" class="on" data-v="Routine" onclick="usSeg('usPriBar','Routine')">Routine</button><button type="button" data-v="Urgent" onclick="usSeg('usPriBar','Urgent')">Urgent</button><button type="button" data-v="STAT" onclick="usSeg('usPriBar','STAT')">STAT</button></div></div>
               <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="usAssign"></select></div>
             </div>
+            <div id="usmHome"><div id="usmUp" class="usmup hidden">
+              <label>🎞 Images &amp; clips <span class="hint" style="display:inline">(optional – JPG / PNG stills and MP4 / MOV clips from the ultrasound machine)</span></label>
+              <div class="xrcam"><label class="btn alt xrcambtn">📷 Take photo<input type="file" accept="image/*" capture="environment" class="hidden" onchange="usmAdd(this.files); this.value=''"></label>
+                <label class="btn alt xrcambtn">🖼 Choose images / clips<input type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.mp4,.mov,.m4v,.webm" multiple class="hidden" onchange="usmAdd(this.files); this.value=''"></label></div>
+              <div class="xrthumbs" id="usmThumbs"></div>
+              <label class="crit hidden" id="usmPrivWrap"><input type="checkbox" id="usmPriv"><span>🔒 I checked every image and clip: no patient name or ID can be read. Tap an image to blur a name; export clips without the name bar.</span></label>
+              <div id="usmMsg" class="msg"></div>
+            </div></div>
             <div class="xrbtns"><button class="btn" id="usBtn" onclick="usGo()">Make the report draft</button></div>
             <button class="link" type="button" style="margin-top:6px" onclick="usClear()">Clear form</button>
             <div id="usMsg" class="msg"></div>
@@ -1166,7 +1178,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 47;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 48;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1412,12 +1424,13 @@
 
   /* ---- crop / rotate a photo before upload ---- */
   var XE = null;
-  function xrEdit(i) {
-    var x = XR_FILES[i]; if (!x || !x.blob) return;
+  function xrEdit(i, list, redraw) {
+    list = list || XR_FILES;
+    var x = list[i]; if (!x || !x.blob) return;
     if (x.state === 'done') return setMsg('xrMsg', 'This photo is already uploaded.');
     $('xrEd').classList.remove('hidden');
     xrLoadBitmap(x.src).then(function (bm) {
-      XE = { i: i, src: bm, rot: x.rot || 0, sel: null, hist: [], blurs: (x.blurs || []).slice(), mode: 'crop' };
+      XE = { i: i, src: bm, rot: x.rot || 0, sel: null, hist: [], blurs: (x.blurs || []).slice(), mode: 'crop', list: list, redraw: redraw || null };
       $('xeBlurBtn').classList.remove('on');
       $('xeHint').textContent = (x.blurs || []).length ? 'Blurred areas are shown pixelated – tap ▦ Blur to add or remove' : 'Drag over the X-ray to select the part to keep · ▦ Blur hides a name (drag over it)';
       xeFit();
@@ -1468,16 +1481,16 @@
   function xeUndo() { var h = XE.hist.pop(); if (h) { XE.rot = h.rot; if (h.blurs) XE.blurs = h.blurs; } XE.sel = null; xeFit(); }
   function xeCancel() { $('xrEd').classList.add('hidden'); XE = null; }
   function xeDone() {
-    var x = XR_FILES[XE.i], crop = null;
+    var x = (XE.list || XR_FILES)[XE.i], crop = null, xr = !XE.redraw, redraw = XE.redraw || xrDrawFiles;
     if (XE.sel && XE.mode !== 'blur') {
       var q = XE.sel, cx = Math.max(0, (q.x - XE.ox) / XE.k), cy = Math.max(0, (q.y - XE.oy) / XE.k);
       crop = { x: cx, y: cy, w: Math.min(XE.rw - cx, q.w / XE.k), h: Math.min(XE.rh - cy, q.h / XE.k) };
       if (crop.w < 10 || crop.h < 10) crop = null;
     }
     var e = XE; $('xrEd').classList.add('hidden'); XE = null;
-    x.state = 'proc'; xrDrawFiles();
-    x.blurs = e.blurs; if (x.ocr === 0 || x.ocr === 'err') x.ocr = 'seen'; privReset();
-    xrRender(e.src, e.rot, crop, x.gray, e.blurs).then(function (b) { URL.revokeObjectURL(x.url); x.blob = b; x.url = URL.createObjectURL(b); x.rot = e.rot; x.state = ''; xrDrawFiles(); xdbPut(x); });
+    x.state = 'proc'; redraw();
+    x.blurs = e.blurs; if (x.ocr === 0 || x.ocr === 'err') x.ocr = 'seen'; if (xr) privReset();
+    xrRender(e.src, e.rot, crop, x.gray, e.blurs).then(function (b) { URL.revokeObjectURL(x.url); x.blob = b; x.url = URL.createObjectURL(b); x.rot = e.rot; x.state = ''; redraw(); if (xr) xdbPut(x); });
   }
   function xrDropFile(i) {
     var x = XR_FILES[i];
@@ -4147,6 +4160,8 @@
     if ($('rptDest')) $('rptDest').value = r.modality;
     var h = '';
     if (r.header && r.header.length) h += '<table class="rpthdr">' + r.header.map(function (row) { return '<tr>' + row.map(function (c, i) { return '<td' + (/:\s*$|^(id no|name|age|sex|address|exam|requesting|indication|date|patient location|civil)/i.test(c) ? ' class="k"' : '') + '>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+    var usm = usmOn() && (r.modality === 'Ultrasound' || /ultrasound|sonograph/i.test(r.name || ''));
+    if (usm) h += '<div class="usmpanel"><div class="usmh">🎞 Images &amp; clips' + (r.final ? '' : ' <button class="link" type="button" onclick="usmAddOpen(RPT.cur.id, RPT.cur.name)">＋ Add</button>') + '</div><div id="rptMedia"></div></div>';
     if (XR_META.repeat) h += ctRepeatHtml(r);
     h += rptInitHtml(r);
     if (!r.parsed) {
@@ -4167,6 +4182,7 @@
     } else h += '<div class="xrbtns"><button class="btn alt" onclick="rptPreview()">📄 View report</button></div>' + (r.final ? '' : '<p class="sub">Only the assigned radiologist can edit and finalize this report.</p>');
     h += '<div class="msg" id="rptMsg"></div>';
     $('rptBody').innerHTML = h;
+    if ($('rptMedia')) rptMediaLoad(r);
     r.rich = r.findingsRich !== undefined;   // older server: plain lines only
     if (r.parsed) {
       rteInit('rptF', { plain: !r.rich }); rteInit('rptI', { plain: !r.rich });
@@ -4444,10 +4460,126 @@
       $('usDob').max = ymdLocal(new Date());
       $('usDob').onchange = function () { $('usAge').disabled = !!this.value; };
     }
+    $('usmUp').classList.toggle('hidden', !usmOn());
     var u2 = (XR_META && XR_META.us) || {}, duty = u2.onDuty, keep = $('usAssign').value;
     $('usAssign').innerHTML = (duty ? '<option value="">On duty for ultrasound: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for ultrasound: choose —</option>') +
       (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
     $('usAssign').value = keep;
+  }
+  /* ---------- 🎞 ultrasound images & clips: pick, blur stills, upload (stills one request each, clips in 4 MB pieces) ---------- */
+  var US_FILES = [], USM_JS = null, USM_ADD = null;   // USM_ADD = { id, name } when adding to an existing report (modal)
+  function usmOn() { return !!(XR_META && XR_META.us && XR_META.us.media); }
+  function usmLoad() {
+    if (window.USM) return Promise.resolve(window.USM);
+    if (!USM_JS) USM_JS = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = 'usmedia.js?v=' + PACS_VER; s.onload = function () { res(window.USM); }; s.onerror = function () { USM_JS = null; rej(new Error('Could not load the image viewer.')); }; document.head.appendChild(s); });
+    return USM_JS;
+  }
+  function usmMime(f) {
+    var t = (f.type || '').toLowerCase(), n = (f.name || '').toLowerCase();
+    if (/^image\/(jpeg|png|webp)$/.test(t) || /\.(jpe?g|png|webp)$/.test(n)) return 'image';
+    if (/^video\/(mp4|quicktime|webm|x-m4v)$/.test(t)) return t;
+    if (/\.mp4$/.test(n)) return 'video/mp4'; if (/\.mov$/.test(n)) return 'video/quicktime'; if (/\.webm$/.test(n)) return 'video/webm'; if (/\.m4v$/.test(n)) return 'video/x-m4v';
+    return '';
+  }
+  function usmAdd(list) {
+    var maxMb = (XR_META.us.media.maxClipMb || 50), skipped = [];
+    Array.prototype.forEach.call(list || [], function (f) {
+      var k = usmMime(f);
+      if (!k) { skipped.push(f.name + ' (JPG / PNG / MP4 / MOV only)'); return; }
+      if (k !== 'image' && f.size > maxMb * 1048576) { skipped.push(f.name + ' (clip over ' + maxMb + ' MB)'); return; }
+      if (k === 'image' && f.size > 40 * 1048576) { skipped.push(f.name + ' (too large)'); return; }
+      var x = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 6), src: f, clip: k !== 'image', mime: k === 'image' ? 'image/jpeg' : k, size: f.size, blob: null, url: '', state: k === 'image' ? 'proc' : '', blurs: [], gray: false };
+      US_FILES.push(x);
+      if (!x.clip) xrLoadBitmap(f).then(function (bm) { return xrRender(bm, 0, null, false, []); }).then(function (b) { x.blob = b; x.url = URL.createObjectURL(b); x.state = ''; usmDraw(); })
+        .catch(function (e) { US_FILES.splice(US_FILES.indexOf(x), 1); setMsg('usmMsg', f.name + ': ' + ((e && e.message) || 'could not be opened')); usmDraw(); });
+    });
+    $('usmPriv').checked = false; usmDraw();
+    if (skipped.length) setMsg('usmMsg', 'Skipped: ' + skipped.join(', ')); else setMsg('usmMsg', '');
+  }
+  function usmDraw() {
+    var mb = function (n) { return (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + ' MB'; };
+    $('usmThumbs').innerHTML = US_FILES.map(function (x, i) {
+      if (x.state === 'proc') return '<div class="xrth"><span class="st">Preparing…</span></div>';
+      var st = x.state === 'up' ? '<span class="st">' + (x.pct != null ? x.pct + '%' : 'Uploading…') + '</span>' : x.state === 'done' ? '<span class="st">✓</span>' : x.state === 'err' ? '<span class="st">Failed</span>' : (x.clip ? '' : blurStatus(x));
+      return '<div class="xrth ' + (x.state || '') + '">' + (x.clip ? '<div class="usmclip">🎞<small>' + esc(x.src.name) + '<br>' + mb(x.size) + '</small></div>' : '<img src="' + x.url + '" alt="" ' + (USM_BUSY ? '' : 'onclick="usmEdit(' + i + ')" title="Crop / rotate / blur"') + '>') +
+        '<span class="n">' + (i + 1) + '</span>' + (USM_BUSY ? '' : '<button type="button" class="x" onclick="usmDrop(' + i + ')" aria-label="Remove">×</button>') + st + '</div>';
+    }).join('');
+    $('usmPrivWrap').classList.toggle('hidden', !US_FILES.length);
+  }
+  function usmEdit(i) { if (US_FILES[i] && !US_FILES[i].clip && US_FILES[i].state !== 'done') xrEdit(i, US_FILES, function () { $('usmPriv').checked = false; usmDraw(); }); }
+  function usmDrop(i) { var x = US_FILES[i]; if (x.url) URL.revokeObjectURL(x.url); US_FILES.splice(i, 1); usmDraw(); }
+  function usmClear() { US_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); US_FILES = []; $('usmPriv').checked = false; usmDraw(); setMsg('usmMsg', ''); }
+  /** Checks before the upload: '' or the message. */
+  function usmCheck() {
+    if (!US_FILES.length) return '';
+    if (US_FILES.some(function (x) { return x.state === 'proc'; })) return 'Wait until the images are ready.';
+    if (!$('usmPriv').checked) return 'Tick 🔒 after checking that no patient name or ID can be read on the images and clips.';
+    return '';
+  }
+  function usmB64(blob) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result).split(',')[1] || ''); }; r.onerror = function () { rej(new Error('Could not read the file.')); }; r.readAsDataURL(blob); }); }
+  var USM_BUSY = false;
+  /** Uploads every waiting file to the report; resolves { ok, fail }. */
+  function usmUpload(rid) {
+    var todo = US_FILES.filter(function (x) { return x.state !== 'done'; }), ok = 0, fail = 0;
+    if (!todo.length) return Promise.resolve({ ok: 0, fail: 0 });
+    USM_BUSY = true; usmDraw();
+    var one = function (x) {
+      x.state = 'up'; x.pct = 0; usmDraw();
+      var p = x.clip ? usmClip(rid, x) : usmB64(x.blob).then(function (b) { return run('usmPut', token, rid, 'image/jpeg', b); }).then(function (r) { if (r.expired) { expired(); throw new Error('Session ended'); } if (!r.ok) throw new Error(r.msg); });
+      return p.then(function () { x.state = 'done'; ok++; usmDraw(); }, function (e) { x.state = 'err'; fail++; usmDraw(); setMsg('usmMsg', (x.src.name || 'File') + ': ' + ((e && e.message) || e)); });
+    };
+    return todo.reduce(function (p, x) { return p.then(function () { return one(x); }); }, Promise.resolve()).then(function () { USM_BUSY = false; usmDraw(); return { ok: ok, fail: fail }; });
+  }
+  function usmClip(rid, x) {
+    var PIECE = 4 * 1048576, total = x.src.size, sess = '', tries = 0, restarts = 0;
+    var step = function (off) {
+      return usmB64(x.src.slice(off, Math.min(total, off + PIECE))).then(function (b) { return run('usmChunk', token, rid, x.mime, off, total, b, sess); }).then(function (r) {
+        if (r.expired) { expired(); throw new Error('Session ended'); }
+        if (!r.ok) {
+          if (r.restart && restarts++ < 2) { sess = ''; return step(0); }
+          if (r.retry && tries++ < 3) return step(off);
+          throw new Error(r.msg || 'Upload failed');
+        }
+        tries = 0;
+        if (r.done) { x.pct = 100; return; }
+        if (r.sess) sess = r.sess;
+        x.pct = Math.round((r.next || 0) / total * 100); usmDraw();
+        return step(r.next || off + PIECE);
+      });
+    };
+    return step(0);
+  }
+  /* add images to an existing ultrasound report (tech list or radiologist editor) */
+  function usmAddOpen(id, name) {
+    if (!usmOn()) return;
+    USM_ADD = { id: id, name: name || '' };
+    $('usmOvT').textContent = name || 'Ultrasound study';
+    $('usmOvSlot').appendChild($('usmUp')); $('usmUp').classList.remove('hidden'); usmClear();
+    $('usmOv').classList.remove('hidden');
+    usmLoad().then(function (U) { U.strip($('usmOvStrip'), id, { canRemove: true }); }).catch(function (e) { $('usmOvStrip').innerHTML = '<p class="sub err">' + esc(e.message) + '</p>'; });
+  }
+  function usmAddClose() {
+    if (USM_BUSY) return;
+    if (US_FILES.some(function (x) { return x.state !== 'done'; }) && !window.confirm('Close without uploading the chosen files?')) return;
+    $('usmOv').classList.add('hidden'); $('usmHome').appendChild($('usmUp')); usmClear();
+    var rid = USM_ADD && USM_ADD.id; USM_ADD = null;
+    if (RPT.cur && RPT.cur.id === rid && $('rptMedia')) usmLoad().then(function (U) { U.strip($('rptMedia'), rid, { canRemove: true }); });
+  }
+  function usmAddGo() {
+    var e = usmCheck(); if (e) return setMsg('usmMsg', e);
+    if (!US_FILES.length) return setMsg('usmMsg', 'Choose images or clips first.');
+    var b = $('usmOvGo'); b.disabled = true; b.textContent = 'Uploading…';
+    usmUpload(USM_ADD.id).then(function (r) {
+      b.disabled = false; b.textContent = '⬆ Upload';
+      setMsg('usmMsg', r.ok + ' file' + (r.ok === 1 ? '' : 's') + ' uploaded' + (r.fail ? ', ' + r.fail + ' failed – tap Upload to retry' : '.'), !r.fail);
+      if (!r.fail) { usmClear(); setMsg('usmMsg', r.ok + ' file' + (r.ok === 1 ? '' : 's') + ' uploaded.', true); }
+      usmLoad().then(function (U) { U.strip($('usmOvStrip'), USM_ADD.id, { canRemove: true }); });
+    });
+  }
+  /** radiologist's US editor: the strip under the patient table */
+  function rptMediaLoad(r) {
+    var el = $('rptMedia'); if (!el) return;
+    usmLoad().then(function (U) { U.strip(el, r.id, { canRemove: r.canEdit }); }).catch(function (e) { el.innerHTML = '<p class="sub err">' + esc(e.message) + '</p>'; });
   }
   function usPlace(where) { var f = $('upUs'); if (where === 'rpt') { $('rptNewUs').appendChild(f); } else $('upUsHome').appendChild(f); }
   function rptNewUs() {
@@ -4468,12 +4600,21 @@
     if (!f.exam) return setMsg('usMsg', 'Enter the ultrasound exam.');
     if (!f.indication) return setMsg('usMsg', 'Enter the indication – it goes on the report.');
     if (!f.assignTo && !(XR_META.us && XR_META.us.onDuty)) return setMsg('usMsg', 'Nobody is on duty for ultrasound – choose the radiologist.');
+    { var me = usmCheck(); if (me) return setMsg('usMsg', me); }
     b.disabled = true; b.textContent = 'Making the draft…'; setMsg('usMsg', '');
     run('usdCreate', token, f).then(function (r) {
       b.disabled = false; b.textContent = 'Make the report draft';
       if (r.expired) return expired();
       setMsg('usMsg', r.msg, r.ok);
-      if (r.ok) { usClear(true); usLoadList(); if (curView === 'xrread') wkLoad(true); }
+      if (r.ok && US_FILES.length && r.reportId) {
+        b.disabled = true; b.textContent = 'Uploading images…';
+        return usmUpload(r.reportId).then(function (u) {
+          b.disabled = false; b.textContent = 'Make the report draft';
+          setMsg('usMsg', r.msg + ' ' + u.ok + ' image' + (u.ok === 1 ? '' : 's') + '/clip' + (u.ok === 1 ? '' : 's') + ' uploaded' + (u.fail ? ' – ' + u.fail + ' failed: add them again from the list below (🎞 Images).' : '.'), !u.fail);
+          usClear(true); usmClear(); usLoadList(); if (curView === 'xrread') wkLoad(true);
+        });
+      }
+      if (r.ok) { usClear(true); usmClear(); usLoadList(); if (curView === 'xrread') wkLoad(true); }
     }).catch(function (e) { b.disabled = false; b.textContent = 'Make the report draft'; setMsg('usMsg', 'Could not make the draft: ' + ((e && e.message) || e)); });
   }
   function usClear(keepMsg) {
@@ -4488,7 +4629,7 @@
       if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
       if (!r.items.length) { list.innerHTML = '<p class="sub">No ultrasound drafts made here yet.</p>'; return; }
       list.innerHTML = r.items.map(function (o) {
-        return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b><div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
+        return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b>' + (usmOn() ? ' <button class="link" type="button" onclick="usmAddOpen(\'' + esc(o.id) + '\', \'' + esc(o.name).replace(/'/g, '') + '\')">🎞 Images</button>' : '') + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
           tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location, initialAt: o.initialAt }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
       }).join('');
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -4677,6 +4818,11 @@
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
   })();
 </script>
+<div id="usmOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="Ultrasound images and clips"><div class="rrcard" style="max-width:720px">
+  <h3 style="margin:0 0 2px">🎞 Images &amp; clips</h3><p class="sub" id="usmOvT" style="margin:0 0 8px"></p>
+  <div id="usmOvStrip"></div><div id="usmOvSlot"></div>
+  <div class="dctl" style="margin-top:10px"><button class="btn" type="button" id="usmOvGo" onclick="usmAddGo()" style="width:auto;margin:0">⬆ Upload</button><button class="btn alt" type="button" onclick="usmAddClose()" style="width:auto;margin:0">Close</button></div>
+</div></div>
 <div id="arOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="My report settings" onclick="if (event.target === this) arSetClose()"><div class="rrcard" id="arSetCard"></div></div>
 <div id="rrOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="Request a repeat" onclick="if (event.target === this) rrClose()"><div class="rrcard" id="rrCard"></div></div>
 <div id="tplMgr" class="tplmgr hidden" role="dialog" aria-modal="true" aria-label="Report templates">

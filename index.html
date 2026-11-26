@@ -931,7 +931,7 @@
 
 <div id="viewer">
   <div class="box">
-    <div class="bar"><b id="vTitle"></b><span><button class="link hidden" id="vImgs" onclick="var a=CUR_IMG;closeViewer();openImages(a)">🖼 Images</button><button class="link hidden" id="vPrint" onclick="printFile()">🖨 Print</button><a id="dl" class="link hidden" download>Download</a><button class="link" onclick="closeViewer()">Close ✕</button></span></div>
+    <div class="bar"><b id="vTitle"></b><span><button class="link hidden" id="vImgs" onclick="var a=CUR_IMG;closeViewer();openImages(a)">🖼 Images</button><button class="link hidden" id="vUsm" onclick="usmOpenFor()">🎞 Images &amp; clips</button><button class="link hidden" id="vPrint" onclick="printFile()">🖨 Print</button><a id="dl" class="link hidden" download>Download</a><button class="link" onclick="closeViewer()">Close ✕</button></span></div>
     <div class="body" id="vBody"></div>
   </div>
 </div>
@@ -3362,7 +3362,7 @@
   var CFGE = { items: null };
   var CFG_GROUPS = [['App & login', /^(APP_|SUBTITLE|RESULTS_|SEARCH_|LOGO|ACCENT|DOCTOR_|SUPPORT|REGISTRATION|AUTO_APPROVE|MAINTENANCE|MIN_PASSWORD|SESSION_|BLOCK_IN_APP|EMAIL_|RESET_)/],
     ['Results folders & display', /^(FOLDER_|CACHE_|MAX_|FAST_DRIVE|RAD_FOLDERS)/], ['X-ray PACS & OPD limit', /^(PACS_|XR_|OPD_)/], ['TAT targets', /^TAT_/],
-    ['Ultrasound', /^US_/], ['CT', /^CT_/], ['Peer review', /^PEER_/], ['Reprints', /^REPRINT_/], ['Accomplishment reports', /^AR_/], ['Scheduling', /^(SCHEDULE|SCAN_)/], ['Button labels', /^TAB_/]];
+    ['Ultrasound', /^US_/], ['CT', /^CT_/], ['Peer review', /^PEER_/], ['Reprints', /^REPRINT_/], ['Accomplishment reports', /^AR_/], ['Critical findings', /^CRITICAL_/], ['Scheduling', /^(SCHEDULE|SCAN_)/], ['Button labels', /^TAB_/]];
   function cfgGroup(k) { for (var i = 0; i < CFG_GROUPS.length; i++) if (CFG_GROUPS[i][1].test(k)) return CFG_GROUPS[i][0]; return 'Other'; }
   function cfgOpen() {
     $('cfgOpenBtn').classList.add('hidden'); $('cfgBox').classList.remove('hidden');
@@ -4394,7 +4394,10 @@
   }
   function openFile(f, opt) {   // opt.fn = server function to fetch with (default getResult)
     $('vTitle').textContent = f.name;
-    $('vImgs').classList.add('hidden'); CUR_IMG = '';
+    $('vImgs').classList.add('hidden'); CUR_IMG = ''; $('vUsm').classList.add('hidden'); CUR_USM = null;
+    if (!(opt && opt.fn) && /ultrasound|sonograph|\bUS\b/i.test(f.name || '') && CONF.usMedia) {   // an ultrasound result: has it images / clips? (checked in the background)
+      run('usmList', token, f.id).then(function (r) { if (r && r.ok && r.items && r.items.length && $('vTitle').textContent === f.name) { CUR_USM = { id: f.id, items: r.items }; $('vUsm').textContent = '🎞 Images & clips (' + r.items.length + ')'; $('vUsm').classList.remove('hidden'); } }).catch(function () {});
+    }
     if (!(opt && opt.fn) && /\bXRAY\b/i.test(f.name || '') && CONF.pacs && CONF.pacs.enabled) {   // an X-ray result: are its images in the PACS? (checked in the background)
       run('imgForResult', token, f.id).then(function (r) { if (r && r.ok && r.acc && $('vTitle').textContent === f.name) { CUR_IMG = r.acc; $('vImgs').classList.remove('hidden'); } }).catch(function () {});
     }
@@ -4465,6 +4468,13 @@
     if (!e.target.closest || !e.target.closest('#dl') || !CUR_DL) return;
     run('logDownload', token, CUR_DL.kind, CUR_DL.ref).catch(function () {});   // record it; the download itself is not held up
   });
+  /** 🎞 ultrasound images & clips of the open result (viewer in usmedia.js, downloaded the first time) */
+  var CUR_USM = null, USM_JS = null;
+  function usmOpenFor() {
+    var c = CUR_USM; if (!c) return;
+    if (!USM_JS) USM_JS = new Promise(function (res, rej) { var s = document.createElement('script'), base = location.pathname.replace(/[^\/]*$/, ''); s.src = base + 'usmedia.js'; s.onload = function () { res(); }; s.onerror = function () { USM_JS = null; rej(); }; document.head.appendChild(s); });
+    USM_JS.then(function () { window.USM.open(c.id, c.items, 0); }).catch(function () { alert('Could not load the image viewer – check the connection.'); });
+  }
   function closeViewer() {
     CUR_DL = null; CUR_FILE = null; $('vPrint').classList.add('hidden');
     $('dl').classList.add('hidden');
