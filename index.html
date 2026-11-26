@@ -337,6 +337,7 @@
   .cc { font-size:11px; color:var(--muted); text-align:right; margin-top:2px; min-height:13px; }
   .cc.near { color:#d97706; font-weight:600; }
   textarea.fnn, textarea.fmm, textarea.adt { resize:vertical; }
+  .rqhead { margin:16px 0 4px; font-weight:700; font-size:14px; }
 </style>
 </head>
 <body>
@@ -573,8 +574,9 @@
           <div><label>Ward *</label><select id="rpWardSel"></select><input type="text" id="rpWardTxt" maxlength="60" placeholder="e.g. Ward 3B" class="hidden"></div>
           <div><label>Copies *</label><select id="rpCopies"></select></div>
           <div><label>Reason *</label><select id="rpReason"></select></div>
-          <div><label>Urgency</label><select id="rpUrg"><option>Routine</option><option>Urgent</option></select></div>
+          <div><label>Urgency</label><select id="rpUrg" onchange="rpBatchInfo()"><option>Routine</option><option>Urgent</option></select></div>
         </div>
+        <div id="rpBatch" class="sched hidden"></div>
         <label>Notes (optional)</label>
         <textarea id="rpNotes" rows="2" maxlength="300" placeholder="e.g. needed for discharge today"></textarea>
         <button class="btn" id="rpBtn" onclick="submitRp()">Request reprint</button>
@@ -1016,8 +1018,8 @@
     try { schedInit(); } catch (e) { console.error(e); }
     try { applyLabels(); } catch (e) { console.error(e); }
     try { tabsInit(); } catch (e) { console.error(e); }
-    var pn = CONF.print && CONF.print.note ? '🖨 ' + CONF.print.note : '';
-    $('tabPolicy').textContent = pn; $('rpPolicy').textContent = pn; $('rpPolicy').classList.toggle('hidden', !pn);
+    var pn = CONF.reprint && CONF.reprint.note ? '🖨 ' + CONF.reprint.note : '';
+    $('rpPolicy').textContent = pn; $('rpPolicy').classList.toggle('hidden', !pn);
     if (TAB === 'viewer') setTimeout(function () { $('q').focus(); }, 50);
   }
 
@@ -1254,7 +1256,7 @@
       if (tOn && IS_ADMIN) setDtBadge(bd.dt || 0);
       if (r.ctQueue) { $('stCtQ').classList.remove('hidden'); setCtBadge(bd.ctr || 0); }
       if (CONF.pacs && CONF.pacs.enabled && r.xr) { $('stPacs').classList.toggle('hidden', !(r.xr.tech || r.xr.rad)); if (r.xr.rad) xrSetBadge(bd.xr || 0); }
-      try { tabsRefresh(); prnShow(r.printNotice); } catch (e) { console.error(e); }
+      try { tabsRefresh(); } catch (e) { console.error(e); }
     }).catch(function () {});
   }
 
@@ -1720,7 +1722,27 @@
     var h = ''; for (var i = 1; i <= (c.maxCopies || 1); i++) h += '<option>' + i + '</option>';
     $('rpCopies').innerHTML = h;
     RP_SEL = null; $('rpSel').classList.add('hidden'); $('rpPick').classList.remove('hidden'); $('rpQ').value = '';
-    setMsg('rpMsg', '');
+    setMsg('rpMsg', ''); rpBatchInfo();
+  }
+  /** Which batch a request made now goes to – the same rule as the server (urgent: as soon as possible). */
+  function rpNextBatch(urgent) {
+    var c = rpConf(), b = (c.batches || []).slice().sort(), cut = (c.cutoff == null ? 30 : c.cutoff) * 60000, now = Date.now();
+    if (urgent || !b.length) return 'as soon as possible';
+    for (var k = 0; k < 3; k++) {
+      var d = new Date(); d.setDate(d.getDate() + k);
+      for (var i = 0; i < b.length; i++) {
+        var p = b[i].split(':'), t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), +p[0], +p[1]).getTime();
+        if (t - now >= cut) { var h = +p[0], tm = ((h % 12) || 12) + ':' + p[1] + (h < 12 ? ' AM' : ' PM'); return k === 0 ? 'today’s ' + tm + ' batch' : k === 1 ? 'tomorrow’s ' + tm + ' batch' : 'the ' + tm + ' batch on ' + d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); }
+      }
+    }
+    return 'as soon as possible';
+  }
+  function rpBatchInfo() {
+    var el = $('rpBatch'); if (!el) return;
+    var c = rpConf(); if (!(c.batches || []).length) { el.classList.add('hidden'); return; }
+    var urgent = $('rpUrg').value === 'Urgent';
+    el.innerHTML = urgent ? '⚡ <b>Urgent:</b> printed as soon as possible.' : '🖨 This reprint will be printed in <b>' + esc(rpNextBatch(false)) + '</b>.';
+    el.classList.remove('hidden');
   }
 
   // ---- pick an existing result ----
@@ -1772,7 +1794,7 @@
       setMsg('rpMsg', r.msg, r.ok);
       if (r.ok) {
         RP_SEL = null; $('rpSel').classList.add('hidden'); $('rpPick').classList.remove('hidden');
-        $('rpNotes').value = ''; $('rpUrg').selectedIndex = 0; $('rpCopies').selectedIndex = 0;   // ward is kept for the next request
+        $('rpNotes').value = ''; $('rpUrg').selectedIndex = 0; $('rpCopies').selectedIndex = 0; rpBatchInfo();   // ward is kept for the next request
         loadRpMine(true); if (IS_ADMIN) loadRpQueue(true);
       }
     }).catch(function () { b.disabled = false; setMsg('rpMsg', 'Something went wrong. Please try again.'); });
@@ -1816,6 +1838,7 @@
           '<div class="d">' + esc(it.type) + ' · ' + esc(it.ward) + ' · ' + rpCopies(it.copies) + ' · ' + esc(it.reason) +
             (it.urgency === 'Urgent' ? ' · <b style="color:var(--err)">Urgent</b>' : '') + '</div>' +
           '<div class="d">Requested ' + esc(rpWhen(it.submitted)) + ' · Ref ' + esc(it.id) + '</div>' +
+          (it.status === 'Requested' && it.batchLabel ? '<div class="sched">🖨 ' + (it.batch === 'ASAP' ? 'Urgent – printed as soon as possible' : 'To be printed in ' + esc(it.batchPhrase || it.batchLabel)) + '</div>' : '') +
           (it.status === 'Reprinted' ? '<div class="sched">🖨 Reprinted' + (it.printed ? ' ' + esc(rpWhen(it.printed)) : '') + ' — ready for pickup</div>' +
             '<div class="d">' + esc(r.pickup || '') + '</div>' : '') +
           (it.status === 'Claimed' && it.claimed ? '<div class="d">Received ' + esc(rpWhen(it.claimed)) + '</div>' : '') +
@@ -1846,7 +1869,20 @@
       if (quiet === true || seq !== RQSEQ) return;
       list.innerHTML = '';
       if (!r.items.length) { list.innerHTML = '<p class="sub" style="margin-top:12px">Nothing here.</p>'; return; }
-      r.items.forEach(function (it) { list.appendChild(rpQueueCard(it)); });
+      var last = null, grouped = $('rqFilter').value === 'Open';
+      r.items.forEach(function (it) {
+        if (grouped) {   // To reprint: one heading per batch (urgent first)
+          var g = it.urgency === 'Urgent' || it.batch === 'ASAP' ? 'ASAP' : (it.batch || 'none');
+          if (g !== last) {
+            last = g;
+            var n = r.items.filter(function (x) { return (x.urgency === 'Urgent' || x.batch === 'ASAP' ? 'ASAP' : (x.batch || 'none')) === g; }).length;
+            var h = document.createElement('div'); h.className = 'rqhead';
+            h.textContent = (g === 'ASAP' ? '⚡ Urgent – print now' : g === 'none' ? 'Older requests (no batch)' : '🖨 ' + it.batchLabel.charAt(0).toUpperCase() + it.batchLabel.slice(1) + ' batch') + ' · ' + n;
+            list.appendChild(h);
+          }
+        }
+        list.appendChild(rpQueueCard(it));
+      });
     }).catch(function (e) { if (quiet !== true) list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
 
@@ -1859,6 +1895,7 @@
       '<div class="d">' + esc(it.type) + ' · <b style="color:var(--ink)">' + esc(it.ward) + '</b> · ' + rpCopies(it.copies) + ' · ' + esc(it.reason) + '</div>' +
       '<div class="d">Ref ' + esc(it.id) + ' · requested ' + esc(rpWhen(it.submitted)) + ' by ' + esc(it.rname) + ' (' + esc(it.email) + ')</div>' +
       (it.notes ? '<div class="d">Notes: ' + esc(it.notes) + '</div>' : '') +
+      (it.status === 'Requested' && it.batchLabel && it.batch !== 'ASAP' ? '<div class="d">Batch: <b style="color:var(--ink)">' + esc(it.batchLabel) + '</b></div>' : '') +
       (it.printed ? '<div class="d">Reprinted ' + esc(rpWhen(it.printed)) + '</div>' : '') +
       (it.notified ? '<div class="d">Requester emailed ' + esc(rpWhen(it.notified)) + '</div>' : '') +
       (it.claimed ? '<div class="d">Received ' + esc(rpWhen(it.claimed)) + '</div>' : '') +
@@ -3149,24 +3186,10 @@
       var name = VIEWS.filter(function (n) { return n.toLowerCase() === curView; })[0], chip = name && $('st' + name), g = chip && chip.closest('.tgroup');
       if (g && groups.indexOf(g.getAttribute('data-g')) === -1) schedView(curView);
     }
-    $('tabPolicy').classList.toggle('hidden', !(t === 'requests' && CONF.print && CONF.print.note));
     if (t === 'dash') dashOpen();
     if (t === 'admin' && IS_ADMIN) $('cfgCard').classList.remove('hidden');
     try { layoutWide(); } catch (e) {}
     if (changed && !quiet) window.scrollTo(0, 0);
-  }
-
-  /* ---- 🖨 1 PM print-release notice (radiologists; from the startup info) ---- */
-  function prnShow(n) {
-    var b = $('prNotice');
-    if (!n || !n.n) { b.classList.add('hidden'); return; }
-    var d = new Date(), k = 'prn_' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + n.batch;
-    try { if (localStorage.getItem(k)) return; } catch (e) {}
-    var parts = []; if (n.xr) parts.push(n.xr + ' X-ray'); if (n.us) parts.push(n.us + ' ultrasound'); if (n.ct) parts.push(n.ct + ' CT');
-    b.innerHTML = '🖨 <span><b>Print release request:</b> ' + esc(parts.join(', ')) + ' of yours ' + (n.n === 1 ? 'is' : 'are') + ' due for the <b>' + esc(n.batchLabel) + '</b> print batch and not finalized yet.</span>' +
-      ($('stPacs').classList.contains('hidden') ? '' : '<button class="link" type="button" onclick="openPacs()">Open PACS</button>') + '<button class="link" type="button" id="prnX">Dismiss</button>';
-    b.classList.remove('hidden');
-    $('prnX').onclick = function () { try { localStorage.setItem(k, '1'); } catch (e) {} b.classList.add('hidden'); };
   }
 
   /* ---- 📊 TAT dashboard (radiologists & admins): one call when the tab is opened, kept 5 minutes ---- */
@@ -3272,7 +3295,7 @@
   /* ---- ⚙ Settings (CONFIG sheet) editor – admins; loads only when opened ---- */
   var CFGE = { items: null };
   var CFG_GROUPS = [['App & login', /^(APP_|SUBTITLE|RESULTS_|SEARCH_|LOGO|ACCENT|DOCTOR_|SUPPORT|REGISTRATION|AUTO_APPROVE|MAINTENANCE|MIN_PASSWORD|SESSION_|BLOCK_IN_APP|EMAIL_|RESET_)/],
-    ['Results folders & display', /^(FOLDER_|CACHE_|MAX_|FAST_DRIVE|RAD_FOLDERS)/], ['X-ray PACS & OPD limit', /^(PACS_|XR_|OPD_)/], ['Printing & pickup', /^PRINT_/], ['TAT targets', /^TAT_/],
+    ['Results folders & display', /^(FOLDER_|CACHE_|MAX_|FAST_DRIVE|RAD_FOLDERS)/], ['X-ray PACS & OPD limit', /^(PACS_|XR_|OPD_)/], ['TAT targets', /^TAT_/],
     ['Ultrasound', /^US_/], ['CT', /^CT_/], ['Peer review', /^PEER_/], ['Reprints', /^REPRINT_/], ['Scheduling', /^(SCHEDULE|SCAN_)/], ['Button labels', /^TAB_/]];
   function cfgGroup(k) { for (var i = 0; i < CFG_GROUPS.length; i++) if (CFG_GROUPS[i][1].test(k)) return CFG_GROUPS[i][0]; return 'Other'; }
   function cfgOpen() {

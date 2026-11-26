@@ -554,7 +554,6 @@
     <button id="tabUp" class="hidden" onclick="schedView('xrup')">📤 Upload</button>
     <button id="tabRead" class="hidden" onclick="schedView('xrread')">🩻 X-ray <span id="xrBadge" class="badge hidden"></span></button>
     <button id="tabRpt" class="hidden" onclick="schedView('rpt')">📝 US / CT <span id="rptBadge" class="badge hidden"></span></button>
-    <button id="tabPrint" class="hidden" onclick="schedView('print')">🖨 Print</button>
     <button id="tabTat" class="hidden" onclick="schedView('tat')">📊 TAT</button>
     <button id="tabRep" class="hidden" onclick="schedView('rep')">🔁 Repeats</button>
   </div>
@@ -562,7 +561,6 @@
   <a class="pback" href="index.html" id="pBack">← Portal</a>
 </div>
 <div class="pwrap">
-  <div id="prnBar" class="prn hidden"></div>
   <div id="gate" class="pcard"><p class="sub" id="gateMsg">Loading…</p><a class="btn" id="gateBtn" href="index.html" style="display:none;text-decoration:none">Go to the portal</a></div>
       <div id="vXrUp" class="hidden pcard">
         <div class="seg upseg hidden" id="upMode"><button type="button" data-v="xr" class="on" onclick="upMode('xr')">🩻 X-ray photos</button><button type="button" data-v="ct" onclick="upMode('ct')">🧠 CT DICOM</button><button type="button" data-v="us" onclick="upMode('us')">🔊 US report</button></div>
@@ -578,7 +576,6 @@
             <div><label>Civil status</label><select id="xrCivil"></select></div>
             <div><label>ID no. (hospital no.)</label><input type="text" id="xrHosp" maxlength="40" autocomplete="off"></div>
             <div><label>Location</label><select id="xrLoc" onchange="xrLocChanged()"></select></div>
-            <div><label>Pickup (print batch)</label><select id="xrPickup" onchange="xrFormSave()"></select></div>
             <div class="xrw2"><label>Address</label><input type="text" id="xrAddr" maxlength="200" autocomplete="off" autocapitalize="characters" placeholder="e.g. San Benito, Surigao del Norte"></div>
             <div><label>Examination requested *</label><select id="xrExam" onchange="$('xrExamOther').classList.toggle('hidden', this.value !== 'Other'); xrG0Head()"></select><input type="text" id="xrExamOther" class="hidden" maxlength="100" placeholder="Which exam? e.g. Chest AP supine"></div>
             <div><label>Requesting physician</label><input type="text" id="xrPhys" maxlength="100" placeholder="e.g. Dr. Aguirre"></div>
@@ -647,7 +644,6 @@
               <div class="xrw2"><label>Indication / clinical history *</label><input type="text" id="ctInd" maxlength="300" placeholder="e.g. Abdominal pain"></div>
               <div class="xrw2"><label>Note for the radiologist</label><input type="text" id="ctNotes" maxlength="500" placeholder="e.g. with contrast, plain + post-contrast series"></div>
               <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="ctAssign"></select></div>
-              <div><label>Pickup (print batch)</label><select id="ctPickup"></select></div>
             </div>
             <div id="ctRepHost"></div>
             <div id="ctProg" class="hidden"><div class="ctbar"><i id="ctBarFill"></i></div><div class="sub" id="ctProgTxt" style="margin:6px 0 0"></div></div>
@@ -682,7 +678,6 @@
               <div><label>Requesting physician</label><input type="text" id="usPhys" maxlength="100" placeholder="e.g. Dr. Libres"></div>
               <div class="xrw2"><label>Indication *</label><input type="text" id="usInd" maxlength="300" placeholder="e.g. Flank pain"></div>
               <div><label>Priority</label><div class="seg" id="usPriBar" data-v="Routine"><button type="button" class="on" data-v="Routine" onclick="usSeg('usPriBar','Routine')">Routine</button><button type="button" data-v="Urgent" onclick="usSeg('usPriBar','Urgent')">Urgent</button><button type="button" data-v="STAT" onclick="usSeg('usPriBar','STAT')">STAT</button></div></div>
-              <div><label>Pickup (print batch)</label><select id="usPickup"></select></div>
               <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="usAssign"></select></div>
             </div>
             <div class="xrbtns"><button class="btn" id="usBtn" onclick="usGo()">Make the report draft</button></div>
@@ -728,12 +723,6 @@
           <span id="rrsCustom" class="hidden"><input type="date" id="rrsFrom" style="width:auto;margin:0"> to <input type="date" id="rrsTo" style="width:auto;margin:0"> <button class="link" onclick="rrsOpen(true)">Show</button></span>
           <button class="link" onclick="rrsOpen(true)">↻ Refresh</button><button class="link" onclick="rrsCsv()">⬇ Download log (CSV)</button></div>
         <div id="rrsBody"></div>
-      </div>
-      <div id="vPrint" class="hidden pcard">
-        <div class="xrnext"><input type="date" id="prDay" onchange="prLoad()" style="width:auto;margin:0"><div class="seg" id="prBatch" style="margin:0"></div><button class="link" onclick="prLoad()">↻ Refresh</button></div>
-        <div id="prPolicy" class="policy hidden"></div>
-        <div id="prSum" class="sub" style="margin:8px 0 0"></div>
-        <div id="prList"></div>
       </div>
       <div id="vRpt" class="hidden pcard">
         <div class="xrnext">
@@ -1078,7 +1067,7 @@
     XR_FIELDS.forEach(function (id) { if (id !== 'xrLoc') $(id).value = ''; });
     $('xrAge').disabled = false; $('xrExamOther').classList.add('hidden'); xrSex(''); xrPri3('Routine');
     lsSet('xr_form', null); xrFormSave(); setMsg('xrMsg', ''); $('xrLast').focus();
-    $('xrNote').classList.add('hidden'); $('xrPickup').dataset.touched = ''; xrLocChanged();
+    $('xrNote').classList.add('hidden'); xrLocChanged();
   }
   function xrFillAssign(sel, current) {
     var m = XR_META || {}, d = m.onDuty;
@@ -1102,11 +1091,9 @@
 
   /* ---------- tech: upload ---------- */
   function xrUpInit() {
-    pkFill('xrPickup');
     if (XR_META && XR_META.repeat) rrLogInit('xrRep', 'XR');
     if (opdOn()) opdLoad().then(function () { opdShow(); });
     if ($('xrExam').options.length) return;
-    $('xrPickup').addEventListener('change', function () { this.dataset.touched = '1'; });
     $('xrPriv').addEventListener('change', function () { $('xrPrivRow').classList.toggle('ok', this.checked); });
     var c = xrConf();
     $('xrExam').innerHTML = '<option value="">Select exam…</option>' + (c.exams || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
@@ -1140,7 +1127,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 41;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 42;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1479,7 +1466,7 @@
     }
     var d = { last: $('xrLast').value, first: $('xrFirst').value, middle: $('xrMid').value, dob: $('xrDob').value, age: $('xrAge').value,
       sex: $('xrSexBar').getAttribute('data-v') || '', hospNo: $('xrHosp').value, location: $('xrLoc').value, address: $('xrAddr').value, civil: $('xrCivil').value, exam: $('xrExam').value === 'Other' ? ($('xrExamOther').value || 'Other') : $('xrExam').value,
-      priority: $('xrPriBar').getAttribute('data-v') || 'Routine', physician: $('xrPhys').value, clinical: $('xrClin').value, assignTo: $('xrAssign').value, pickup: $('xrPickup').value };
+      priority: $('xrPriBar').getAttribute('data-v') || 'Routine', physician: $('xrPhys').value, clinical: $('xrClin').value, assignTo: $('xrAssign').value };
     var addTo = !XR_PENDING && XR_ADDTO ? XR_ADDTO : null;
     if (!addTo && !XR_PENDING) { var rl = rrLogRead('xrRep'); if (rl.err) { $('xrRepHost').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('xrMsg', rl.err); } if (rl.list.length) d.reps = rl.list; }
     if (addTo && addTo.repeat) addTo.exp = $('xrAddN') ? Number($('xrAddN').value) || 1 : 0;
@@ -1525,9 +1512,9 @@
         setMsg('xrMsg', addTo.repeat ? '✓ ' + s.msg : '✓ Images added to ' + addTo.acc + '.', true); xrLoadTech(); return;
       }
       setMsg('xrMsg', '✓ ' + s.msg, true);
-      xrNoteShow(s, d.pickup);
+      xrNoteShow(s);
       if (opdIs(d.location)) opdLoad(true).then(function () { opdShow(); });
-      $('xrPickup').dataset.touched = ''; $('xrPickup').value = ''; $('xrOpdQ').classList.add('hidden');
+      $('xrOpdQ').classList.add('hidden');
       XR_PENDING = null; lsSet('xr_pending', null);
       try { localStorage.setItem('xr_loc', $('xrLoc').value); } catch (e) {}
       XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xrDrawFiles(); xdbClear();
@@ -1554,7 +1541,7 @@
       r.items.forEach(function (o) {
         var el = document.createElement('div'); el.className = 'xrrow';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' image' + (o.images === 1 ? '' : 's') +
-          ' · ' + esc(o.acc) + ' · ' + esc(xrTime(o.created)) + ' · ' + esc(o.tech) + (o.readDate && o.status !== 'Final' && o.status !== 'Cancelled' ? ' · <span class="chipk">📅 read ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + (o.status === 'Final' ? ' · read by ' + esc(o.finalName) : (o.status !== 'Cancelled' ? ' · → ' + esc(o.assignedName || 'any radiologist') : '')) + (o.cancelReason ? ' · ' + esc(o.cancelReason) : '') + xrSibChip(o) + '</div></div>' + xrPill(o.status);
+          ' · ' + esc(o.acc) + ' · ' + esc(xrTime(o.created)) + ' · ' + esc(o.tech) + (o.readDate && o.status !== 'Final' && o.status !== 'Cancelled' ? ' · <span class="chipk">📅 read ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.status === 'Final' ? ' · read by ' + esc(o.finalName) : (o.status !== 'Cancelled' ? ' · → ' + esc(o.assignedName || 'any radiologist') : '')) + (o.cancelReason ? ' · ' + esc(o.cancelReason) : '') + xrSibChip(o) + '</div></div>' + xrPill(o.status);
         if (o.images && o.imageIds && o.imageIds.length) {
           var pb = document.createElement('button'); pb.className = 'xrdl'; pb.type = 'button'; pb.textContent = '👁 Preview'; pb.title = 'See the uploaded images';
           pb.onclick = function () { pvXray(o); };
@@ -1993,7 +1980,7 @@
           : o.status === 'Repeat requested' ? ' · 🔁 waiting for ' + esc(o.tech || 'the tech') : '';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
           ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') +
-          (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup && o.status !== 'Final' ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + xrSibChip(o) + '</div></div>' +
+          (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + xrSibChip(o) + '</div></div>' +
           xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>' + (o.images ? '<span class="xrdl" role="button" tabindex="0" title="Download the images">⬇ Download</span>' : '');
         el.onclick = function () { xrOpenStudy(o.acc); };
         if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('xr', o.acc, e); };
@@ -3218,7 +3205,6 @@
   }
   function ctdOn() { return !$('upCt').classList.contains('hidden') && curView === 'xrup'; }
   function ctdInit() {
-    pkFill('ctPickup');
     if (XR_META && XR_META.repeat) rrLogInit('ctRep', 'CT');
     if (CTD.inited) return; CTD.inited = true;
     var c = XR_META.ct;
@@ -3227,7 +3213,7 @@
     var duty = c.onDuty;
     $('ctAssign').innerHTML = (duty ? '<option value="">On duty for CT: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for CT: choose —</option>') +
       (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
-    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctStudy', 'ctPhys', 'ctNotes', 'ctAssign', 'ctCivil', 'ctLoc', 'ctAddr', 'ctInd', 'ctPickup'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
+    ['ctLast', 'ctFirst', 'ctMid', 'ctDob', 'ctAge', 'ctHosp', 'ctStudy', 'ctPhys', 'ctNotes', 'ctAssign', 'ctCivil', 'ctLoc', 'ctAddr', 'ctInd'].forEach(function (id) { $(id).addEventListener('input', ctdFormSave); $(id).addEventListener('change', ctdFormSave); });
     var dz = $('ctDrop');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
@@ -3297,7 +3283,7 @@
       sex: $('ctSexBar').getAttribute('data-v'), hospNo: $('ctHosp').value.trim(), examSel: $('ctExamSel').value, study: $('ctExamSel').value === 'Others' ? $('ctStudy').value.trim() : '',
       exam: ctdExamName($('ctExamSel').value, $('ctStudy').value), extras: CTD.extras.map(function (x) { return { examSel: x.examSel, study: x.examSel === 'Others' ? x.study : '', contrast: x.contrast, exam: ctdExamName(x.examSel, x.study) }; }), phys: $('ctPhys').value.trim(),
       notes: $('ctNotes').value.trim(), assignTo: $('ctAssign').value, civil: $('ctCivil').value, location: $('ctLoc').value.trim(), address: $('ctAddr').value.trim(),
-      indication: $('ctInd').value.trim(), contrast: $('ctConBar').getAttribute('data-v') || 'plain', pickup: $('ctPickup').value };
+      indication: $('ctInd').value.trim(), contrast: $('ctConBar').getAttribute('data-v') || 'plain' };
   }
   function ctdFormSave() {
     if (CTD.multiLoading) return;
@@ -3308,7 +3294,7 @@
     $('ctLast').value = f.last || ''; $('ctFirst').value = f.first || ''; $('ctMid').value = f.middle || ''; $('ctDob').value = f.dob || ''; $('ctAge').value = f.age || '';
     $('ctHosp').value = f.hospNo || ''; ctdExamSet(f); $('ctPhys').value = f.phys || ''; $('ctNotes').value = f.notes || '';
     $('ctCivil').value = f.civil || ''; $('ctLoc').value = f.location || ''; $('ctAddr').value = f.address || ''; $('ctInd').value = f.indication || '';
-    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo; if (f.pickup !== undefined) { $('ctPickup').value = f.pickup; if ($('ctPickup').value !== f.pickup) $('ctPickup').value = ''; }
+    if (f.assignTo !== undefined) $('ctAssign').value = f.assignTo;
     ctdSex(f.sex || ''); ctdCon(f.contrast || 'plain');
   }
   function ctdFormRestore() {
@@ -4021,7 +4007,7 @@
   /* ================= /ULTRASOUND / CT REPORTS ================= */
 
 
-  /* ================= OPD QUEUE · PICKUP / PRINT BATCHES · TAT BADGES · US REPORT FORM ================= */
+  /* ================= OPD QUEUE · TAT BADGES · US REPORT FORM ================= */
   function pad2(n) { return ('0' + n).slice(-2); }
   function hm12(t) { var p = String(t).split(':'), h = +p[0]; return (h % 12 || 12) + ':' + p[1] + ' ' + (h < 12 ? 'AM' : 'PM'); }
   var DOWN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -4031,34 +4017,6 @@
     if (y === t) return 'Today'; if (y === ymdLocal(tm)) return 'Tomorrow';
     return DOWN[d.getDay()] + ', ' + MON[d.getMonth()] + ' ' + d.getDate();
   }
-  function prConf() { return (XR_META && XR_META.print) || CONF.print || { batches: ['11:00', '16:00'], lead: 4 }; }
-  /** Print-batch slots from now on (8 days). */
-  function pkSlots() {
-    var b = prConf().batches || [], out = [], now = Date.now(), d0 = new Date();
-    for (var i = 0; i < 8; i++) {
-      var dd = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + i), y = ymdLocal(dd);
-      b.forEach(function (t) { var ms = new Date(y + 'T' + t + ':00').getTime(); if (ms > now) out.push({ v: y + ' ' + t, ms: ms, y: y, t: t }); });
-    }
-    return out;
-  }
-  function pkLabel(v) { if (!v) return ''; var p = String(v).split(' '); return dayLabel(p[0]) + ' · ' + hm12(p[1]); }
-  function pkLabelMs(ms) { if (!ms) return ''; var d = new Date(ms); return dayLabel(ymdLocal(d)) + ' ' + hm12(pad2(d.getHours()) + ':' + pad2(d.getMinutes())); }
-  /** Suggested pickup: the first batch at least PRINT_LEAD_HOURS after reading can start (OPD: on its reading day). */
-  function pkSuggest(readYmd) {
-    var c = prConf(), opd = (XR_META && XR_META.opd) || {}, base = Date.now();
-    if (readYmd) { var st = new Date(readYmd + 'T' + (opd.start || '08:00') + ':00').getTime(); if (st > base) base = st; }
-    base += (Number(c.lead) || 4) * 3600e3;
-    var days = opd.days || [1, 2, 3, 4, 5], s = pkSlots().filter(function (x) { var w = ymdParse(x.y).getDay() || 7; return x.ms >= base && days.indexOf(w) !== -1; })[0];
-    return s ? s.v : '';
-  }
-  function pkFill(id, want) {
-    var sel = $(id); if (!sel) return;
-    var keep = want !== undefined ? want : sel.value;
-    sel.innerHTML = '<option value="">— none (ward / ER, released when final)</option>' + pkSlots().map(function (x) { return '<option value="' + esc(x.v) + '">' + esc(pkLabel(x.v)) + '</option>'; }).join('');
-    sel.value = keep; if (sel.value !== keep) sel.value = '';
-  }
-  function policyNote(el) { var n = prConf().note; if (!$(el)) return; $(el).textContent = n ? '🖨 ' + n : ''; $(el).classList.toggle('hidden', !n); }
-
   /* ---- OPD daily limit: what the tech sees before uploading ---- */
   var OPD = { info: null, at: 0, busy: null };
   function opdOn() { return !!(XR_META && XR_META.opd && XR_META.opd.limit); }
@@ -4073,7 +4031,7 @@
   function xrLocChanged() {
     xrFormSave();
     var opd = opdIs($('xrLoc').value) && opdOn();
-    if (!opd) { $('xrOpdBar').classList.add('hidden'); $('xrOpdQ').classList.add('hidden'); if (!$('xrPickup').dataset.touched) $('xrPickup').value = ''; return; }
+    if (!opd) { $('xrOpdBar').classList.add('hidden'); $('xrOpdQ').classList.add('hidden'); return; }
     opdShow();
     opdLoad().then(function () { opdShow(); });
   }
@@ -4091,8 +4049,6 @@
     h += '<div class="days">' + (i.ahead || []).map(function (d) { return '<span>' + esc(d.label) + ': ' + d.used + '/' + i.limit + (d.used >= i.limit ? ' full' : '') + '</span>'; }).join('') +
       (i.waiting ? '<span>' + i.waiting + ' waiting for later days</span>' : '') + ' <button class="link" type="button" onclick="opdQueue()">View OPD queue</button></div>';
     bar.innerHTML = h;
-    var pk = $('xrPickup');
-    if (!pk.dataset.touched) { pkFill('xrPickup', pkSuggest(i.next)); }
   }
   function opdQueue() {
     var box = $('xrOpdQ');
@@ -4106,16 +4062,16 @@
       var h = '<b>OPD queue</b> <span class="sub" style="margin:0">(' + r.limit + ' read per day, in upload order)</span>', last = '';
       r.items.forEach(function (o, k) {
         if (o.readDate !== last) { last = o.readDate; h += '<div style="margin-top:8px;font-weight:600">' + esc(o.readLabel) + (o.readDate === r.today ? ' (today)' : '') + '</div>'; }
-        h += '<div class="sub" style="margin:2px 0 0">' + (k + 1) + '. ' + esc(o.name) + ' · ' + esc(o.exam) + ' · uploaded ' + esc(xrTime(o.created)) + (o.status === 'Reading' ? ' · being read' : '') + (o.pickup ? ' · pickup ' + esc(pkLabelMs(o.pickup)) : '') + '</div>';
+        h += '<div class="sub" style="margin:2px 0 0">' + (k + 1) + '. ' + esc(o.name) + ' · ' + esc(o.exam) + ' · uploaded ' + esc(xrTime(o.created)) + (o.status === 'Reading' ? ' · being read' : '') + '</div>';
       });
       box.innerHTML = h;
     }).catch(function (e) { box.innerHTML = '<p class="sub err" style="margin:0">' + esc((e && e.message) || e) + '</p>'; });
   }
-  /** After an upload: the read day + pickup, with a line to copy for the patient. */
-  function xrNoteShow(s, pickup) {
+  /** After an upload: the OPD read day, with a line to copy for the patient. */
+  function xrNoteShow(s) {
     var n = $('xrNote');
-    if (!s.readDate && !pickup) { n.classList.add('hidden'); return; }
-    var line = (s.readDate ? 'Your X-ray will be read on ' + s.readLabel + '.' : 'Your X-ray has been sent to the radiologist.') + (pickup ? ' You can claim the result from ' + pkLabel(pickup).replace(' · ', ' at ') + '.' : '');
+    if (!s.readDate) { n.classList.add('hidden'); return; }
+    var line = 'Your X-ray will be read on ' + s.readLabel + '.';
     n.className = 'xrnote'; n.innerHTML = (s.queued ? '⚠ OPD queue: ' : '') + esc(line) + ' <button class="link" type="button" id="xrNoteCopy">📋 Copy for the patient</button>';
     $('xrNoteCopy').onclick = function () { try { navigator.clipboard.writeText(line).then(function () { $('xrNoteCopy').textContent = '✓ Copied'; }); } catch (e) {} };
   }
@@ -4137,50 +4093,7 @@
     return '<span class="tat ' + cls + '" title="Turnaround ' + (o.finalAt ? '' : 'so far ') + '– target ' + Math.round(target / 60) + ' h">⏱ ' + txt + '</span>';
   }
 
-  /* ---- 🖨 Print batches ---- */
-  var PR = { batch: '' };
-  function prInit() {
-    if (!$('prDay').value) $('prDay').value = ymdLocal(new Date());
-    var b = prConf().batches || [], now = new Date(), cur = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
-    if (!PR.batch) PR.batch = b.filter(function (t) { return t >= cur; })[0] || b[b.length - 1] || '';
-    $('prBatch').innerHTML = b.map(function (t) { return '<button type="button" data-v="' + t + '" class="' + (t === PR.batch ? 'on' : '') + '" onclick="prPick(\'' + t + '\')">' + hm12(t) + '</button>'; }).join('') +
-      '<button type="button" data-v="" class="' + (!PR.batch ? 'on' : '') + '" onclick="prPick(\'\')">Whole day</button>';
-    policyNote('prPolicy');
-    prLoad();
-  }
-  function prPick(t) { PR.batch = t; Array.prototype.forEach.call(document.querySelectorAll('#prBatch button'), function (x) { x.classList.toggle('on', x.getAttribute('data-v') === t); }); prLoad(); }
-  function prLoad() {
-    var list = $('prList'); list.innerHTML = '<p class="sub">Loading…</p>'; $('prSum').textContent = '';
-    run('printBatch', token, $('prDay').value, PR.batch).then(function (r) {
-      if (r.expired) return expired();
-      if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
-      var ready = r.items.filter(function (x) { return x.final; }).length, done = r.items.filter(function (x) { return x.printedAt; }).length;
-      $('prSum').textContent = r.items.length ? r.items.length + ' due' + (r.batch ? ' at ' + hm12(r.batch) : '') + ' on ' + r.dayLabel + ' · ' + ready + ' ready to print · ' + done + ' printed' : '';
-      if (!r.items.length) { list.innerHTML = '<p class="sub">No results due for this batch.</p>'; return; }
-      list.innerHTML = '';
-      r.items.forEach(function (o) {
-        var el = document.createElement('div'); el.className = 'xrrow prrow' + (o.printedAt ? ' done' : '');
-        el.innerHTML = '<span class="pill pk' + o.kind + '">' + o.kind + '</span><div class="xrl"><b>' + esc(o.name) + '</b><div class="d">' + esc(o.exam) + ' · ' + esc(o.location || '—') + (r.batch ? '' : ' · ' + hm12(o.batch)) +
-          (o.final ? ' · <span style="color:#15803d">✓ final ' + esc(xrTime(o.finalAt)) + '</span>' : ' · <span class="err">not finalized yet</span>') + (o.printedAt ? ' · printed ' + esc(xrTime(o.printedAt)) + ' by ' + esc(o.printedBy) : '') + '</div></div>';
-        if (o.final) { var ob = document.createElement('button'); ob.type = 'button'; ob.className = 'xrdl'; ob.textContent = '📄 Open / print'; ob.onclick = function () { if (o.kind === 'XR') openFile({ id: o.ref, name: o.reportName || o.ref }, { fn: 'xrReportFile' }); else openFile({ id: o.fileId, name: o.name + ' – ' + o.exam }); }; el.appendChild(ob); }
-        var lb = document.createElement('label'); lb.className = 'prchk'; lb.innerHTML = '<input type="checkbox"' + (o.printedAt ? ' checked' : '') + (XR_ROLE.tech || XR_ROLE.admin ? '' : ' disabled') + '> Printed';
-        lb.querySelector('input').onchange = function () { var cb = this; cb.disabled = true; run('printMark', token, o.kind, o.ref, cb.checked).then(function (m) { cb.disabled = false; if (!m.ok) { cb.checked = !cb.checked; return toast(m.msg); } o.printedAt = m.printedAt; el.classList.toggle('done', !!m.printedAt); }).catch(function () { cb.disabled = false; cb.checked = !cb.checked; }); };
-        el.appendChild(lb); list.appendChild(el);
-      });
-    }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
-  }
   function toast(t) { xrToast(t); }
-
-  /* ---- 1 PM print-release notice (radiologists) ---- */
-  function prnShow(n) {
-    var b = $('prnBar');
-    if (!n || !n.n) { b.classList.add('hidden'); return; }
-    var k = 'prn_' + ymdLocal(new Date()) + '_' + n.batch; if (lsGet(k)) return;
-    var parts = []; if (n.xr) parts.push(n.xr + ' X-ray'); if (n.us) parts.push(n.us + ' ultrasound'); if (n.ct) parts.push(n.ct + ' CT');
-    b.innerHTML = '🖨 <span><b>Print release request:</b> ' + esc(parts.join(', ')) + ' of yours ' + (n.n === 1 ? 'is' : 'are') + ' due for the <b>' + esc(n.batchLabel) + '</b> print batch and not finalized yet. Please finalize ' + (n.n === 1 ? 'it' : 'them') + ' before then.</span><button class="link" type="button" id="prnX">Dismiss</button>';
-    b.classList.remove('hidden');
-    $('prnX').onclick = function () { lsSet(k, '1'); b.classList.add('hidden'); };
-  }
 
   /* ---- 🔊 Ultrasound report form (techs in Upload, radiologists in US / CT) ---- */
   var USF = { inited: false };
@@ -4193,14 +4106,11 @@
       $('usLoc').innerHTML = '<option value="">—</option>' + (u.locations || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
       $('usDob').max = ymdLocal(new Date());
       $('usDob').onchange = function () { $('usAge').disabled = !!this.value; };
-      $('usLoc').onchange = function () { if (!$('usPickup').dataset.touched) $('usPickup').value = opdIs(this.value) ? pkSuggest('') : ''; };
-      $('usPickup').onchange = function () { this.dataset.touched = '1'; };
     }
     var u2 = (XR_META && XR_META.us) || {}, duty = u2.onDuty, keep = $('usAssign').value;
     $('usAssign').innerHTML = (duty ? '<option value="">On duty for ultrasound: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for ultrasound: choose —</option>') +
       (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
     $('usAssign').value = keep;
-    pkFill('usPickup');
   }
   function usPlace(where) { var f = $('upUs'); if (where === 'rpt') { $('rptNewUs').appendChild(f); } else $('upUsHome').appendChild(f); }
   function rptNewUs() {
@@ -4211,7 +4121,7 @@
   function usForm() {
     return { last: $('usLast').value, first: $('usFirst').value, middle: $('usMid').value, dob: $('usDob').value, age: $('usAge').value, sex: $('usSexBar').getAttribute('data-v') || '',
       hospNo: $('usHosp').value, civil: $('usCivil').value, location: $('usLoc').value, address: $('usAddr').value, exam: $('usExam').value, physician: $('usPhys').value,
-      indication: $('usInd').value, priority: $('usPriBar').getAttribute('data-v') || 'Routine', pickup: $('usPickup').value, assignTo: $('usAssign').value };
+      indication: $('usInd').value, priority: $('usPriBar').getAttribute('data-v') || 'Routine', assignTo: $('usAssign').value };
   }
   function usGo() {
     var f = usForm(), b = $('usBtn');
@@ -4231,7 +4141,7 @@
   }
   function usClear(keepMsg) {
     ['usLast', 'usFirst', 'usMid', 'usDob', 'usAge', 'usHosp', 'usCivil', 'usAddr', 'usExam', 'usPhys', 'usInd'].forEach(function (id) { $(id).value = ''; });
-    $('usAge').disabled = false; usSeg('usSexBar', ''); usSeg('usPriBar', 'Routine'); $('usPickup').value = ''; $('usPickup').dataset.touched = '';
+    $('usAge').disabled = false; usSeg('usSexBar', ''); usSeg('usPriBar', 'Routine');
     if (keepMsg !== true) setMsg('usMsg', '');
   }
   function usLoadList() {
@@ -4242,7 +4152,7 @@
       if (!r.items.length) { list.innerHTML = '<p class="sub">No ultrasound drafts made here yet.</p>'; return; }
       list.innerHTML = r.items.map(function (o) {
         return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b><div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
-          (o.pickup ? ' · pickup ' + esc(pkLabelMs(o.pickup)) : '') + tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
+          tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
       }).join('');
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
@@ -4351,17 +4261,16 @@
   /* ---------- page start: same login as the portal ---------- */
   function gate(text, showBtn) {
     $('gate').classList.remove('hidden'); $('gateMsg').textContent = text; $('gateBtn').style.display = showBtn ? '' : 'none';
-    ['vXrUp', 'vXrRead', 'vRpt', 'vPrint', 'vTat'].forEach(function (id) { $(id).classList.add('hidden'); });
+    ['vXrUp', 'vXrRead', 'vRpt', 'vTat', 'vRep'].forEach(function (id) { $(id).classList.add('hidden'); });
   }
   function expired() { gate('Your session has ended. Log in again in the portal, then open the PACS.', true); }
   function schedView(v) {
     var rd = XR_ROLE.rad || XR_ROLE.admin;
-    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat' || v === 'rep') && !rd) v = 'xrup'; if (v === 'print' && !(XR_ROLE.tech || rd)) v = 'xrup';
+    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat' || v === 'rep') && !rd) v = 'xrup'; if (v === 'print') v = XR_ROLE.tech ? 'xrup' : 'xrread';
     curView = v;
-    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vPrint').classList.toggle('hidden', v !== 'print'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep');
+    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep');
     $('tabTat').classList.toggle('on', v === 'tat'); $('tabRep').classList.toggle('on', v === 'rep');
-    $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt'); $('tabPrint').classList.toggle('on', v === 'print');
-    if (v === 'print') prInit();
+    $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt');
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
     if (v === 'xrup') {
       $('upMode').classList.remove('hidden');
@@ -4385,10 +4294,8 @@
       $('gate').classList.add('hidden');
       $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
-      $('tabPrint').classList.toggle('hidden', !(m.role.tech || m.role.admin));
       $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabRep').classList.toggle('hidden', !((m.role.rad || m.role.admin) && m.repeat));
-      prnShow(m.printNotice);
       var want = ''; try { want = sessionStorage.getItem('pacs_tab') || ''; } catch (e) {}
       var hx = /^#xr=([A-Z0-9-]+)$/i.exec(location.hash || '');
       if (hx && (m.role.rad || m.role.admin)) { schedView('xrread'); xrOpenStudy(decodeURIComponent(hx[1])); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
