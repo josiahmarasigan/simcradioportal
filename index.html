@@ -1091,7 +1091,7 @@
       var known = BOOT_SESSION && BOOT_SESSION.tk === token ? Promise.resolve(BOOT_SESSION.r) : run('checkSession', token);
       BOOT_SESSION = null;
       return known.then(function (r) {
-        if (r.ok) showApp(r.name, r.admin, r.pacs); else { clearTok(); showAuth(); }
+        if (r.ok) { SITE = r.site || null; document.body.classList.toggle('siteuser', !!SITE); showApp(r.name, r.admin, r.pacs); } else { clearTok(); showAuth(); }
       }).catch(showAuth);
     };
     var startFail = function (e) {   // anything that goes wrong while starting: show it instead of a blank page
@@ -1256,6 +1256,7 @@
       if (tOn && IS_ADMIN) setDtBadge(bd.dt || 0);
       if (r.ctQueue) { $('stCtQ').classList.remove('hidden'); setCtBadge(bd.ctr || 0); }
       if (CONF.pacs && CONF.pacs.enabled && r.xr) { $('stPacs').classList.toggle('hidden', !(r.xr.tech || r.xr.rad)); if (r.xr.rad) xrSetBadge(bd.xr || 0); }
+      SITE = r.site || null; document.body.classList.toggle('siteuser', !!SITE);
       try { tabsRefresh(); } catch (e) { console.error(e); }
     }).catch(function () {});
   }
@@ -3145,7 +3146,7 @@
 
 
   /* ================= TABS · 1 PM PRINT NOTICE · TAT DASHBOARD · SETTINGS EDITOR ================= */
-  var TAB = '', TAB_GROUPS = { viewer: ['xr'], requests: ['req', 'mine', 'res'], admin: ['adm'] };
+  var TAB = '', TAB_GROUPS = { viewer: ['xr'], requests: ['req', 'mine', 'res'], admin: ['adm'] }, SITE = null;   // SITE: an outside facility's account (e.g. BGTC) – only its own X-rays and results
   function tabVis(id, on) { var b = document.querySelector('#ptabs [data-tab="' + id + '"]'); if (b) b.classList.toggle('hidden', !on); }
   function tabHasChips(g) { return Array.prototype.some.call(document.querySelectorAll('#schedCard .tgroup[data-g="' + g + '"] .chip'), function (c) { return !c.classList.contains('hidden'); }); }
   /** Which tabs this person gets (called at login and again when the startup info arrives). */
@@ -3153,10 +3154,10 @@
     var rad = !!(PACS_ACC && PACS_ACC.rad);
     $('ptabs').classList.remove('hidden');
     tabVis('pacs', !$('stPacs').classList.contains('hidden'));
-    tabVis('dash', IS_ADMIN || rad);
-    tabVis('admin', IS_ADMIN || tabHasChips('adm'));
+    tabVis('dash', !SITE && (IS_ADMIN || rad));
+    tabVis('admin', !SITE && (IS_ADMIN || tabHasChips('adm')));
     var ab = document.querySelector('#ptabs [data-tab="admin"]'); if (ab) ab.innerHTML = IS_ADMIN ? '⚙ Admin' : '🩺 Radiology';
-    tabVis('requests', tabHasChips('req') || tabHasChips('mine') || tabHasChips('res'));
+    tabVis('requests', !SITE && (tabHasChips('req') || tabHasChips('mine') || tabHasChips('res')));
     if (TAB) tabGo(TAB, true);
   }
   function tabsInit() {
@@ -3220,9 +3221,15 @@
     var h = '<div class="dtiles">' + ['XR', 'CT', 'US'].map(function (m) {
       var x = d.byMod[m];
       return '<div class="dtile"><div class="dt">' + M[m] + '</div><div class="dv">' + dashDur(x.med) + '</div><div class="ds">median TAT · ' + x.n + ' case' + (x.n === 1 ? '' : 's') + '</div>' +
-        '<div class="ds">90% within ' + dashDur(x.p90) + ' · on target ' + dashPct(x.pct) + '</div>' + (x.queued ? '<div class="ds">' + x.queued + ' OPD queued · median wait ' + dashDur(x.wait) + ' (not counted in TAT)</div>' : '') + '</div>';
+        '<div class="ds">90% within ' + dashDur(x.p90) + ' · on target ' + dashPct(x.pct) + '</div>' + (x.init ? '<div class="ds">ER / STAT initial reading within ' + (t.fastH || 4) + ' h: ' + dashPct(x.init.pct) + ' (' + x.init.met + '/' + x.init.n + ')</div>' : '') + (x.queued ? '<div class="ds">' + x.queued + ' OPD queued · median wait ' + dashDur(x.wait) + ' (not counted in TAT)</div>' : '') + '</div>';
     }).join('') + '</div>';
-    h += '<p class="hint">Targets (POL-002 §2.2): ER / STAT ' + (t.fastH || 4) + ' h · ultrasound same day · routine X-ray and CT ' + (t.routineH || 48) + ' h · goal 85% on target. TAT runs from images available to report finalized.</p>';
+    h += '<p class="hint">Targets (POL-002 §2.2): ER / STAT – initial reading ' + (t.fastH || 4) + ' h, final report ' + (t.finalH || 12) + ' h · ultrasound same day · routine X-ray and CT ' + (t.routineH || 48) + ' h · goal ' + (t.goal || 85) + '% on target. TAT runs from images available to report finalized; the initial reading is when the radiologist recorded it as communicated (or the final report, if that came first).</p>';
+    var ini = ['XR', 'CT', 'US'].filter(function (m) { return d.byCat[m] && d.byCat[m]['ER / STAT'] && d.byCat[m]['ER / STAT'].init; });
+    if (ini.length) {
+      h += '<h3 class="dh">ER / STAT: initial reading and final report</h3><table class="dtab"><tr><th>Modality</th><th>Cases</th><th>Initial – median</th><th>Initial within ' + (t.fastH || 4) + ' h</th><th>Final – median</th><th>Final within ' + (t.finalH || 12) + ' h</th></tr>';
+      ini.forEach(function (m) { var x = d.byCat[m]['ER / STAT']; h += '<tr><td>' + M[m] + '</td><td>' + x.n + '</td><td>' + dashDur(x.init.med) + '</td><td>' + dashPct(x.init.pct) + '</td><td>' + dashDur(x.med) + '</td><td>' + dashPct(x.pct) + '</td></tr>'; });
+      h += '</table>';
+    }
     h += '<h3 class="dh">By category</h3><table class="dtab"><tr><th>Modality</th><th>Category</th><th>Cases</th><th>Median</th><th>90%</th><th>On target</th></tr>';
     ['XR', 'CT', 'US'].forEach(function (m) { Object.keys(d.byCat[m] || {}).forEach(function (c) { var x = d.byCat[m][c]; h += '<tr><td>' + M[m] + '</td><td>' + esc(c) + '</td><td>' + x.n + '</td><td>' + dashDur(x.med) + '</td><td>' + dashDur(x.p90) + '</td><td>' + dashPct(x.pct) + '</td></tr>'; }); });
     h += '</table>';
@@ -3237,7 +3244,8 @@
         return '<div class="dday" title="' + esc(x.ymd) + ' · ' + x.n + ' cases"><div class="dcol">' + ['XR', 'CT', 'US'].map(function (m) { return x[m] === null ? '<i class="b ' + m + '" style="height:0"></i>' : '<i class="b ' + m + '" style="height:' + Math.max(2, Math.round(x[m] / max * 100)) + '%" title="' + M[m] + ': ' + dashDur(x[m]) + ' (' + x[m + 'n'] + ')"></i>'; }).join('') + '</div><div class="dlab">' + esc(x.ymd.slice(5)) + '</div></div>';
       }).join('') + '</div>';
     }
-    var nf = d.total.n - d.total.met;
+    if (d.sites && d.sites.length) h += '<p class="hint">Outside facilities (read as a help – not in these TAT figures): ' + d.sites.map(function (x) { return esc(x.name) + ' – ' + x.n + ' X-ray' + (x.n === 1 ? '' : 's') + ' read'; }).join(' · ') + '.</p>';
+    var nf = d.total.miss != null ? d.total.miss : d.total.n - d.total.met;
     if (d.total.n) h += '<h3 class="dh">Cases that missed the target' + (nf ? ' <span class="dpct r">' + nf + '</span>' : '') + '</h3>' + (nf ?
       '<p class="hint" style="margin:0 0 6px">For audit: each case with its patient, radiologist, TAT and how far over the target it went (most overdue first).</p><div class="dctl"><button class="btn alt" type="button" id="dFailBtn" onclick="dashFails()" style="width:auto;margin:0">📋 Show the ' + nf + ' case' + (nf === 1 ? '' : 's') + '</button><button class="link hidden" id="dFailCsv" type="button" onclick="dashFailCsv()">⬇ Download this list (CSV)</button></div><div id="dFails"></div>' :
       '<p class="sub">None – every case in this period was on target. 🎉</p>');
@@ -3258,7 +3266,8 @@
       $('dFails').innerHTML = !d.items.length ? '<p class="sub">No cases.</p>' : '<div class="dscroll"><table class="dtab dfail"><tr><th>Finalized</th><th>Modality</th><th>Patient</th><th>Exam</th><th>Category</th><th>Location</th><th>Radiologist</th><th>TAT</th><th>Target</th><th>Over by</th><th></th></tr>' +
         d.items.map(function (x, k) {
           return '<tr><td>' + esc(dashWhen(x.final)) + '</td><td>' + esc(M[x.mod] || x.mod) + '</td><td>' + esc(x.patient || '—') + '</td><td>' + esc(x.exam) + '</td><td>' + esc(x.cat) + (x.priority && x.priority !== x.cat ? ' · ' + esc(x.priority) : '') + '</td><td>' + esc(x.location || '—') + '</td><td>' + esc(x.rad) + '</td>' +
-            '<td>' + dashDur(x.tat) + (x.wait ? '<div class="ds">+ ' + dashDur(x.wait) + ' OPD queue</div>' : '') + '</td><td>' + dashDur(x.target) + '</td><td><b class="dpct r">' + dashDur(x.over) + '</b></td>' +
+            '<td>' + dashDur(x.tat) + (x.wait ? '<div class="ds">+ ' + dashDur(x.wait) + ' OPD queue</div>' : '') + (x.initMin != null && x.initTarget ? '<div class="ds"' + (x.initMissed ? ' style="color:#b91c1c"' : '') + '>initial ' + dashDur(x.initMin) + '</div>' : '') + '</td>' +
+            '<td>' + dashDur(x.target) + (x.initTarget ? '<div class="ds">initial ' + dashDur(x.initTarget) + '</div>' : '') + '</td><td><b class="dpct r">' + dashDur(x.over) + '</b><div class="ds">' + (x.initMissed && x.finalMissed ? 'initial + final' : x.initMissed ? 'initial reading' : 'final report') + '</div></td>' +
             '<td>' + (x.open ? '<button class="link" type="button" onclick="dashOpenCase(' + k + ')">Open</button>' : '') + '</td></tr>';
         }).join('') + '</table></div>' + (d.more ? '<p class="sub">Showing the latest 500 of ' + (d.items.length + d.more) + '. Narrow the dates to see the others.</p>' : '') +
         '<p class="hint">Started = images available (OPD: 8 AM on its reading day). TAT does not include days an OPD case waited in the queue.</p>';
@@ -3273,8 +3282,8 @@
   function dashFailCsv() {
     if (!DFAIL) return;
     var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var hd = ['Finalized', 'Modality', 'Patient', 'Exam', 'Category', 'Priority', 'Location', 'Radiologist', 'Images available', 'TAT started', 'TAT (min)', 'Target (min)', 'Over by (min)', 'OPD queue wait (min)', 'Ref'];
-    var rows = DFAIL.items.map(function (x) { return [dashWhen(x.final), x.mod, x.patient, x.exam, x.cat, x.priority, x.location, x.rad, dashWhen(x.images), dashWhen(x.start), x.tat, x.target, x.over, x.wait, x.ref]; });
+    var hd = ['Finalized', 'Modality', 'Patient', 'Exam', 'Category', 'Priority', 'Location', 'Radiologist', 'Images available', 'TAT started', 'TAT (min)', 'Target (min)', 'Initial reading (min)', 'Initial target (min)', 'Missed', 'Over by (min)', 'OPD queue wait (min)', 'Ref'];
+    var rows = DFAIL.items.map(function (x) { return [dashWhen(x.final), x.mod, x.patient, x.exam, x.cat, x.priority, x.location, x.rad, dashWhen(x.images), dashWhen(x.start), x.tat, x.target, x.initMin == null ? '' : x.initMin, x.initTarget || '', x.initMissed && x.finalMissed ? 'initial + final' : x.initMissed ? 'initial' : 'final', x.over, x.wait, x.ref]; });
     var csv = [hd].concat(rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'TAT_missed_' + DFAIL.from + '_to_' + DFAIL.to + '.csv';
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);

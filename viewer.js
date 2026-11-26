@@ -101,7 +101,9 @@
       box.innerHTML = r.items.map(function (x, k) {
         return '<button class="ivrow" onclick="IMGV.openIdx(' + k + ')"><div class="l"><b>' + esc(x.name) + '</b> · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) +
           '<div class="d">' + (x.priority && x.priority !== 'Routine' ? '<span class="pri-' + esc(x.priority) + '">' + esc(x.priority) + '</span> · ' : '') + esc(x.exam) + ' · ' + x.images + ' image' + (x.images === 1 ? '' : 's') +
-          ' · ' + esc(when(x.created)) + (x.hospNo ? ' · ID ' + esc(x.hospNo) : '') + '</div></div><span class="pill ' + (x.final ? 'ok' : 'wait') + '">' + esc(x.status) + '</span></button>';
+          ' · ' + esc(when(x.created)) + (x.hospNo ? ' · ID ' + esc(x.hospNo) : '') + '</div>' +
+          (x.initial ? '<div class="d" style="color:#b45309;font-weight:600">PRELIMINARY – initial reading given to ' + esc(x.initial.to || '') + ' ' + esc(when(x.initial.at)) + '. Final report to follow.</div>' : '') +
+          '</div><span class="pill ' + (x.final ? 'ok' : 'wait') + '">' + (x.initial && !x.final ? 'Preliminary' : esc(x.status)) + '</span></button>';
       }).join('') + (r.more ? '<div class="ivmsg">Showing the newest 80 – search by name to find older ones.</div>' : '');
     }).catch(function (e) { if (seq === V.seq) box.innerHTML = '<div class="ivmsg">Could not load: ' + esc((e && e.message) || e) + '</div>'; });
   }
@@ -111,7 +113,9 @@
     $('ivListView').style.display = 'none'; $('ivStudyView').style.display = 'flex';
     $('ivTitle').innerHTML = esc(st.name) + '<span>' + esc([st.age, st.sex].filter(Boolean).join(' ')) + ' · ' + esc(st.exam) + ' · ' + esc(when(st.created)) + '</span>';
     $('ivRes').classList.toggle('hidden', !(st.final && st.reportId));
-    $('ivStatus').textContent = st.final && st.reportId ? '✓ Result ready' + (st.readBy ? ' – read by ' + st.readBy : '') : st.status === 'Being read' ? 'The radiologist is reading this now – no result yet.' : 'No result yet – the radiologist hasn’t read this.';
+    $('ivStatus').textContent = st.final && st.reportId ? '✓ Result ready' + (st.readBy ? ' – read by ' + st.readBy : '') :
+      st.initial ? 'PRELIMINARY – initial reading communicated to ' + (st.initial.to || '') + (st.initial.byName ? ' by ' + st.initial.byName : '') + ' (' + when(st.initial.at) + '). Final report to follow.' :
+      st.status === 'Being read' ? 'The radiologist is reading this now – no result yet.' : 'No result yet – the radiologist hasn’t read this.';
     $('ivChips').innerHTML = st.ids.length > 1 ? st.ids.map(function (id, k) { return '<button class="ivchip" data-k="' + k + '" onclick="IMGV.show(' + k + ')">' + (k + 1) + '</button>'; }).join('') : '';
     Array.prototype.forEach.call(document.querySelectorAll('#ivStage .ivnav'), function (b) { b.style.display = st.ids.length > 1 ? '' : 'none'; });
     show(0);

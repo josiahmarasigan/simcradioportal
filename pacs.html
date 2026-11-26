@@ -325,6 +325,11 @@
   .pill.xrFinal { background:color-mix(in srgb,#16a34a 18%,transparent); color:#16a34a; } .pill.xrUploading { background:color-mix(in srgb,#d97706 18%,transparent); color:#b45309; }
   .pill.xrCancelled { background:color-mix(in srgb,#64748b 18%,transparent); color:#64748b; }
   .pill.xrRepeatrequested { background:#7c3aed; color:#fff; }
+  .inibox { border:1px solid #d97706; background:color-mix(in srgb,#d97706 9%,transparent); border-radius:10px; padding:8px 10px; margin:8px 0; font-size:13px; }
+  .inibox.late { border-color:#dc2626; background:color-mix(in srgb,#dc2626 9%,transparent); }
+  .inibox.ok { border-color:#16a34a; background:color-mix(in srgb,#16a34a 9%,transparent); }
+  .inirow { display:flex; gap:6px; flex-wrap:wrap; align-items:center; } .inirow input { flex:2 1 200px; margin:0; } .inirow select { flex:1 1 140px; width:auto; margin:0; } .inirow .btn { width:auto; margin:0; }
+  body.siteuser #upMode, body.siteuser #xrLocWrap { display:none !important; }
   .rrov { position:fixed; inset:0; z-index:9500; background:rgba(0,0,0,.5); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:16px; }
   .rrov.hidden { display:none; }
   .rrcard { background:var(--card); color:inherit; border-radius:14px; max-width:640px; width:100%; padding:14px 16px; box-shadow:0 10px 40px rgba(0,0,0,.35); box-sizing:border-box; }
@@ -575,7 +580,7 @@
             <div><label>Sex *</label><div class="seg" id="xrSexBar" data-v=""><button type="button" data-v="M" onclick="xrSex('M')">M</button><button type="button" data-v="F" onclick="xrSex('F')">F</button></div></div>
             <div><label>Civil status</label><select id="xrCivil"></select></div>
             <div><label>ID no. (hospital no.)</label><input type="text" id="xrHosp" maxlength="40" autocomplete="off"></div>
-            <div><label>Location</label><select id="xrLoc" onchange="xrLocChanged()"></select></div>
+            <div id="xrLocWrap"><label>Location</label><select id="xrLoc" onchange="xrLocChanged()"></select></div>
             <div class="xrw2"><label>Address</label><input type="text" id="xrAddr" maxlength="200" autocomplete="off" autocapitalize="characters" placeholder="e.g. San Benito, Surigao del Norte"></div>
             <div><label>Examination requested *</label><select id="xrExam" onchange="$('xrExamOther').classList.toggle('hidden', this.value !== 'Other'); xrG0Head()"></select><input type="text" id="xrExamOther" class="hidden" maxlength="100" placeholder="Which exam? e.g. Chest AP supine"></div>
             <div><label>Requesting physician</label><input type="text" id="xrPhys" maxlength="100" placeholder="e.g. Dr. Aguirre"></div>
@@ -1097,7 +1102,7 @@
     $('xrPriv').addEventListener('change', function () { $('xrPrivRow').classList.toggle('ok', this.checked); });
     var c = xrConf();
     $('xrExam').innerHTML = '<option value="">Select exam…</option>' + (c.exams || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
-    $('xrLoc').innerHTML = '<option value="">—</option>' + (c.locations || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+    $('xrLoc').innerHTML = XR_META && XR_META.site ? '<option selected>' + esc(XR_META.site.name) + '</option>' : '<option value="">—</option>' + (c.locations || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
     $('xrCivil').innerHTML = '<option value="">—</option>' + (c.civil || []).map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
     try { var l = localStorage.getItem('xr_loc'); if (l) $('xrLoc').value = l; } catch (e) {}
     $('xrDob').max = ymdLocal(new Date());
@@ -1127,7 +1132,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 42;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 43;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1873,7 +1878,7 @@
     }).catch(function (e) { $('rrsBody').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
   function rrsDraw() {
-    var r = RRS.data, rows = r.rows, pct = function (a, b) { return b ? (Math.round(a / b * 1000) / 10) + '%' : '–'; };
+    var r = RRS.data, rows = r.rows.filter(function (x) { return !x.site; }), siteRows = r.rows.filter(function (x) { return x.site; }), pct = function (a, b) { return b ? (Math.round(a / b * 1000) / 10) + '%' : '–'; };
     var dose = rows.filter(function (x) { return !/^Re-send/.test(x.type) && x.status !== 'Withdrawn'; });
     var countDose = function (mod) { return dose.filter(function (x) { return x.mod === mod; }).reduce(function (a, x) { return a + (x.source === 'Tech (at upload)' ? (x.exposures || 1) : (x.status === 'Done' ? (x.exposures || 1) : 0)); }, 0); };
     var studiesRep = function (mod) { var s = {}; dose.forEach(function (x) { if (x.mod === mod && (x.source === 'Tech (at upload)' || x.status === 'Done')) s[x.ref] = 1; }); return Object.keys(s).length; };
@@ -1884,7 +1889,10 @@
       tile('CT repeat rate', pct(studiesRep('CT'), r.studies.CT), studiesRep('CT') + ' of ' + r.studies.CT + ' studies rescanned · ' + countDose('CT') + ' extra scan' + (countDose('CT') === 1 ? '' : 's')) +
       tile('Radiologist requests', reqs.length, reqs.filter(function (x) { return x.status === 'Done'; }).length + ' repeated · ' + reqs.filter(function (x) { return x.status === 'Unable'; }).length + ' couldn’t · ' + reqs.filter(function (x) { return x.status === 'Withdrawn'; }).length + ' withdrawn · ' + rows.filter(function (x) { return /^Re-send/.test(x.type); }).length + ' re-sends (no dose)') +
       tile('Logged by technologists', rows.filter(function (x) { return x.source === 'Tech (at upload)'; }).length, 'repeats taken before upload') +
-      tile('Waiting now', open.length, open.length ? 'oldest ' + esc(xrTime(Math.min.apply(null, open.map(function (x) { return x.at; })))) : 'no open requests') + '</div>';
+      tile('Waiting now', open.length, open.length ? 'oldest ' + esc(xrTime(Math.min.apply(null, open.map(function (x) { return x.at; })))) : 'no open requests') +
+      Object.keys(r.siteStudies || {}).concat(siteRows.map(function (x) { return x.site; })).filter(function (v, i, a) { return a.indexOf(v) === i; }).map(function (sc) {
+        var sr = siteRows.filter(function (x) { return x.site === sc; }); return tile('🏥 ' + esc(sc) + ' (outside, not in our rate)', sr.length, sr.length + ' repeat' + (sr.length === 1 ? '' : 's') + ' · ' + ((r.siteStudies || {})[sc] || 0) + ' X-rays done');
+      }).join('') + '</div>';
     // by reason
     var lab = {}; ['XR', 'CT'].forEach(function (m) { (r.criteria[m] || []).forEach(function (g) { g.items.forEach(function (it) { lab[it[0]] = { t: it[1], g: g.g }; }); }); });
     var by = function (key) { var o = {}; rows.forEach(function (x) { if (x.status === 'Withdrawn') return; (key(x) || []).forEach(function (k) { if (k) o[k] = (o[k] || 0) + 1; }); }); return Object.keys(o).map(function (k) { return [k, o[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); };
@@ -1895,8 +1903,8 @@
     h += table('By exam', by(function (x) { return [x.mod + ' · ' + (x.exam || '—')]; }), esc);
     h += table('Requests by radiologist', by(function (x) { return x.source === 'Radiologist request' ? [x.by || '—'] : []; }), esc);
     // the log
-    h += '<h3 style="margin:16px 0 6px;font-size:15px">All repeats (' + rows.length + ')</h3>' + (rows.length ? '<div class="dscroll"><table class="dtab dfail"><tr><th>Logged</th><th>Study</th><th>Source</th><th>Type</th><th>Reasons</th><th>By / tech</th><th>Status</th><th></th></tr>' +
-      rows.map(function (x, i) { return '<tr><td>' + esc(xrTime(x.at)) + '</td><td>' + esc(x.mod) + ' · ' + esc(x.exam) + '<div class="ds">' + esc(x.ref) + (x.location ? ' · ' + esc(x.location) : '') + '</div></td><td>' + esc(x.source) + '</td><td>' + esc(x.type) + (x.exposures ? '<div class="ds">' + x.exposures + ' extra</div>' : '') + '</td>' +
+    h += '<h3 style="margin:16px 0 6px;font-size:15px">All repeats (' + r.rows.length + ')</h3>' + (r.rows.length ? '<div class="dscroll"><table class="dtab dfail"><tr><th>Logged</th><th>Study</th><th>Source</th><th>Type</th><th>Reasons</th><th>By / tech</th><th>Status</th><th></th></tr>' +
+      r.rows.map(function (x, i) { return '<tr><td>' + esc(xrTime(x.at)) + '</td><td>' + esc(x.mod) + ' · ' + esc(x.exam) + (x.site ? ' <span class="chipk">🏥 ' + esc(x.site) + '</span>' : '') + '<div class="ds">' + esc(x.ref) + (x.location ? ' · ' + esc(x.location) : '') + '</div></td><td>' + esc(x.source) + '</td><td>' + esc(x.type) + (x.exposures ? '<div class="ds">' + x.exposures + ' extra</div>' : '') + '</td>' +
         '<td>' + esc(x.reasons) + (x.views ? '<div class="ds">Repeat: ' + esc(x.views) + '</div>' : '') + '</td><td>' + esc(x.by) + (x.tech && x.tech !== x.by ? '<div class="ds">tech: ' + esc(x.tech) + '</div>' : '') + '</td>' +
         '<td>' + esc(x.status) + (x.wait != null && x.source === 'Radiologist request' && x.status !== 'Requested' ? '<div class="ds">' + esc(tatFmt(x.wait)) + '</div>' : '') + (x.outcome ? '<div class="ds">' + esc(x.outcome) + '</div>' : '') + '</td>' +
         '<td>' + (x.mod === 'XR' ? '<button class="link" onclick="rrsOpenCase(' + i + ')">Open</button>' : '') + '</td></tr>'; }).join('') + '</table></div>' : '<p class="sub">No repeats logged in this period. 🎉</p>');
@@ -1910,6 +1918,47 @@
     var head = ['RepeatID', 'Logged', 'Modality', 'Ref', 'Exam', 'Location', 'Source', 'Type', 'Reasons', 'Codes', 'Views', 'By', 'Tech', 'Status', 'Resolved', 'Exposures', 'WaitMin', 'Outcome'];
     var lines = [head.join(',')].concat(RRS.data.rows.map(function (x) { return [x.id, new Date(x.at).toISOString(), x.mod, x.ref, x.exam, x.location, x.source, x.type, x.reasons, x.codes.join(' '), x.views, x.by, x.tech, x.status, x.resolvedAt ? new Date(x.resolvedAt).toISOString() : '', x.exposures, x.wait, x.outcome].map(q).join(','); }));
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv' })); a.download = 'repeats_' + RRS.data.from + '_to_' + RRS.data.to + '.csv'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+
+  /* ---------- ⏱ ER / STAT initial reading (initial ≤ 4 h, final ≤ 12 h) ---------- */
+  function iniT() { return (XR_META && XR_META.tat) || { fastH: 4, finalH: 12 }; }
+  function iniDone(at, i) {
+    i = i || {};
+    return '<div class="inibox ok" id="iniBox">📞 <b>Initial reading communicated</b> to ' + esc(i.to || '') + ' (' + esc(i.how || '') + ')' + (i.byName ? ' by ' + esc(i.byName) : '') + ' · ' + esc(xrTime(at)) +
+      '<div class="sub" style="margin:2px 0 0">Staff see it as PRELIMINARY. The final report is due within ' + (iniT().finalH || 12) + ' h of the images.</div></div>';
+  }
+  function iniForm(kind, start, how, can) {
+    var due = start ? start + (iniT().fastH || 4) * 3600000 : 0, late = due && Date.now() > due;
+    return '<div class="inibox' + (late ? ' late' : '') + '" id="iniBox"><b>⏱ ER / STAT – initial reading ' + (late ? 'overdue (was due ' : 'due by ') + esc(due ? xrTime(due) : '') + (late ? ')' : '') + '</b>' +
+      '<div class="sub" style="margin:2px 0 6px">Tell the requesting doctor your initial reading, then record it here. The final report is due within ' + (iniT().finalH || 12) + ' h.</div>' +
+      (can ? '<div class="inirow"><input type="text" id="iniTo" maxlength="100" placeholder="Told to – e.g. Dr. Cruz, ER physician" aria-label="Who you told">' +
+        '<select id="iniHow" aria-label="How">' + (how || ['Phone call', 'In person', 'Portal / chat message', 'Radio / intercom']).map(function (h) { return '<option>' + esc(h) + '</option>'; }).join('') + '</select>' +
+        '<button class="btn alt" type="button" id="iniBtn" onclick="iniSave(\'' + kind + '\')">📞 Record initial reading</button></div><div class="msg" id="iniMsg"></div>' : '') + '</div>';
+  }
+  function xrInitHtml(o) {
+    if (!o.fast || o.site || o.status === 'Cancelled') return '';
+    if (o.initialAt) return iniDone(o.initialAt, o.initial);
+    if (o.status === 'Final') return '';
+    return iniForm('xr', o.repeatAt || o.created, o.initHow, o.canInitial);
+  }
+  function rptInitHtml(r) {
+    var q = r.initial; if (!q || !q.fast) return '';
+    if (q.at) return iniDone(q.at, q.initial);
+    return iniForm('rpt', q.start, q.how, !!r.canEdit);
+  }
+  function iniSave(kind) {
+    var to = $('iniTo').value.trim(), how = $('iniHow').value, b = $('iniBtn');
+    if (to.length < 2) { $('iniTo').focus(); return setMsg('iniMsg', 'Say who you told (name and position).'); }
+    b.disabled = true; b.textContent = 'Saving…';
+    var p = kind === 'xr' ? run('xrInitial', token, XS.acc, { to: to, how: how }) : run('rptInitial', token, RPT.cur.id, { to: to, how: how });
+    p.then(function (r) {
+      if (r.expired) return expired();
+      b.disabled = false; b.textContent = '📞 Record initial reading';
+      if (!r.ok) return setMsg('iniMsg', r.msg);
+      if (kind === 'xr') { XS.initialAt = r.at; XS.initial = r.initial; } else if (RPT.cur && RPT.cur.initial) { RPT.cur.initial.at = r.at; RPT.cur.initial.initial = r.initial; }
+      $('iniBox').outerHTML = iniDone(r.at, r.initial); xrToast('📞 ' + r.msg);
+    }).catch(function (e) { b.disabled = false; b.textContent = '📞 Record initial reading'; setMsg('iniMsg', 'Could not save: ' + ((e && e.message) || e)); });
   }
 
   /* ---------- radiologist: worklist ---------- */
@@ -2021,6 +2070,7 @@
       (p.clinical ? '<div class="wide"><span>Chief complaint</span>' + esc(p.clinical) + '</div>' : '') + '</div>';
     if (o.note && o.status !== 'Repeat requested') h += '<div class="ctwarn">' + esc(o.note) + '</div>';
     h += xrRepeatHtml(o);
+    h += xrInitHtml(o);
     if (o.sibs && o.sibs.length) h += '<div class="xrsibs" id="xrSibs"><span>👥 Same patient, same visit – <b>separate report</b> for each:</span>' + o.sibs.map(function (x) {
       return '<button type="button" class="btn alt" onclick="xrOpenSib(\'' + esc(x.acc) + '\')" title="' + esc(x.acc) + '">' + esc(x.exam) + ' · ' + esc(x.status) + ' ▸</button>'; }).join('') + '</div>';
     if (o.canSplit) h += '<div id="xrSplitHost"><button class="link" type="button" onclick="xrSplitBox($(\'xrSplitHost\'), XS, function () { xrOpenStudy(XS.acc); })">✂ Two exams in this study? Split it…</button></div>';
@@ -3818,6 +3868,7 @@
     var h = '';
     if (r.header && r.header.length) h += '<table class="rpthdr">' + r.header.map(function (row) { return '<tr>' + row.map(function (c, i) { return '<td' + (/:\s*$|^(id no|name|age|sex|address|exam|requesting|indication|date|patient location|civil)/i.test(c) ? ' class="k"' : '') + '>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
     if (XR_META.repeat) h += ctRepeatHtml(r);
+    h += rptInitHtml(r);
     if (!r.parsed) {
       h += '<div class="ctwarn">This report has no "FINDINGS" and "IMPRESSION" headings, so it can’t be edited here.' + (r.canFix ? ' <button class="btn alt" type="button" id="rptFixBtn" onclick="rptFix()" style="width:auto;margin:6px 0 0">🔧 Add the headings for me</button><div class="sub" style="margin:4px 0 0">Findings = the text after “IMAGING REPORT”; Impression = the numbered lines at the end. Or edit it in Google Docs' + (ed ? ', then press Finalize.' : '.') + '</div>' : ' Edit it in Google Docs' + (ed ? ', then press Finalize.' : '.')) + '</div>' +
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
@@ -4079,18 +4130,21 @@
   /* ---- TAT badge (computed once when a list is drawn – no timers) ---- */
   function tatOf(o, mod) {
     var t = (XR_META && XR_META.tat) || { fastH: 4, routineH: 48, fastPri: ['STAT'], fastLoc: ['ER'] }, low = function (a) { return (a || []).map(function (x) { return String(x).toLowerCase(); }); };
-    var start = o.created || 0;
+    if (o.site) return ' <span class="chipk" title="Outside facility – not part of our TAT">🏥 ' + esc(o.site) + '</span>';
+    var start = o.repeatAt || o.created || 0;
     if (o.readDate) { var st = new Date(o.readDate + 'T' + ((XR_META && XR_META.opd && XR_META.opd.start) || '08:00') + ':00').getTime(); if (st > start) start = st; }
     if (!start) return '';
     var end = o.finalAt || Date.now();
     if (end < start) return '<span class="tat g" title="Queued – reading starts ' + esc(dayLabel(o.readDate)) + '">⏳ ' + esc(dayLabel(o.readDate)) + '</span>';
-    var min = (end - start) / 60000, target;
-    if (low(t.fastPri).indexOf(String(o.priority || '').toLowerCase()) !== -1 || low(t.fastLoc).indexOf(String(o.location || '').toLowerCase()) !== -1) target = t.fastH * 60;
+    var min = (end - start) / 60000, target, lab = '';
+    if (low(t.fastPri).indexOf(String(o.priority || '').toLowerCase()) !== -1 || low(t.fastLoc).indexOf(String(o.location || '').toLowerCase()) !== -1) {   // ER / STAT: initial reading first, then the final report
+      if (!o.finalAt && !o.initialAt) { target = t.fastH * 60; lab = ' · initial'; } else { target = (t.finalH || 12) * 60; lab = o.finalAt ? '' : ' · final'; }
+    }
     else if (mod === 'US') { var e = new Date(start); e.setHours(23, 59, 0, 0); target = Math.max(1, (e - start) / 60000); }
     else target = t.routineH * 60;
     var cls = min >= target ? 'r' : min >= target * 0.5 ? 'a' : 'g';
     var txt = min < 60 ? Math.round(min) + 'm' : min < 2880 ? Math.floor(min / 60) + 'h ' + pad2(Math.round(min % 60)) + 'm' : Math.round(min / 1440) + 'd';
-    return '<span class="tat ' + cls + '" title="Turnaround ' + (o.finalAt ? '' : 'so far ') + '– target ' + Math.round(target / 60) + ' h">⏱ ' + txt + '</span>';
+    return '<span class="tat ' + cls + '" title="Turnaround ' + (o.finalAt ? '' : 'so far ') + '– target ' + Math.round(target / 60) + ' h' + (lab ? ' (' + lab.slice(3) + ')' : '') + '">⏱ ' + txt + lab + '</span>' + (o.initialAt && !o.finalAt ? ' <span class="chipk" title="Initial reading communicated">📞 initial given</span>' : '');
   }
 
   function toast(t) { xrToast(t); }
@@ -4152,7 +4206,7 @@
       if (!r.items.length) { list.innerHTML = '<p class="sub">No ultrasound drafts made here yet.</p>'; return; }
       list.innerHTML = r.items.map(function (o) {
         return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b><div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
-          tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
+          tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location, initialAt: o.initialAt }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
       }).join('');
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
@@ -4184,9 +4238,15 @@
     var h = '<div class="dtiles">' + ['XR', 'CT', 'US'].map(function (m) {
       var x = d.byMod[m];
       return '<div class="dtile"><div class="dt">' + M[m] + '</div><div class="dv">' + dashDur(x.med) + '</div><div class="ds">median TAT · ' + x.n + ' case' + (x.n === 1 ? '' : 's') + '</div>' +
-        '<div class="ds">90% within ' + dashDur(x.p90) + ' · on target ' + dashPct(x.pct) + '</div>' + (x.queued ? '<div class="ds">' + x.queued + ' OPD queued · median wait ' + dashDur(x.wait) + ' (not counted in TAT)</div>' : '') + '</div>';
+        '<div class="ds">90% within ' + dashDur(x.p90) + ' · on target ' + dashPct(x.pct) + '</div>' + (x.init ? '<div class="ds">ER / STAT initial reading within ' + (t.fastH || 4) + ' h: ' + dashPct(x.init.pct) + ' (' + x.init.met + '/' + x.init.n + ')</div>' : '') + (x.queued ? '<div class="ds">' + x.queued + ' OPD queued · median wait ' + dashDur(x.wait) + ' (not counted in TAT)</div>' : '') + '</div>';
     }).join('') + '</div>';
-    h += '<p class="hint">Targets (POL-002 §2.2): ER / STAT ' + (t.fastH || 4) + ' h · ultrasound same day · routine X-ray and CT ' + (t.routineH || 48) + ' h · goal 85% on target. TAT runs from images available to report finalized.</p>';
+    h += '<p class="hint">Targets (POL-002 §2.2): ER / STAT – initial reading ' + (t.fastH || 4) + ' h, final report ' + (t.finalH || 12) + ' h · ultrasound same day · routine X-ray and CT ' + (t.routineH || 48) + ' h · goal ' + (t.goal || 85) + '% on target. TAT runs from images available to report finalized; the initial reading is when the radiologist recorded it as communicated (or the final report, if that came first).</p>';
+    var ini = ['XR', 'CT', 'US'].filter(function (m) { return d.byCat[m] && d.byCat[m]['ER / STAT'] && d.byCat[m]['ER / STAT'].init; });
+    if (ini.length) {
+      h += '<h3 class="dh">ER / STAT: initial reading and final report</h3><table class="dtab"><tr><th>Modality</th><th>Cases</th><th>Initial – median</th><th>Initial within ' + (t.fastH || 4) + ' h</th><th>Final – median</th><th>Final within ' + (t.finalH || 12) + ' h</th></tr>';
+      ini.forEach(function (m) { var x = d.byCat[m]['ER / STAT']; h += '<tr><td>' + M[m] + '</td><td>' + x.n + '</td><td>' + dashDur(x.init.med) + '</td><td>' + dashPct(x.init.pct) + '</td><td>' + dashDur(x.med) + '</td><td>' + dashPct(x.pct) + '</td></tr>'; });
+      h += '</table>';
+    }
     h += '<h3 class="dh">By category</h3><table class="dtab"><tr><th>Modality</th><th>Category</th><th>Cases</th><th>Median</th><th>90%</th><th>On target</th></tr>';
     ['XR', 'CT', 'US'].forEach(function (m) { Object.keys(d.byCat[m] || {}).forEach(function (c) { var x = d.byCat[m][c]; h += '<tr><td>' + M[m] + '</td><td>' + esc(c) + '</td><td>' + x.n + '</td><td>' + dashDur(x.med) + '</td><td>' + dashDur(x.p90) + '</td><td>' + dashPct(x.pct) + '</td></tr>'; }); });
     h += '</table>';
@@ -4201,7 +4261,8 @@
         return '<div class="dday" title="' + esc(x.ymd) + ' · ' + x.n + ' cases"><div class="dcol">' + ['XR', 'CT', 'US'].map(function (m) { return x[m] === null ? '<i class="b ' + m + '" style="height:0"></i>' : '<i class="b ' + m + '" style="height:' + Math.max(2, Math.round(x[m] / max * 100)) + '%" title="' + M[m] + ': ' + dashDur(x[m]) + ' (' + x[m + 'n'] + ')"></i>'; }).join('') + '</div><div class="dlab">' + esc(x.ymd.slice(5)) + '</div></div>';
       }).join('') + '</div>';
     }
-    var nf = d.total.n - d.total.met;
+    if (d.sites && d.sites.length) h += '<p class="hint">Outside facilities (read as a help – not in these TAT figures): ' + d.sites.map(function (x) { return esc(x.name) + ' – ' + x.n + ' X-ray' + (x.n === 1 ? '' : 's') + ' read'; }).join(' · ') + '.</p>';
+    var nf = d.total.miss != null ? d.total.miss : d.total.n - d.total.met;
     if (d.total.n) h += '<h3 class="dh">Cases that missed the target' + (nf ? ' <span class="dpct r">' + nf + '</span>' : '') + '</h3>' + (nf ?
       '<p class="hint" style="margin:0 0 6px">For audit: each case with its patient, radiologist, TAT and how far over the target it went (most overdue first).</p><div class="dctl"><button class="btn alt" type="button" id="dFailBtn" onclick="dashFails()" style="width:auto;margin:0">📋 Show the ' + nf + ' case' + (nf === 1 ? '' : 's') + '</button><button class="link hidden" id="dFailCsv" type="button" onclick="dashFailCsv()">⬇ Download this list (CSV)</button></div><div id="dFails"></div>' :
       '<p class="sub">None – every case in this period was on target. 🎉</p>');
@@ -4222,7 +4283,8 @@
       $('dFails').innerHTML = !d.items.length ? '<p class="sub">No cases.</p>' : '<div class="dscroll"><table class="dtab dfail"><tr><th>Finalized</th><th>Modality</th><th>Patient</th><th>Exam</th><th>Category</th><th>Location</th><th>Radiologist</th><th>TAT</th><th>Target</th><th>Over by</th><th></th></tr>' +
         d.items.map(function (x, k) {
           return '<tr><td>' + esc(dashWhen(x.final)) + '</td><td>' + esc(M[x.mod] || x.mod) + '</td><td>' + esc(x.patient || '—') + '</td><td>' + esc(x.exam) + '</td><td>' + esc(x.cat) + (x.priority && x.priority !== x.cat ? ' · ' + esc(x.priority) : '') + '</td><td>' + esc(x.location || '—') + '</td><td>' + esc(x.rad) + '</td>' +
-            '<td>' + dashDur(x.tat) + (x.wait ? '<div class="ds">+ ' + dashDur(x.wait) + ' OPD queue</div>' : '') + '</td><td>' + dashDur(x.target) + '</td><td><b class="dpct r">' + dashDur(x.over) + '</b></td>' +
+            '<td>' + dashDur(x.tat) + (x.wait ? '<div class="ds">+ ' + dashDur(x.wait) + ' OPD queue</div>' : '') + (x.initMin != null && x.initTarget ? '<div class="ds"' + (x.initMissed ? ' style="color:#b91c1c"' : '') + '>initial ' + dashDur(x.initMin) + '</div>' : '') + '</td>' +
+            '<td>' + dashDur(x.target) + (x.initTarget ? '<div class="ds">initial ' + dashDur(x.initTarget) + '</div>' : '') + '</td><td><b class="dpct r">' + dashDur(x.over) + '</b><div class="ds">' + (x.initMissed && x.finalMissed ? 'initial + final' : x.initMissed ? 'initial reading' : 'final report') + '</div></td>' +
             '<td>' + (x.open ? '<button class="link" type="button" onclick="dashOpenCase(' + k + ')">Open</button>' : '') + '</td></tr>';
         }).join('') + '</table></div>' + (d.more ? '<p class="sub">Showing the latest 500 of ' + (d.items.length + d.more) + '. Narrow the dates to see the others.</p>' : '') +
         '<p class="hint">Started = images available (OPD: 8 AM on its reading day). TAT does not include days an OPD case waited in the queue.</p>';
@@ -4237,8 +4299,8 @@
   function dashFailCsv() {
     if (!DFAIL) return;
     var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var hd = ['Finalized', 'Modality', 'Patient', 'Exam', 'Category', 'Priority', 'Location', 'Radiologist', 'Images available', 'TAT started', 'TAT (min)', 'Target (min)', 'Over by (min)', 'OPD queue wait (min)', 'Ref'];
-    var rows = DFAIL.items.map(function (x) { return [dashWhen(x.final), x.mod, x.patient, x.exam, x.cat, x.priority, x.location, x.rad, dashWhen(x.images), dashWhen(x.start), x.tat, x.target, x.over, x.wait, x.ref]; });
+    var hd = ['Finalized', 'Modality', 'Patient', 'Exam', 'Category', 'Priority', 'Location', 'Radiologist', 'Images available', 'TAT started', 'TAT (min)', 'Target (min)', 'Initial reading (min)', 'Initial target (min)', 'Missed', 'Over by (min)', 'OPD queue wait (min)', 'Ref'];
+    var rows = DFAIL.items.map(function (x) { return [dashWhen(x.final), x.mod, x.patient, x.exam, x.cat, x.priority, x.location, x.rad, dashWhen(x.images), dashWhen(x.start), x.tat, x.target, x.initMin == null ? '' : x.initMin, x.initTarget || '', x.initMissed && x.finalMissed ? 'initial + final' : x.initMissed ? 'initial' : 'final', x.over, x.wait, x.ref]; });
     var csv = [hd].concat(rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'TAT_missed_' + DFAIL.from + '_to_' + DFAIL.to + '.csv';
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
@@ -4292,14 +4354,16 @@
       if (!m.ok) return gate(m.msg, true);
       XR_META = m; XR_ROLE = m.role;
       $('gate').classList.add('hidden');
-      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
+      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.site ? ' · ' + m.site.name : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
+      document.body.classList.toggle('siteuser', !!m.site);
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabRep').classList.toggle('hidden', !((m.role.rad || m.role.admin) && m.repeat));
       var want = ''; try { want = sessionStorage.getItem('pacs_tab') || ''; } catch (e) {}
       var hx = /^#xr=([A-Z0-9-]+)$/i.exec(location.hash || '');
       if (hx && (m.role.rad || m.role.admin)) { schedView('xrread'); xrOpenStudy(decodeURIComponent(hx[1])); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
-      else schedView(want || (m.role.rad ? 'xrread' : 'xrup'));
+      else schedView(m.site ? 'xrup' : want || (m.role.rad ? 'xrread' : 'xrup'));
+      if (m.site) upMode('xr');
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
   })();
 </script>
