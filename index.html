@@ -338,6 +338,11 @@
   .cc.near { color:#d97706; font-weight:600; }
   textarea.fnn, textarea.fmm, textarea.adt { resize:vertical; }
   .rqhead { margin:16px 0 4px; font-weight:700; font-size:14px; }
+  .critbar { border:2px solid #dc2626; background:color-mix(in srgb,#dc2626 9%,var(--card,#fff)); border-radius:14px; padding:10px 12px; margin:0 0 12px; }
+  .critbar .crith { display:block; color:#b91c1c; margin-bottom:6px; }
+  .critrow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 0; border-top:1px solid color-mix(in srgb,#dc2626 25%,transparent); }
+  .critrow .critt { flex:1 1 240px; } .critrow .btn { width:auto; margin:0; padding:8px 12px; }
+  .critpill { background:#dc2626; color:#fff; font-weight:800; font-size:11px; border-radius:999px; padding:3px 8px; margin:0 6px; white-space:nowrap; align-self:center; }
 </style>
 </head>
 <body>
@@ -414,6 +419,7 @@
       <div id="pwMsg" class="msg"></div>
     </div>
     <div id="prNotice" class="prn hidden"></div>
+    <div id="critBar" class="critbar hidden" role="alert"></div>
     <nav id="ptabs" class="ptabs2 hidden" role="tablist" aria-label="Portal sections">
       <button type="button" role="tab" data-tab="viewer" onclick="tabGo('viewer')">🖼 Viewer</button>
       <button type="button" role="tab" data-tab="requests" onclick="tabGo('requests')">📋 Requests</button>
@@ -1257,8 +1263,33 @@
       if (r.ctQueue) { $('stCtQ').classList.remove('hidden'); setCtBadge(bd.ctr || 0); }
       if (CONF.pacs && CONF.pacs.enabled && r.xr) { $('stPacs').classList.toggle('hidden', !(r.xr.tech || r.xr.rad)); if (r.xr.rad) xrSetBadge(bd.xr || 0); }
       SITE = r.site || null; document.body.classList.toggle('siteuser', !!SITE);
+      critDraw(r.crit || []);
       try { tabsRefresh(); } catch (e) { console.error(e); }
     }).catch(function () {});
+  }
+
+  /** ⚠ critical-finding alerts addressed to me (shown after login; acknowledged one by one) */
+  var CRIT = [];
+  function critDraw(items) {
+    CRIT = items || []; var bar = $('critBar');
+    if (!CRIT.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    var t = function (ms) { var d = new Date(ms); return d.toLocaleDateString() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+    bar.innerHTML = '<b class="crith">⚠ Critical finding' + (CRIT.length > 1 ? 's (' + CRIT.length + ')' : '') + ' – please review</b>' + CRIT.map(function (x, k) {
+      return '<div class="critrow"><div class="critt"><b>' + esc(x.patient || '—') + '</b> · ' + esc(x.mod) + (x.exam ? ' · ' + esc(x.exam) : '') + (x.location ? ' · ' + esc(x.location) : '') +
+        '<div class="sub" style="margin:2px 0 0">' + esc(x.rad) + ' told ' + esc(x.to) + ' (' + esc(x.how.toLowerCase()) + ') at ' + esc(t(x.toldAt)) + '</div></div>' +
+        (x.reportId ? '<button class="btn alt" type="button" onclick="critOpen(' + k + ')">Open result</button>' : '') +
+        '<button class="btn" type="button" id="critAck' + k + '" onclick="critAckIt(' + k + ')">✓ Acknowledge</button></div>';
+    }).join('');
+    bar.classList.remove('hidden');
+  }
+  function critOpen(k) { var x = CRIT[k]; if (x && x.reportId) openFile({ id: x.reportId, name: x.reportName || x.patient }); }
+  function critAckIt(k) {
+    var x = CRIT[k], b = $('critAck' + k); if (!x) return; b.disabled = true; b.textContent = 'Saving…';
+    run('critAck', token, x.id).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { b.disabled = false; b.textContent = '✓ Acknowledge'; return alert(r.msg); }
+      CRIT.splice(k, 1); critDraw(CRIT);
+    }).catch(function () { b.disabled = false; b.textContent = '✓ Acknowledge'; });
   }
 
   function schedView(v) {
@@ -3250,6 +3281,7 @@
       '<p class="hint" style="margin:0 0 6px">For audit: each case with its patient, radiologist, TAT and how far over the target it went (most overdue first).</p><div class="dctl"><button class="btn alt" type="button" id="dFailBtn" onclick="dashFails()" style="width:auto;margin:0">📋 Show the ' + nf + ' case' + (nf === 1 ? '' : 's') + '</button><button class="link hidden" id="dFailCsv" type="button" onclick="dashFailCsv()">⬇ Download this list (CSV)</button></div><div id="dFails"></div>' :
       '<p class="sub">None – every case in this period was on target. 🎉</p>');
     if (!d.total.n) h = '<p class="sub">No finalized cases in this period yet. Cases are logged from now on as reports are finalized.</p>';
+    h += '<h3 class="dh">⚠ Critical findings</h3><p class="hint" style="margin:0 0 6px">Who was told, how and when, and who acknowledged the portal alert (POL-002 §2.3).</p><div class="dctl"><button class="btn alt" type="button" id="dCritBtn" onclick="dashCrit()" style="width:auto;margin:0">⚠ Show critical findings</button><button class="link hidden" id="dCritCsv" type="button" onclick="dashCritCsv()">⬇ CSV</button></div><div id="dCrit"></div>';
     $('dBody').innerHTML = h;
   }
   /** 📋 the cases that missed their TAT target – loaded only when asked (patient names are looked up on the server, not cached) */
@@ -3272,6 +3304,31 @@
         }).join('') + '</table></div>' + (d.more ? '<p class="sub">Showing the latest 500 of ' + (d.items.length + d.more) + '. Narrow the dates to see the others.</p>' : '') +
         '<p class="hint">Started = images available (OPD: 8 AM on its reading day). TAT does not include days an OPD case waited in the queue.</p>';
     }).catch(function (e) { b.disabled = false; b.textContent = '📋 Show the cases'; $('dFails').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  /** ⚠ critical findings in the period (POL-002 §2.3) – loaded only when asked (patient names) */
+  var DCRIT = null;
+  function dashCrit() {
+    var r = dashRange(), b = $('dCritBtn'); b.disabled = true; b.textContent = 'Loading…';
+    run('critList', token, r.from, r.to).then(function (d) {
+      b.disabled = false;
+      if (d.expired) return expired();
+      if (!d.ok) { b.textContent = '⚠ Show critical findings'; $('dCrit').innerHTML = '<p class="sub err">' + esc(d.msg) + '</p>'; return; }
+      DCRIT = d; b.textContent = '↻ Reload'; $('dCritCsv').classList.toggle('hidden', !d.items.length);
+      $('dCrit').innerHTML = !d.items.length ? '<p class="sub">No critical findings in this period.</p>' : '<div class="dscroll"><table class="dtab dfail"><tr><th>Finalized</th><th>Modality</th><th>Patient</th><th>Exam</th><th>Location</th><th>Radiologist</th><th>Communicated to</th><th>How</th><th>Told at</th><th>Alerted in portal</th><th>Acknowledged</th></tr>' +
+        d.items.map(function (x) {
+          return '<tr><td>' + esc(dashWhen(x.at)) + '</td><td>' + esc(x.mod) + '</td><td>' + esc(x.patient || '—') + '</td><td>' + esc(x.exam || '—') + '</td><td>' + esc(x.location || '—') + '</td><td>' + esc(x.rad) + '</td><td>' + esc(x.to) + '</td><td>' + esc(x.how) + '</td><td>' + esc(dashWhen(x.toldAt)) +
+            '</td><td>' + (x.recipients.length ? esc(x.recipients.join(', ')) : '<span class="ds">nobody (no CRITICAL_ALERT_TO, no portal match)</span>') + '</td><td>' + (x.ackAt ? esc(dashWhen(x.ackAt)) + '<div class="ds">' + esc(x.ackBy) + '</div>' : (x.recipients.length ? '<b class="dpct r">not yet</b>' : '—')) + '</td></tr>';
+        }).join('') + '</table></div>';
+    }).catch(function (e) { b.disabled = false; b.textContent = '⚠ Show critical findings'; $('dCrit').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function dashCritCsv() {
+    if (!DCRIT) return;
+    var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var hd = ['Finalized', 'Modality', 'Ref', 'Patient', 'Exam', 'Location', 'Radiologist', 'Communicated to', 'How', 'Told at', 'Requesting physician', 'Alerted in portal', 'Acknowledged at', 'Acknowledged by'];
+    var rows = DCRIT.items.map(function (x) { return [dashWhen(x.at), x.mod, x.ref || x.reportName, x.patient, x.exam, x.location, x.rad, x.to, x.how, dashWhen(x.toldAt), x.physician, x.recipients.join(' '), x.ackAt ? dashWhen(x.ackAt) : '', x.ackBy]; });
+    var csv = [hd].concat(rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = 'Critical_findings.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   function dashOpenCase(k) {
     var x = DFAIL && DFAIL.items[k]; if (!x || !x.open) return;
@@ -4280,7 +4337,7 @@
       var el = document.createElement('button');
       el.className = 'item';
       el.innerHTML = '<span><span class="n">' + hl(f.name) + '</span><br><span class="d">' +
-        new Date(f.date).toLocaleDateString() + '</span></span><span class="tag">' + esc(f.type) + '</span>';
+        new Date(f.date).toLocaleDateString() + '</span></span>' + (f.crit ? '<span class="critpill">⚠ CRITICAL</span>' : '') + '<span class="tag">' + esc(f.type) + '</span>';
       el.onclick = function () { pick(f); };
       list.appendChild(el);
     });

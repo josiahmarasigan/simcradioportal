@@ -328,6 +328,8 @@
   .inibox { border:1px solid #d97706; background:color-mix(in srgb,#d97706 9%,transparent); border-radius:10px; padding:8px 10px; margin:8px 0; font-size:13px; }
   .inibox.late { border-color:#dc2626; background:color-mix(in srgb,#dc2626 9%,transparent); }
   .inibox.ok { border-color:#16a34a; background:color-mix(in srgb,#16a34a 9%,transparent); }
+  .critbox { border:1.5px solid #dc2626; background:color-mix(in srgb,#dc2626 8%,transparent); border-radius:10px; padding:8px 10px; margin:4px 0 8px; font-size:13px; }
+  .critlab span { font-weight:600; } .critbox input[type=time] { width:auto; flex:0 0 auto; }
   .inirow { display:flex; gap:6px; flex-wrap:wrap; align-items:center; } .inirow input { flex:2 1 200px; margin:0; } .inirow select { flex:1 1 140px; width:auto; margin:0; } .inirow .btn { width:auto; margin:0; }
   body.siteuser #upMode, body.siteuser #xrLocWrap { display:none !important; }
   .rrov { position:fixed; inset:0; z-index:9500; background:rgba(0,0,0,.5); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:16px; }
@@ -1164,7 +1166,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 46;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 47;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -2140,6 +2142,28 @@
     return '<div class="inibox ok" id="iniBox">📞 <b>Initial reading communicated</b> to ' + esc(i.to || '') + ' (' + esc(i.how || '') + ')' + (i.byName ? ' by ' + esc(i.byName) : '') + ' · ' + esc(xrTime(at)) +
       '<div class="sub" style="margin:2px 0 0">Staff see it as PRELIMINARY. The final report is due within ' + (iniT().finalH || 12) + ' h of the images.</div></div>';
   }
+  /** ⚠ Critical finding (POL-002 §2.3): tick, then who was told, how and when – required before finalizing. p = 'xr' | 'rpt'. */
+  function critHtml(p, ed) {
+    return '<label class="crit critlab"><input type="checkbox" id="' + p + 'Crit" ' + (ed ? '' : 'disabled') + ' onchange="critToggle(\'' + p + '\')"><span>⚠ Critical finding – communicate to the requesting doctor (POL-002 §2.3)</span></label>' +
+      '<div class="critbox hidden" id="' + p + 'CritBox"><div class="inirow"><input type="text" id="' + p + 'CritTo" maxlength="100" placeholder="Communicated to – e.g. Dr. Reyes, ER physician" aria-label="Communicated to"' + (ed ? '' : ' disabled') + '>' +
+      '<select id="' + p + 'CritHow" aria-label="How"' + (ed ? '' : ' disabled') + '>' + ['Phone call', 'In person', 'Portal / chat message', 'Radio / intercom'].map(function (h) { return '<option>' + h + '</option>'; }).join('') + '</select>' +
+      '<input type="time" id="' + p + 'CritTime" aria-label="Time communicated"' + (ed ? '' : ' disabled') + '></div>' +
+      '<div class="sub" style="margin:4px 0 0">Required to finalize. An alert goes to the doctors on the critical list and to the requesting doctor in the portal.</div></div>';
+  }
+  function critToggle(p) {
+    var on = $(p + 'Crit') && $(p + 'Crit').checked, box = $(p + 'CritBox'); if (!box) return;
+    box.classList.toggle('hidden', !on);
+    if (on && !$(p + 'CritTime').value) { var d = new Date(); $(p + 'CritTime').value = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+    if (on && !$(p + 'CritTo').value) $(p + 'CritTo').focus();
+  }
+  function critVal(p) { return { to: $(p + 'CritTo').value.trim(), how: $(p + 'CritHow').value, time: $(p + 'CritTime').value }; }
+  function critErr(p) {
+    if (!$(p + 'Crit') || !$(p + 'Crit').checked) return '';
+    var v = critVal(p);
+    if (v.to.length < 2) { $(p + 'CritTo').focus(); return 'Critical finding: say who you told (name and position).'; }
+    if (!/^\d{2}:\d{2}$/.test(v.time)) return 'Critical finding: enter the time it was communicated.';
+    return '';
+  }
   function iniForm(kind, start, how, can) {
     var due = start ? start + (iniT().fastH || 4) * 3600000 : 0, late = due && Date.now() > due;
     return '<div class="inibox' + (late ? ' late' : '') + '" id="iniBox"><b>⏱ ER / STAT – initial reading ' + (late ? 'overdue (was due ' : 'due by ') + esc(due ? xrTime(due) : '') + (late ? ')' : '') + '</b>' +
@@ -2382,7 +2406,7 @@
     if (ed) h += '<div class="xrtpl"><select id="xrTpl" onchange="xrUseTpl()"><option value="">📋 Insert template…</option></select><button class="link" onclick="xrSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(\'X-ray\')">📝 Edit templates</button></div>';
     if (ed && XR_SIG && !XR_SIG.name) h += '<div class="ctwarn">Set up your report signature before finalizing. <button class="link" onclick="xrClose(); setTimeout(function(){ xrSigToggle(true); }, 300)">✍ Set up now</button></div>';
     h += '<label>X-ray report</label>' + rteHtml('xrF', 14, 'e.g. Both lung fields are clear.\nHeart is not enlarged. …', ed) +
-      '<label class="crit"><input type="checkbox" id="xrCrit" ' + (ed ? '' : 'disabled') + '><span>Critical finding (communicate per POL-002 §2.3)</span></label>';
+      critHtml('xr', ed);
     if (ed) h += '<div class="xrbtns"><button class="btn alt" onclick="xrDraft(false)">Save draft</button><button class="btn alt" onclick="xrPreview()">👁 Preview</button>' + (o.canRepeat && XR_META.repeat ? '<button class="btn alt" onclick="xrRepeatAsk()" title="The study can’t answer the clinical question – ask the technologist to repeat it (ALARA checklist)">🔁 Request repeat</button>' : '') + '</div>' +
       '<button class="btn" id="xrFin" onclick="xrFinal()">Finalize &amp; sign report</button><div class="sub" id="xrSaved" style="margin:4px 0 0"></div>';
     else if (o.canTakeOver) h += '<button class="btn alt" onclick="xrOpenStudy(\'' + esc(o.acc) + '\', true)">Take over this study</button>';
@@ -2404,7 +2428,7 @@
       };
     }
     rteInit('xrF', { plain: !(XR_META && XR_META.rich) });
-    var rp = o.report || {}; $('xrF').value = rtJoin(rp.findings, rp.impression); $('xrCrit').checked = !!o.critical;
+    var rp = o.report || {}; $('xrF').value = rtJoin(rp.findings, rp.impression); $('xrCrit').checked = !!o.critical; critToggle('xr');
     xpClose(true); xrPriorsLoad(o);
     if (ed) {
       var mark = function () { XS.dirty = true; $('xrSaved').textContent = 'Unsaved changes'; clearTimeout(XS.t); XS.t = setTimeout(function () { if (XS && XS.dirty) xrDraft(true); }, 15000); };
@@ -2541,7 +2565,7 @@
       setMsg('xrMsg2', r.msg, r.ok); if (r.ok) run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; xrFillTpl(); } });
     });
   }
-  function xrRep() { return { findings: $('xrF').value, impression: '', critical: $('xrCrit').checked }; }
+  function xrRep() { var c = $('xrCrit').checked; return { findings: $('xrF').value, impression: '', critical: c, crit: c ? critVal('xr') : null }; }
   /** Opens the finalized report Doc in Google Docs (a new tab; the popup is opened first so phones don't block it). */
   function xrEditDoc() {
     var w = null; try { w = window.open('', '_blank'); } catch (e) {}
@@ -2568,6 +2592,7 @@
     var b = $('xrFin'), rep = xrRep();
     if (!rep.findings.trim()) return setMsg('xrMsg2', 'Write the report.');
     if (XR_SIG && !XR_SIG.name) return setMsg('xrMsg2', 'Set up your report signature first (✍ My report signature on the worklist).');
+    { var ce = critErr('xr'); if (ce) return setMsg('xrMsg2', ce); }
     if (!XR_SURE) { XR_SURE = 1; b.textContent = 'Tap again to finalize & sign'; setTimeout(function () { XR_SURE = 0; if ($('xrFin')) $('xrFin').textContent = 'Finalize & sign report'; }, 5000); return; }
     XR_SURE = 0; b.disabled = true; b.textContent = 'Creating report PDF…'; clearTimeout(XS.t);
     run('xrFinalize', token, XS.acc, rep).then(function (r) {
@@ -4134,7 +4159,7 @@
         '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed, !!r.tables);
     }
     if (ed) {
-      h += '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button>' +
+      h += critHtml('rpt', true) + '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button>' +
         (r.ctRepeat && r.ctRepeat.canRequest && XR_META.repeat ? '<button class="btn alt" onclick="ctRepeatAsk()" title="The CT can’t answer the clinical question – ask for a repeat (ALARA checklist)">🔁 Request repeat</button>' : '') + '</div>' +
         '<button class="btn" id="rptFin" onclick="rptFinal()">Finalize &amp; move to the ' + esc(r.modality) + ' folder</button><div class="sub" id="rptSaved" style="margin:4px 0 0"></div>';
       var others = (m.rads || []).filter(function (x) { return x.email !== m.me; });
@@ -4277,10 +4302,12 @@
     var r = RPT.cur, b = $('rptFin'), e = rptEdits();
     if (r.ctRepeat && r.ctRepeat.waiting) return setMsg('rptMsg', 'A repeat is still pending for this CT – wait for the repeat images, or withdraw the request, before finalizing.');
     if (r.parsed && !rtPlainLines(Array.isArray(e.impression) ? e.impression.join('\n') : e.impression).join('').trim()) return setMsg('rptMsg', 'Write the impression.');
+    { var ce = critErr('rpt'); if (ce) return setMsg('rptMsg', ce); }
     if (XR_SIG && !XR_SIG.name && r.parsed) { /* signature is only used if the template has {{SIGNATURE}} – not required here */ }
     if (!RPT.sure) { RPT.sure = 1; b.textContent = 'Tap again to finalize'; setTimeout(function () { RPT.sure = 0; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; }, 5000); return; }
     RPT.sure = 0; b.disabled = true; b.textContent = 'Finalizing…'; clearTimeout(RPT.t);
-    run('rptFinalize', token, r.id, { modality: r.modality, findings: r.parsed ? e.findings : null, impression: r.parsed ? e.impression : null, pre: r.parsed ? e.pre : null }).then(function (x) {
+    var crit = !!($('rptCrit') && $('rptCrit').checked);
+    run('rptFinalize', token, r.id, { modality: r.modality, findings: r.parsed ? e.findings : null, impression: r.parsed ? e.impression : null, pre: r.parsed ? e.pre : null, critical: crit, crit: crit ? critVal('rpt') : null }).then(function (x) {
       if (x.expired) return expired();
       if (!x.ok) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; return setMsg('rptMsg', x.msg); }
       xrToast('✓ ' + x.msg);
@@ -4523,6 +4550,7 @@
       '<p class="hint" style="margin:0 0 6px">For audit: each case with its patient, radiologist, TAT and how far over the target it went (most overdue first).</p><div class="dctl"><button class="btn alt" type="button" id="dFailBtn" onclick="dashFails()" style="width:auto;margin:0">📋 Show the ' + nf + ' case' + (nf === 1 ? '' : 's') + '</button><button class="link hidden" id="dFailCsv" type="button" onclick="dashFailCsv()">⬇ Download this list (CSV)</button></div><div id="dFails"></div>' :
       '<p class="sub">None – every case in this period was on target. 🎉</p>');
     if (!d.total.n) h = '<p class="sub">No finalized cases in this period yet. Cases are logged from now on as reports are finalized.</p>';
+    h += '<h3 class="dh">⚠ Critical findings</h3><p class="hint" style="margin:0 0 6px">Who was told, how and when, and who acknowledged the portal alert (POL-002 §2.3).</p><div class="dctl"><button class="btn alt" type="button" id="dCritBtn" onclick="dashCrit()" style="width:auto;margin:0">⚠ Show critical findings</button><button class="link hidden" id="dCritCsv" type="button" onclick="dashCritCsv()">⬇ CSV</button></div><div id="dCrit"></div>';
     $('dBody').innerHTML = h;
   }
   /** 📋 the cases that missed their TAT target – loaded only when asked (patient names are looked up on the server, not cached) */
@@ -4545,6 +4573,31 @@
         }).join('') + '</table></div>' + (d.more ? '<p class="sub">Showing the latest 500 of ' + (d.items.length + d.more) + '. Narrow the dates to see the others.</p>' : '') +
         '<p class="hint">Started = images available (OPD: 8 AM on its reading day). TAT does not include days an OPD case waited in the queue.</p>';
     }).catch(function (e) { b.disabled = false; b.textContent = '📋 Show the cases'; $('dFails').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  /** ⚠ critical findings in the period (POL-002 §2.3) – loaded only when asked (patient names) */
+  var DCRIT = null;
+  function dashCrit() {
+    var r = dashRange(), b = $('dCritBtn'); b.disabled = true; b.textContent = 'Loading…';
+    run('critList', token, r.from, r.to).then(function (d) {
+      b.disabled = false;
+      if (d.expired) return expired();
+      if (!d.ok) { b.textContent = '⚠ Show critical findings'; $('dCrit').innerHTML = '<p class="sub err">' + esc(d.msg) + '</p>'; return; }
+      DCRIT = d; b.textContent = '↻ Reload'; $('dCritCsv').classList.toggle('hidden', !d.items.length);
+      $('dCrit').innerHTML = !d.items.length ? '<p class="sub">No critical findings in this period.</p>' : '<div class="dscroll"><table class="dtab dfail"><tr><th>Finalized</th><th>Modality</th><th>Patient</th><th>Exam</th><th>Location</th><th>Radiologist</th><th>Communicated to</th><th>How</th><th>Told at</th><th>Alerted in portal</th><th>Acknowledged</th></tr>' +
+        d.items.map(function (x) {
+          return '<tr><td>' + esc(dashWhen(x.at)) + '</td><td>' + esc(x.mod) + '</td><td>' + esc(x.patient || '—') + '</td><td>' + esc(x.exam || '—') + '</td><td>' + esc(x.location || '—') + '</td><td>' + esc(x.rad) + '</td><td>' + esc(x.to) + '</td><td>' + esc(x.how) + '</td><td>' + esc(dashWhen(x.toldAt)) +
+            '</td><td>' + (x.recipients.length ? esc(x.recipients.join(', ')) : '<span class="ds">nobody (no CRITICAL_ALERT_TO, no portal match)</span>') + '</td><td>' + (x.ackAt ? esc(dashWhen(x.ackAt)) + '<div class="ds">' + esc(x.ackBy) + '</div>' : (x.recipients.length ? '<b class="dpct r">not yet</b>' : '—')) + '</td></tr>';
+        }).join('') + '</table></div>';
+    }).catch(function (e) { b.disabled = false; b.textContent = '⚠ Show critical findings'; $('dCrit').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function dashCritCsv() {
+    if (!DCRIT) return;
+    var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var hd = ['Finalized', 'Modality', 'Ref', 'Patient', 'Exam', 'Location', 'Radiologist', 'Communicated to', 'How', 'Told at', 'Requesting physician', 'Alerted in portal', 'Acknowledged at', 'Acknowledged by'];
+    var rows = DCRIT.items.map(function (x) { return [dashWhen(x.at), x.mod, x.ref || x.reportName, x.patient, x.exam, x.location, x.rad, x.to, x.how, dashWhen(x.toldAt), x.physician, x.recipients.join(' '), x.ackAt ? dashWhen(x.ackAt) : '', x.ackBy]; });
+    var csv = [hd].concat(rows).map(function (row) { return row.map(q).join(','); }).join('\r\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = 'Critical_findings.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   function dashOpenCase(k) {
     var x = DFAIL && DFAIL.items[k]; if (!x || !x.open) return;
