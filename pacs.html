@@ -728,9 +728,8 @@
           <button class="link" onclick="wkLoad()">↻ Refresh</button>
         </div>
         <div class="wkfold" id="wkFold"></div>
-        <div class="xrnext"><button class="btn" id="xrStart" onclick="xrNext()">▶ Start reading X-rays</button>
-          <label class="crit" style="margin:0"><input type="checkbox" id="xrAuto" onchange="xrAutoSet(this.checked)"><span>Open the next X-ray automatically after I finalize</span></label>
-          <label class="crit" style="margin:0"><input type="checkbox" id="rptAuto" onchange="lsSet('rpt_auto', this.checked ? '1' : '0')"><span>Open the next US / CT report automatically after I finalize</span></label></div>
+        <div class="xrnext"><button class="btn" id="xrStart" onclick="wkStart()">▶ Start reading</button>
+          <label class="crit" style="margin:0"><input type="checkbox" id="xrAuto" onchange="xrAutoSet(this.checked)"><span>Open the next case automatically after I finalize</span></label></div>
         <div class="meta"><span id="xrAllCount" class="sub" style="margin:0"></span><button class="link" onclick="xrSigToggle()">✍ My report signature</button><button class="link" onclick="tplOpen('X-ray')">📝 Templates</button><button class="link" id="rptNewUsBtn" onclick="rptNewUs()">＋ New US report</button></div>
         <div id="rptNewUs" class="ctbox hidden"></div>
         <div id="xrSigBox" class="ctbox hidden">
@@ -1165,7 +1164,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 45;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 46;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -2229,7 +2228,7 @@
     wkLoad();
   }
   function wkOpen() {
-    $('xrAuto').checked = xrAutoOn(); $('rptAuto').checked = rptAutoOn();
+    $('xrAuto').checked = xrAutoOn();
     if (WK.mod === '' && !WK.init) { var m = lsGet('wk_mod'); if (m === 'XR' || m === 'CT' || m === 'Ultrasound') { WK.mod = m; Array.prototype.forEach.call($('wkMod').children, function (b) { b.classList.toggle('on', b.getAttribute('data-v') === m); }); } }
     WK.init = true;
     if (RPT.meta) return wkLoad();
@@ -2256,6 +2255,13 @@
     $('wkFold').innerHTML = h ? '<b>Finalized folders:</b>' + h : '';
   }
   function xrLoadWork(quiet) { return wkLoad(quiet); }
+  /** ▶ Start reading: the top case of the list as filtered – X-rays through the server's next-case picker (it claims the case), US / CT drafts in list order. */
+  function wkStart() {
+    var top = (WK.rows || [])[0];
+    if (top && top.kind === 'rpt') return rptOpenDoc(top.o.id);
+    if (WK.mod !== 'CT' && WK.mod !== 'Ultrasound') return xrNext();
+    xrToast('Nothing to read. 🎉');
+  }
   function rptLoad() { return wkLoad(true); }
   function wkLoad(quiet) {
     if (!XR_SIG) xrLoadSig().catch(function () {});
@@ -2263,9 +2269,7 @@
     var seq = ++WK.seq, list = $('xrWork'), sc = $('wkScope').value, mod = WK.mod, who = $('rptWho').classList.contains('hidden') ? '' : $('rptWho').value;
     wkFolders();
     var wantXr = (mod === '' || mod === 'XR') && sc !== 'ctimg', wantRpt = mod !== 'XR' && sc !== 'queue' && sc !== 'ctimg', wantCtd = sc === 'ctimg' && (mod === '' || mod === 'CT');
-    $('xrStart').classList.toggle('hidden', !(mod === '' || mod === 'XR'));
-    $('xrAuto').parentNode.classList.toggle('hidden', !(mod === '' || mod === 'XR'));
-    $('rptAuto').parentNode.classList.toggle('hidden', mod === 'XR');
+    $('xrStart').parentNode.classList.toggle('hidden', !(sc === 'mine' || sc === 'all'));
     $('rptNewUsBtn').classList.toggle('hidden', mod === 'XR' || mod === 'CT');
     $('rptWho').classList.toggle('hidden', !(RPT.meta && RPT.meta.admin) || mod === 'XR' || sc === 'queue');
     if (quiet !== true) list.innerHTML = '<p class="sub">Loading…</p>';
@@ -2284,7 +2288,6 @@
         else {
           xrSetBadge(xr.counts.toRead);
           $('xrAllCount').textContent = (xr.counts.toReadAll > xr.counts.toRead ? 'X-ray: ' + (xr.counts.toReadAll - xr.counts.toRead) + ' assigned to others ' : '') + (xr.counts.queued && sc !== 'queue' ? '· ' + xr.counts.queued + ' OPD queued for later days' : '');
-          $('xrStart').textContent = xr.counts.toRead ? '▶ Start reading X-rays (' + xr.counts.toRead + ')' : '▶ Start reading X-rays';
           xr.items.forEach(function (o) { rows.push({ kind: 'xr', t: o.finalAt || o.created, pri: o.priority, o: o }); });
         }
       } else $('xrAllCount').textContent = '';
@@ -2299,6 +2302,8 @@
       var fin = sc === 'myfinal' || sc === 'final', rank = function (p) { return p === 'STAT' ? 0 : p === 'Urgent' ? 1 : 2; };
       rows.sort(function (a, b) { return fin ? b.t - a.t : (rank(a.pri) - rank(b.pri)) || (a.t - b.t); });
       RPT.list = rows.filter(function (x) { return x.kind === 'rpt'; }).map(function (x) { return x.o; });
+      WK.rows = rows; WK.xrOpen = xr && xr.ok ? xr.counts.toRead : 0;
+      var nStart = WK.xrOpen + RPT.list.length; $('xrStart').textContent = nStart ? '▶ Start reading (' + nStart + ')' : '▶ Start reading';
       list.innerHTML = errs.map(function (e) { return '<p class="sub err">' + esc(e) + '</p>'; }).join('');
       if (cd) {
         if (!cd.ok) { list.innerHTML += '<p class="sub err">' + esc(cd.msg) + '</p>'; return; }
@@ -2592,7 +2597,9 @@
       if (!r.ok) { $('xrHead').innerHTML = '<button class="xrback" onclick="xrClose()">← Worklist</button><span class="err">' + esc(r.msg) + '</span>'; return; }
       if (r.done) {
         xrToast((afterFinal ? '✓ Report finalized. ' : '') + (XR_SKIP.length ? 'No more new X-rays. ' + XR_SKIP.length + ' skipped – they are still in the worklist.' : r.msg));
-        XR_SKIP = []; xrClose(true); return;
+        XR_SKIP = [];
+        if (afterFinal && WK.mod === '' && wkToRead() && RPT.list && RPT.list.length) { xrClose(true); rptOpenDoc(RPT.list[0].id); return; }
+        xrClose(true); return;
       }
       XS = r.study; XS.dirty = false; XS.left = r.left;
       if (XS.canEdit && !XTPL) run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; xrFillTpl(); } });
@@ -4083,7 +4090,7 @@
 
   /* ================= ULTRASOUND / CT REPORTS (generated Doc → edit → finalize) ================= */
   var RPT = { meta: null, list: [], cur: null, sure: 0, t: null };
-  function rptAutoOn() { return lsGet('rpt_auto') !== '0'; }
+  function rptAutoOn() { return xrAutoOn(); }
   function rptOpenDoc(id) {
     var ov = $('rptv'); ov.classList.remove('hidden'); document.body.classList.add('xrlock');
     $('rptHead').innerHTML = '<b>Opening…</b>'; $('rptBody').innerHTML = '<p class="sub">Reading the report…</p>';
@@ -4280,6 +4287,7 @@
       var i = RPT.list.map(function (y) { return y.id; }).indexOf(r.id); if (i !== -1) RPT.list.splice(i, 1);
       if (rptAutoOn() && wkToRead() && RPT.list[i] ) { r.dirty = false; rptOpenDoc(RPT.list[i].id); }
       else if (rptAutoOn() && wkToRead() && RPT.list.length) { rptOpenDoc(RPT.list[0].id); }
+      else if (rptAutoOn() && wkToRead() && WK.mod === '' && WK.xrOpen) { r.dirty = false; rptClose(true); xrNext(true); }
       else { if (rptAutoOn() && wkToRead()) xrToast('✓ ' + x.msg + ' All caught up.'); rptClose(true); }
     }).catch(function (e2) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; setMsg('rptMsg', 'Could not finalize: ' + ((e2 && e2.message) || e2) + '. Your text is still here – try again.'); });
   }
