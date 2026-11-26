@@ -324,6 +324,21 @@
   .pill.xrTo { } .pill.xrToread { background:#dc2626; color:#fff; } .pill.xrReading, .pill.xrAmending { background:color-mix(in srgb,#2563eb 18%,transparent); color:#2563eb; }
   .pill.xrFinal { background:color-mix(in srgb,#16a34a 18%,transparent); color:#16a34a; } .pill.xrUploading { background:color-mix(in srgb,#d97706 18%,transparent); color:#b45309; }
   .pill.xrCancelled { background:color-mix(in srgb,#64748b 18%,transparent); color:#64748b; }
+  .pill.xrRepeatrequested { background:#7c3aed; color:#fff; }
+  .rrov { position:fixed; inset:0; z-index:9500; background:rgba(0,0,0,.5); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:16px; }
+  .rrov.hidden { display:none; }
+  .rrcard { background:var(--card); color:inherit; border-radius:14px; max-width:640px; width:100%; padding:14px 16px; box-shadow:0 10px 40px rgba(0,0,0,.35); box-sizing:border-box; }
+  .rrhead { display:flex; justify-content:space-between; align-items:center; font-size:17px; }
+  .rrg { margin:10px 0 2px; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+  .rrck { display:flex; gap:8px; align-items:flex-start; padding:4px 0; font-size:14px; font-weight:400; margin:0; cursor:pointer; }
+  .rrck input { width:auto; margin:3px 0 0; flex:none; }
+  .rralara { border:2px solid #d97706; border-radius:10px; padding:8px 10px; margin-top:10px; background:color-mix(in srgb,#d97706 8%,transparent); }
+  .rrtype { font-weight:700; margin:10px 0 0; font-size:14px; } .rrtype.dose { color:#b45309; } .rrtype.nodose { color:#16a34a; }
+  .rrbox { border:1px solid #7c3aed; background:color-mix(in srgb,#7c3aed 9%,transparent); border-radius:10px; padding:8px 10px; margin:8px 0; font-size:13px; width:100%; box-sizing:border-box; flex-basis:100%; }
+  .rrbox .xrbar { flex-wrap:wrap; }
+  .rrhist { font-size:12px; color:var(--muted); margin:6px 0; } .rrwide { flex-basis:100%; width:100%; }
+  .rrlog { border:1px dashed var(--line); border-radius:10px; padding:8px 10px; margin:6px 0 10px; }
+  body.ctrepmode #upCt .xrg3 { opacity:.45; }
   .pill.xrpSTAT { background:#dc2626; color:#fff; } .pill.xrpUrgent { background:#d97706; color:#fff; }
   body.xrlock { overflow:hidden; }
   body.xrlock #appIns { display:none !important; }
@@ -541,6 +556,7 @@
     <button id="tabRpt" class="hidden" onclick="schedView('rpt')">📝 US / CT <span id="rptBadge" class="badge hidden"></span></button>
     <button id="tabPrint" class="hidden" onclick="schedView('print')">🖨 Print</button>
     <button id="tabTat" class="hidden" onclick="schedView('tat')">📊 TAT</button>
+    <button id="tabRep" class="hidden" onclick="schedView('rep')">🔁 Repeats</button>
   </div>
   <a class="pback manLink" href="https://drive.google.com/drive/folders/196o-rri89xl9V4fGRc0fqXIdpqcoVz1R" target="_blank" rel="noopener" title="User manual">📖 Manual</a>
   <a class="pback" href="index.html" id="pBack">← Portal</a>
@@ -585,6 +601,7 @@
           <div id="xrMore"></div>
           <button class="btn alt" id="xrAddExam" type="button" onclick="xrExamAdd()" style="width:auto">+ Add another exam (same patient)</button>
           <div class="hint" id="xrAddExamHint">Each exam becomes its own study with its own report and TAT. Example: Chest PA and Knee AP/LAT → add the knee as a second exam with its own photos.</div>
+          <div id="xrRepHost"></div>
           <label class="crit privchk" id="xrPrivRow"><input type="checkbox" id="xrPriv"><span>🔒 I checked every photo: <b>no patient name or ID can be read</b> on the images (tap a photo → ▦ Blur to hide anything missed)</span></label>
           <div class="xrbtns"><button class="btn" id="xrBtn" onclick="xrSend()">Upload &amp; send to radiologist</button></div>
           <button class="link" type="button" style="margin-top:6px" onclick="xrClearForm()">Clear form</button>
@@ -605,6 +622,7 @@
             <div class="xrdrop" id="ctDrop"><span id="ctDropTxt">Choose the CT study folder (e.g. from the CD, USB or the CT console export), or drop the folder here. A .zip works too.</span></div>
             <label class="crit" style="margin-top:6px"><input type="checkbox" id="ctOnlyDcm" checked onchange="ctdSummary()"><span>Send DICOM files only (skips viewer programs and other files on a CD)</span></label>
             <div id="ctSum" class="ctbox hidden"></div>
+            <div id="ctRepBox" class="rrbox hidden"></div>
             <div id="ctPendBox" class="ctwarn hidden"></div>
             <div id="ctZipWarn" class="ctwarn hidden"></div>
             <div id="ctStudyHdr" class="ctstudyhdr hidden"></div>
@@ -631,6 +649,7 @@
               <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="ctAssign"></select></div>
               <div><label>Pickup (print batch)</label><select id="ctPickup"></select></div>
             </div>
+            <div id="ctRepHost"></div>
             <div id="ctProg" class="hidden"><div class="ctbar"><i id="ctBarFill"></i></div><div class="sub" id="ctProgTxt" style="margin:6px 0 0"></div></div>
             <div class="xrbtns">
               <button class="btn" id="ctBtn" onclick="ctdGo()">Upload CT to Drive</button>
@@ -701,6 +720,14 @@
           <span id="dCustom" class="hidden"><input type="date" id="dFrom" style="width:auto;margin:0"> to <input type="date" id="dTo" style="width:auto;margin:0"> <button class="link" onclick="dashOpen(true)">Show</button></span>
           <button class="link" onclick="dashOpen(true)">↻ Refresh</button><button class="link" id="dCsv" onclick="dashCsv()">⬇ Download log (CSV)</button></div>
         <div id="dBody"></div>
+      </div>
+      <div id="vRep" class="hidden pcard">
+        <h2 style="margin:0 0 6px;font-size:18px">🔁 Repeats (reject / repeat analysis)</h2>
+        <p class="sub" style="margin:0 0 8px">Every repeat requested by a radiologist and every repeat a technologist logged at upload. Repeat rate = studies repeated with a new exposure ÷ studies done. Re-sends (better photo, missing images) cost no dose and are counted apart.</p>
+        <div class="dctl"><select id="rrsRange" onchange="rrsOpen()" style="width:auto;margin:0"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="custom">Custom…</option></select>
+          <span id="rrsCustom" class="hidden"><input type="date" id="rrsFrom" style="width:auto;margin:0"> to <input type="date" id="rrsTo" style="width:auto;margin:0"> <button class="link" onclick="rrsOpen(true)">Show</button></span>
+          <button class="link" onclick="rrsOpen(true)">↻ Refresh</button><button class="link" onclick="rrsCsv()">⬇ Download log (CSV)</button></div>
+        <div id="rrsBody"></div>
       </div>
       <div id="vPrint" class="hidden pcard">
         <div class="xrnext"><input type="date" id="prDay" onchange="prLoad()" style="width:auto;margin:0"><div class="seg" id="prBatch" style="margin:0"></div><button class="link" onclick="prLoad()">↻ Refresh</button></div>
@@ -1076,6 +1103,7 @@
   /* ---------- tech: upload ---------- */
   function xrUpInit() {
     pkFill('xrPickup');
+    if (XR_META && XR_META.repeat) rrLogInit('xrRep', 'XR');
     if (opdOn()) opdLoad().then(function () { opdShow(); });
     if ($('xrExam').options.length) return;
     $('xrPickup').addEventListener('change', function () { this.dataset.touched = '1'; });
@@ -1112,7 +1140,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 40;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 41;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -1227,13 +1255,15 @@
 
   /* ---- "+ Add images" to a study already uploaded: the photos go through the same area (blur + check) ---- */
   var XR_ADDTO = null;
-  function xrAddTo(o) {
+  function xrAddTo(o, rep) {
     if (XR_PENDING) return setMsg('xrMsg', 'Finish or "Start over" the unfinished upload first.');
     if (XR_EXAMS.length) return setMsg('xrMsg', 'Remove the extra exams first (+ Add images adds photos to one study).');
-    XR_ADDTO = { acc: o.acc, name: o.name, n: o.images || 0 };
+    XR_ADDTO = { acc: o.acc, name: o.name, n: o.images || 0, repeat: rep || null };
     $('xrAddExam').classList.add('hidden');
-    $('xrAddBox').innerHTML = '➕ Adding images to <b>' + esc(o.name) + '</b> (' + esc(o.acc) + '). Patient details above are not used. <button class="link" type="button" onclick="xrAddToCancel()">Cancel</button>';
-    $('xrAddBox').classList.remove('hidden'); $('xrBtn').textContent = 'Add images to ' + o.acc;
+    $('xrAddBox').innerHTML = rep ? '🔁 Adding the <b>' + (rep.exposure ? 'REPEAT' : 'better photo / missing image') + '</b> for <b>' + esc(o.name) + '</b> (' + esc(o.acc) + ')' + (rep.views ? ' – repeat: <b>' + esc(rep.views) + '</b>' : '') + '. Patient details above are not used.' +
+        (rep.exposure ? '<div style="margin-top:6px">Repeat exposures taken: <select id="xrAddN" style="width:auto;margin:0">' + [1, 2, 3, 4, 5].map(function (n) { return '<option>' + n + '</option>'; }).join('') + '</select></div>' : '') + ' <button class="link" type="button" onclick="xrAddToCancel()">Cancel</button>'
+      : '➕ Adding images to <b>' + esc(o.name) + '</b> (' + esc(o.acc) + '). Patient details above are not used. <button class="link" type="button" onclick="xrAddToCancel()">Cancel</button>';
+    $('xrAddBox').classList.remove('hidden'); $('xrBtn').textContent = rep ? 'Upload & send the repeat to the radiologist' : 'Add images to ' + o.acc;
     $('xrThumbs').scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   function xrAddToCancel() { XR_ADDTO = null; $('xrAddBox').classList.add('hidden'); $('xrAddExam').classList.remove('hidden'); if (!XR_BUSY) $('xrBtn').textContent = XR_PENDING ? 'Retry upload' : 'Upload & send to radiologist'; }
@@ -1320,6 +1350,7 @@
   function xrExamSet(k, f, v) { XR_EXAMS.forEach(function (e) { if (e.k === k) e[f] = v; }); if (f === 'exam') { var o = $('xrGo_' + k); if (o) o.classList.toggle('hidden', v !== 'Other'); } xrFormSave(); xrG0Head(); }
   function xrExamsDraw() {
     var box = $('xrMore'); if (!box) return;
+    if ($('xrRepOn') && $('xrRepOn').checked) setTimeout(rrLogExams, 0);
     var opts = (xrConf().exams || []);
     box.innerHTML = XR_EXAMS.map(function (e, n) {
       return '<div class="xrgrp" data-k="' + e.k + '"><div class="xrghead"><b>Exam ' + (n + 2) + '</b>' +
@@ -1449,8 +1480,10 @@
     var d = { last: $('xrLast').value, first: $('xrFirst').value, middle: $('xrMid').value, dob: $('xrDob').value, age: $('xrAge').value,
       sex: $('xrSexBar').getAttribute('data-v') || '', hospNo: $('xrHosp').value, location: $('xrLoc').value, address: $('xrAddr').value, civil: $('xrCivil').value, exam: $('xrExam').value === 'Other' ? ($('xrExamOther').value || 'Other') : $('xrExam').value,
       priority: $('xrPriBar').getAttribute('data-v') || 'Routine', physician: $('xrPhys').value, clinical: $('xrClin').value, assignTo: $('xrAssign').value, pickup: $('xrPickup').value };
-    XR_BUSY = true; b.disabled = true; b.textContent = 'Saving patient…';
     var addTo = !XR_PENDING && XR_ADDTO ? XR_ADDTO : null;
+    if (!addTo && !XR_PENDING) { var rl = rrLogRead('xrRep'); if (rl.err) { $('xrRepHost').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('xrMsg', rl.err); } if (rl.list.length) d.reps = rl.list; }
+    if (addTo && addTo.repeat) addTo.exp = $('xrAddN') ? Number($('xrAddN').value) || 1 : 0;
+    XR_BUSY = true; b.disabled = true; b.textContent = 'Saving patient…';
     d.cv = PACS_VER;
     if (!addTo && groups.length > 1) d.exams = groups.map(function (g) { return g.exam; });
     var start = XR_PENDING ? Promise.resolve({ ok: true, acc: XR_PENDING.split(',')[0], accs: XR_PENDING.split(','), pending: true }) : addTo ? Promise.resolve({ ok: true, acc: addTo.acc, add: true }) : run('xrCreate', token, d);
@@ -1473,6 +1506,7 @@
           x.state = 'done'; done++; b.textContent = 'Uploading images… ' + done + '/' + todo.length; xrDrawFiles(); xdbPut(x);
         }).catch(function (e) { x.state = 'err'; xrDrawFiles(); throw e; });
       })).then(function () {   // send each study, one after the other (the 2nd follows the 1st's radiologist)
+        if (addTo && addTo.repeat) return run('xrRepeatDone', token, addTo.acc, addTo.exp).then(function (s) { if (!s.ok) throw new Error(s.msg + ' The images are uploaded – press “Send repeat to the radiologist” in the list.'); return s; });
         var all = [], chain = Promise.resolve();
         accs.forEach(function (a) { chain = chain.then(function () { return run('xrSubmit', token, a).then(function (s) { if (!s.ok) throw new Error(a + ': ' + s.msg); all.push(s); }); }); });
         return chain.then(function () {
@@ -1488,7 +1522,7 @@
       if (addTo) {   // images added to an existing study: keep the form as it is
         XR_ADDTO = null; $('xrAddBox').classList.add('hidden');
         XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xrDrawFiles(); xdbClear();
-        setMsg('xrMsg', '✓ Images added to ' + addTo.acc + '.', true); xrLoadTech(); return;
+        setMsg('xrMsg', addTo.repeat ? '✓ ' + s.msg : '✓ Images added to ' + addTo.acc + '.', true); xrLoadTech(); return;
       }
       setMsg('xrMsg', '✓ ' + s.msg, true);
       xrNoteShow(s, d.pickup);
@@ -1499,7 +1533,7 @@
       XR_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); XR_FILES = []; xrDrawFiles(); xdbClear();
       ['xrLast', 'xrFirst', 'xrMid', 'xrDob', 'xrAge', 'xrHosp', 'xrClin', 'xrExamOther', 'xrAddr', 'xrCivil', 'xrAssign'].forEach(function (id) { $(id).value = ''; });
       $('xrAge').disabled = false; $('xrExam').value = ''; $('xrExamOther').classList.add('hidden'); xrSex(''); xrPri3('Routine');
-      XR_EXAMS = []; xrExamsDraw();
+      XR_EXAMS = []; xrExamsDraw(); rrLogReset('xrRep');
       lsSet('xr_form', null); xrFormSave(); xrPendingShow();
       $('xrLast').focus();
       xrLoadTech();
@@ -1549,6 +1583,7 @@
           }));
           el.appendChild(bar);
         }
+        if (XR_META.repeat) xrRepeatRow(el, o);
         list.appendChild(el);
       });
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -1608,6 +1643,286 @@
       });
       box.appendChild(Object.assign(document.createElement('div'), { className: 'hint', textContent: 'Tap once to select (red), tap again to remove.' }));
     });
+  }
+
+
+  /* ---------- 🔁 Repeats (ALARA): request form, tech actions, repeat log, analysis ---------- */
+  function rrMeta() { return (XR_META && XR_META.repeat) || { criteria: {}, alara: {}, noDose: [] }; }
+  function rrNoDose(c) { return (rrMeta().noDose || []).indexOf(c) !== -1; }
+  function rrIsDose(codes) { return codes.some(function (c) { return !rrNoDose(c); }); }
+  /** the reason checklist; techOnly = leave out the no-exposure reasons (better photo, re-send) */
+  function rrCkList(mod, name, techOnly) {
+    return (rrMeta().criteria[mod] || []).map(function (g) {
+      var items = g.items.filter(function (it) { return !techOnly || !rrNoDose(it[0]); });
+      if (!items.length) return '';
+      return '<div class="rrg">' + esc(g.g) + '</div>' + items.map(function (it) {
+        return '<label class="rrck"><input type="checkbox" name="' + esc(name) + '" value="' + esc(it[0]) + '"><span>' + esc(it[1]) + '</span></label>'; }).join('');
+    }).join('');
+  }
+  function rrPicked(root, name) { return Array.prototype.filter.call(root.querySelectorAll('input[name="' + name + '"]'), function (i) { return i.checked; }).map(function (i) { return i.value; }); }
+  /** one repeat round in words: reasons · what to repeat · state */
+  function rrRoundText(r, withState) {
+    var st = { Requested: 'waiting', Done: 'repeat sent' + (r.exposures ? ' (' + r.exposures + ' exposure' + (r.exposures === 1 ? '' : 's') + ')' : ''), Unable: 'could not be repeated' + (r.why ? ': ' + r.why : ''), Withdrawn: 'withdrawn' };
+    return esc((r.reasons || []).join('; ')) + (r.views ? ' · <b>repeat: ' + esc(r.views) + '</b>' : '') + (r.note ? ' · “' + esc(r.note) + '”' : '') +
+      ' <span class="sub" style="margin:0">– ' + esc(r.byName || '') + ', ' + esc(xrTime(r.at)) + (withState ? ' · ' + esc(st[r.state] || r.state || '') : '') + '</span>';
+  }
+  function rrHistory(rounds) {
+    var done = (rounds || []).filter(function (r) { return r.state !== 'Requested'; });
+    return done.length ? '<div class="rrhist">🔁 Earlier repeat request' + (done.length > 1 ? 's' : '') + ':<br>' + done.map(function (r) { return '• ' + rrRoundText(r, true); }).join('<br>') + '</div>' : '';
+  }
+
+  /* the request form (radiologist) */
+  var RR = null;
+  function rrOpen(mod, title, send, done) {
+    RR = { mod: mod, send: send, done: done };
+    var al = rrMeta().alara[mod] || [], ct = mod === 'CT';
+    $('rrCard').innerHTML = '<div class="rrhead"><b>🔁 Request a repeat</b><button class="link" type="button" onclick="rrClose()">✕ Close</button></div>' +
+      '<div class="sub" style="margin:2px 0 8px">' + esc(title) + '</div>' +
+      '<div class="policy">ALARA: ask for a repeat only when the images can’t answer the clinical question. ' + (ct ? 'A CT rescan doubles the dose – consider reconstructions from the scanner data first.' : 'A better photo or a missing view needs no new exposure.') + ' Every request is logged for the repeat analysis (POL-003 §3.1).</div>' +
+      '<label>Why? <span class="hint" style="display:inline">tick everything that applies</span></label><div id="rrList">' + rrCkList(mod, 'rrc') + '</div>' +
+      '<input type="text" id="rrOther" class="hidden" maxlength="250" placeholder="Other reason">' +
+      '<div id="rrType" class="rrtype"></div>' +
+      '<div id="rrAla" class="rralara hidden"><b>ALARA check – every statement must be true to ask for a new ' + (ct ? 'scan' : 'exposure') + '</b>' +
+        al.map(function (a) { return '<label class="rrck"><input type="checkbox" name="rra" value="' + esc(a[0]) + '"><span>' + esc(a[1]) + '</span></label>'; }).join('') +
+        '<label>' + (ct ? 'Rescan which region / phase?' : 'Repeat which view(s)?') + ' *</label><input type="text" id="rrViews" maxlength="180" placeholder="' + (ct ? 'e.g. Arterial phase of the abdomen only' : 'e.g. PA only, with full inspiration') + '"></div>' +
+      '<label>Note to the technologist <span class="hint" style="display:inline">(optional)</span></label><input type="text" id="rrNote" maxlength="250" placeholder="e.g. remove the necklace, include both costophrenic angles">' +
+      '<div class="xrbtns"><button class="btn" type="button" id="rrGo" onclick="rrSend()">Send repeat request</button><button class="btn alt" type="button" onclick="rrClose()">Cancel</button></div><div class="msg" id="rrMsg"></div>';
+    $('rrCard').onchange = rrUpdate; rrUpdate();
+    $('rrOv').classList.remove('hidden');
+    $('rrCard').scrollTop = 0;
+  }
+  function rrUpdate() {
+    if (!RR) return;
+    var codes = rrPicked($('rrCard'), 'rrc'), dose = rrIsDose(codes), ct = RR.mod === 'CT';
+    $('rrOther').classList.toggle('hidden', codes.indexOf('OTHER') === -1);
+    $('rrAla').classList.toggle('hidden', !codes.length || !dose);
+    $('rrType').className = 'rrtype ' + (!codes.length ? '' : dose ? 'dose' : 'nodose');
+    $('rrType').textContent = !codes.length ? '' : dose ? '☢ This needs a NEW ' + (ct ? 'SCAN' : 'EXPOSURE') + ' – complete the ALARA check below.' : '✓ No new ' + (ct ? 'scan' : 'exposure') + ' – the technologist ' + (ct ? 're-sends / rebuilds the images' : 'sends a better photo or the missing image') + '.';
+    $('rrGo').textContent = !codes.length ? 'Send repeat request' : dose ? 'Request a repeat ' + (ct ? 'scan' : 'X-ray') : 'Request the images again (no new ' + (ct ? 'scan' : 'exposure') + ')';
+  }
+  function rrSend() {
+    var c = $('rrCard'), codes = rrPicked(c, 'rrc'), dose = rrIsDose(codes), al = rrPicked(c, 'rra'), need = (rrMeta().alara[RR.mod] || []).length;
+    if (!codes.length) return setMsg('rrMsg', 'Tick at least one reason from the checklist.');
+    if (codes.indexOf('OTHER') !== -1 && !$('rrOther').value.trim()) { $('rrOther').focus(); return setMsg('rrMsg', 'Type the other reason.'); }
+    if (dose && al.length < need) return setMsg('rrMsg', 'A new ' + (RR.mod === 'CT' ? 'scan' : 'exposure') + ' can only be requested when every ALARA statement is true. If one isn’t, read the study as it is (and say its limits in the report).');
+    if (dose && !$('rrViews').value.trim()) { $('rrViews').focus(); return setMsg('rrMsg', RR.mod === 'CT' ? 'Say which region / phase to rescan.' : 'Say which view(s) to repeat.'); }
+    var d = { codes: codes, other: $('rrOther').value.trim(), alara: al, views: dose ? $('rrViews').value.trim() : '', note: $('rrNote').value.trim() };
+    var b = $('rrGo'); b.disabled = true; b.textContent = 'Sending…';
+    RR.send(d).then(function (r) {
+      if (r.expired) return expired();
+      b.disabled = false; rrUpdate();
+      if (!r.ok) return setMsg('rrMsg', r.msg);
+      var done = RR.done; rrClose(); xrToast('🔁 ' + r.msg); if (done) done(r);
+    }).catch(function (e) { b.disabled = false; rrUpdate(); setMsg('rrMsg', 'Could not send: ' + ((e && e.message) || e)); });
+  }
+  function rrClose() { RR = null; $('rrOv').classList.add('hidden'); }
+
+  /* X-ray reading screen */
+  function xrRepeatAsk() {
+    if (!XS || !XS.canRepeat) return;
+    var go = function () {
+      rrOpen('XR', XS.exam + ' · ' + XS.acc + ' · ' + XS.name, function (d) { return run('xrRepeatRequest', token, XS.acc, d); }, function () {
+        XS.canEdit = false; XS.dirty = false; clearTimeout(XS.t); xrClose(true);
+      });
+    };
+    if (XS.dirty) xrDraft(true).then(go, go); else go();
+  }
+  function xrRepeatWithdraw() {
+    var b = $('xrRrW'); if (!b) return;
+    if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Tap again to withdraw'; setTimeout(function () { if ($('xrRrW')) { delete $('xrRrW').dataset.sure; $('xrRrW').textContent = 'Withdraw the request'; } }, 5000); return; }
+    b.disabled = true;
+    run('xrRepeatWithdraw', token, XS.acc).then(function (r) { if (r.expired) return expired(); xrToast(r.msg); if (r.ok) xrOpenStudy(XS.acc); else b.disabled = false; });
+  }
+  /** banner + buttons for the reading screen (called from xrDrawStudy) */
+  function xrRepeatHtml(o) {
+    var rounds = o.repeat || [], cur = rounds[rounds.length - 1], h = '';
+    if (o.status === 'Repeat requested' && cur) h += '<div class="rrbox"><b>🔁 Repeat requested</b> – ' + esc(cur.type || '') + '<br>' + rrRoundText(cur) +
+      (o.canWithdraw ? '<br><button class="link" id="xrRrW" type="button" onclick="xrRepeatWithdraw()">Withdraw the request</button>' : '') + '</div>';
+    h += rrHistory(rounds);
+    return h;
+  }
+  /** image buttons: the repeat images get an R */
+  function xrRepeatFrom(o) { var r = (o.repeat || []).filter(function (x) { return x.state === 'Done'; })[0]; return r ? Number(r.imgBefore) || 0 : -1; }
+
+  /* technologist: X-ray list */
+  function xrRepeatRow(el, o) {
+    var rounds = o.repeat || [], cur = rounds[rounds.length - 1];
+    if (o.status !== 'Repeat requested' || !cur) { if (rounds.length) { var hh = document.createElement('div'); hh.className = 'rrwide'; hh.innerHTML = rrHistory(rounds); el.appendChild(hh); } return; }
+    var box = document.createElement('div'); box.className = 'rrbox';
+    var newImgs = (o.images || 0) - (Number(cur.imgBefore) || 0);
+    box.innerHTML = '<b>🔁 Repeat requested by ' + esc(cur.byName || 'the radiologist') + '</b> – ' + esc(cur.type || '') + '<br>' + rrRoundText(cur) +
+      '<div class="xrbar" style="margin-top:6px"></div><div class="msg"></div>';
+    var bar = box.querySelector('.xrbar'), m = box.querySelector('.msg');
+    var add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.style.cssText = 'width:auto;margin:0';
+    add.textContent = cur.exposure ? '📷 Add the repeat image(s)' : '📷 Add the better photo / missing image';
+    add.onclick = function () { xrAddTo(o, cur); };
+    bar.appendChild(add);
+    if (newImgs > 0) {
+      var sel = null;
+      if (cur.exposure) { sel = document.createElement('select'); sel.className = 'xrasg'; sel.title = 'Repeat exposures taken'; sel.innerHTML = [1, 2, 3, 4, 5].map(function (n) { return '<option value="' + n + '">' + n + ' exposure' + (n === 1 ? '' : 's') + ' taken</option>'; }).join(''); bar.appendChild(sel); }
+      var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'link'; sb.textContent = '✓ Send repeat to the radiologist (' + newImgs + ' new image' + (newImgs === 1 ? '' : 's') + ')';
+      sb.onclick = function () { sb.disabled = true; run('xrRepeatDone', token, o.acc, sel ? sel.value : 0).then(function (r) { if (r.expired) return expired(); if (!r.ok) { sb.disabled = false; m.className = 'msg err'; m.textContent = r.msg; return; } xrToast('✓ ' + r.msg); xrLoadTech(); }); };
+      bar.appendChild(sb);
+    }
+    var un = document.createElement('button'); un.type = 'button'; un.className = 'link'; un.textContent = 'Can’t repeat…';
+    un.onclick = function () {
+      var i = box.querySelector('[data-why]');
+      if (!i) { i = document.createElement('input'); i.type = 'text'; i.setAttribute('data-why', ''); i.maxLength = 250; i.placeholder = 'Why? e.g. patient went home, refused, too unstable'; bar.appendChild(i); un.textContent = 'Send “can’t repeat”'; i.focus(); return; }
+      if (i.value.trim().length < 3) { i.focus(); return; }
+      un.disabled = true; run('xrRepeatUnable', token, o.acc, i.value.trim()).then(function (r) { if (r.expired) return expired(); if (!r.ok) { un.disabled = false; m.className = 'msg err'; m.textContent = r.msg; return; } xrToast(r.msg); xrLoadTech(); });
+    };
+    bar.appendChild(un);
+    if (newImgs > 0) { var rb = document.createElement('button'); rb.className = 'link'; rb.textContent = 'Remove a repeat image…'; rb.onclick = function () { xrPickRemove(o, el); }; bar.appendChild(rb); }
+    el.appendChild(box);
+  }
+
+  /* technologist: "I repeated an exposure" on the upload forms (X-ray, CT) */
+  function rrLogHtml(pre, mod) {
+    var ct = mod === 'CT';
+    return '<label class="crit"><input type="checkbox" id="' + pre + 'On" onchange="rrLogToggle(\'' + pre + '\')"><span>🔁 I had to <b>repeat ' + (ct ? 'a scan / series' : 'an exposure') + '</b> for this patient <span class="hint" style="display:inline">(repeat log)</span></span></label>' +
+      '<div id="' + pre + 'Box" class="rrlog hidden"><div class="sub" style="margin:0 0 6px">Logged for the repeat analysis (no patient names). It is for learning and for the dose record – not for blame.</div>' +
+      (ct ? '' : '<div id="' + pre + 'ExW" class="hidden"><label>Which exam?</label><select id="' + pre + 'Ex"></select></div>') +
+      '<label>How many extra ' + (ct ? 'scans / series' : 'exposures') + '?</label><select id="' + pre + 'N">' + [1, 2, 3, 4, 5].map(function (n) { return '<option>' + n + '</option>'; }).join('') + '</select>' +
+      '<label>Why?</label>' + rrCkList(mod, pre + 'C', true) + '<input type="text" id="' + pre + 'O" class="hidden" maxlength="200" placeholder="Other reason"></div>';
+  }
+  function rrLogInit(pre, mod) { var host = $(pre + 'Host'); if (!host || host.dataset.on) return; host.dataset.on = '1'; host.innerHTML = rrLogHtml(pre, mod); host.onchange = function () { $(pre + 'O').classList.toggle('hidden', rrPicked(host, pre + 'C').indexOf('OTHER') === -1); }; }
+  function rrLogToggle(pre) {
+    var on = $(pre + 'On').checked; $(pre + 'Box').classList.toggle('hidden', !on);
+    if (on && pre === 'xrRep') rrLogExams();
+  }
+  function rrLogExams() {
+    var s = $('xrRepEx'); if (!s) return;
+    var names = [$('xrExam').value === 'Other' ? ($('xrExamOther').value || 'Other') : $('xrExam').value].concat(XR_EXAMS.map(function (e) { return e.exam ? xrExamName(e.exam, e.other) : ''; }));
+    var keep = s.selectedIndex;
+    s.innerHTML = names.map(function (n, i) { return '<option value="' + i + '">Exam ' + (i + 1) + ': ' + esc(n || '(not chosen yet)') + '</option>'; }).join('');
+    if (keep > -1 && keep < names.length) s.selectedIndex = keep;
+    $('xrRepExW').classList.toggle('hidden', names.length < 2);
+  }
+  /** → { list: [{ i, n, codes, other }] } or { err } */
+  function rrLogRead(pre) {
+    if (!$(pre + 'On') || !$(pre + 'On').checked) return { list: [] };
+    var host = $(pre + 'Host'), codes = rrPicked(host, pre + 'C'), other = $(pre + 'O').value.trim();
+    if (!codes.length) return { err: 'Repeat log: tick why you repeated (or untick “I had to repeat”).' };
+    if (codes.indexOf('OTHER') !== -1 && !other) return { err: 'Repeat log: type the other reason.' };
+    return { list: [{ i: $(pre + 'Ex') ? Number($(pre + 'Ex').value) || 0 : 0, n: Number($(pre + 'N').value) || 1, codes: codes, other: other }] };
+  }
+  function rrLogReset(pre) { var host = $(pre + 'Host'); if (!host || !$(pre + 'On')) return; $(pre + 'On').checked = false; $(pre + 'Box').classList.add('hidden'); Array.prototype.forEach.call(host.querySelectorAll('input[type=checkbox]'), function (i) { i.checked = false; }); $(pre + 'O').value = ''; $(pre + 'N').value = '1'; }
+
+  /* CT: radiologist (report editor) and technologist (CT list → repeat upload) */
+  function ctRepeatHtml(r) {
+    var q = r.ctRepeat; if (!q) return '';
+    var rounds = q.rounds || [], cur = rounds[rounds.length - 1], h = '';
+    if (q.waiting && cur) h += '<div class="rrbox"><b>🔁 Repeat requested</b> – ' + esc(cur.type || '') + '<br>' + rrRoundText(cur) + '<br><span class="sub" style="margin:0">You can keep writing; finalizing waits for the repeat images (or withdraw the request).</span>' +
+      (q.canWithdraw ? '<br><button class="link" id="ctRrW" type="button" onclick="ctRepeatWithdraw()">Withdraw the request</button>' : '') + '</div>';
+    h += rrHistory(rounds);
+    return h;
+  }
+  function ctRepeatAsk() {
+    var r = RPT.cur; if (!r || !r.ctRepeat || !r.ctRepeat.canRequest) return;
+    var go = function () {
+      rrOpen('CT', r.name, function (d) { return run('ctRepeatRequest', token, r.uploadId, d); }, function () { rptOpenDoc(r.id); });
+    };
+    if (r.dirty) rptSaveDraft(true).then(go, go); else go();
+  }
+  function ctRepeatWithdraw() {
+    var b = $('ctRrW'), r = RPT.cur; if (!b || !r) return;
+    if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Tap again to withdraw'; setTimeout(function () { if ($('ctRrW')) { delete $('ctRrW').dataset.sure; $('ctRrW').textContent = 'Withdraw the request'; } }, 5000); return; }
+    b.disabled = true;
+    var go = function () { run('ctRepeatClose', token, r.uploadId, 'withdraw', '').then(function (x) { if (x.expired) return expired(); xrToast(x.msg); if (x.ok) rptOpenDoc(r.id); else b.disabled = false; }); };
+    if (r.dirty) rptSaveDraft(true).then(go, go); else go();
+  }
+  /** CT list row: the request box for the technologist */
+  function ctRepeatRowHtml(x) {
+    if (x.repeatOf) return '<div class="rrwide sub" style="margin:4px 0 0">🔁 Repeat images of ' + esc(x.repeatOf) + ' (in its folder – no separate report)</div>';
+    var rounds = x.repeat || [], cur = rounds[rounds.length - 1];
+    if (x.status !== 'Repeat requested' || !cur) return rounds.length ? '<div class="rrwide">' + rrHistory(rounds) + '</div>' : '';
+    var tech = x.mine || XR_ROLE.tech || XR_ROLE.admin;
+    return '<div class="rrbox"><b>🔁 Repeat requested by ' + esc(cur.byName || 'the radiologist') + '</b> – ' + esc(cur.type || '') + '<br>' + rrRoundText(cur) +
+      (tech ? '<div class="xrbar" style="margin-top:6px"><button class="btn" type="button" style="width:auto;margin:0" onclick="ctRepeatUpload(\'' + esc(x.id) + '\', \'' + esc((x.name + ' · ' + x.exam).replace(/'/g, '')) + '\', ' + (cur.exposure ? 1 : 0) + ')">📤 Upload the repeat</button>' +
+        '<button class="link" type="button" onclick="ctRepeatUnable(this, \'' + esc(x.id) + '\')">Can’t repeat…</button></div><div class="msg"></div>' : '') + '</div>';
+  }
+  function ctRepeatUnable(btn, id) {
+    var bar = btn.parentNode, i = bar.querySelector('[data-why]'), m = bar.parentNode.querySelector('.msg');
+    if (!i) { i = document.createElement('input'); i.type = 'text'; i.setAttribute('data-why', ''); i.maxLength = 250; i.placeholder = 'Why? e.g. scanner down, patient transferred'; bar.appendChild(i); btn.textContent = 'Send “can’t repeat”'; i.focus(); return; }
+    if (i.value.trim().length < 3) { i.focus(); return; }
+    btn.disabled = true;
+    run('ctRepeatClose', token, id, 'unable', i.value.trim()).then(function (r) { if (r.expired) return expired(); if (!r.ok) { btn.disabled = false; m.className = 'msg err'; m.textContent = r.msg; return; } xrToast(r.msg); ctdLoadList(); });
+  }
+  function ctRepeatUpload(id, label, exposure) {
+    if (CTD.busy || CTD.run) return xrToast('Finish the upload in progress first.');
+    if (curView !== 'xrup') schedView('xrup');
+    upMode('ct');
+    CTD.repeat = { id: id, label: label, exposure: !!exposure };
+    ctRepeatBox();
+    $('ctRepBox').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function ctRepeatBox() {
+    var b = $('ctRepBox'), r = CTD.repeat;
+    if (!r) { b.classList.add('hidden'); $('ctBtn').textContent = 'Upload CT to Drive'; document.body.classList.remove('ctrepmode'); return; }
+    b.innerHTML = '🔁 Uploading the <b>REPEAT</b> of <b>' + esc(r.label) + '</b> (' + esc(r.id) + '). Choose the repeat images above – the patient details below are not needed; they go into the same study folder, sub-folder “REPEAT…”, and the same report draft.' +
+      (r.exposure ? '<div style="margin-top:6px">Repeat scans / series taken: <select id="ctRepN" style="width:auto;margin:0">' + [1, 2, 3, 4, 5].map(function (n) { return '<option>' + n + '</option>'; }).join('') + '</select></div>' : '') +
+      ' <button class="link" type="button" onclick="CTD.repeat = null; ctRepeatBox()">Cancel</button>';
+    b.classList.remove('hidden'); document.body.classList.add('ctrepmode');
+    $('ctBtn').textContent = 'Upload the repeat';
+  }
+
+  /* 🔁 Repeats tab: repeat / reject analysis */
+  var RRS = { data: null, at: 0 };
+  function rrsRange() {
+    var v = $('rrsRange').value, iso = function (d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+    $('rrsCustom').classList.toggle('hidden', v !== 'custom');
+    if (v === 'custom') return { from: $('rrsFrom').value, to: $('rrsTo').value };
+    var t = new Date(), f = new Date(t.getTime() - (Number(v) - 1) * 864e5); return { from: iso(f), to: iso(t) };
+  }
+  function rrsOpen(force) {
+    var rg = rrsRange(), key = rg.from + '|' + rg.to;
+    if ($('rrsRange').value === 'custom' && (!rg.from || !rg.to)) return;
+    if (!force && RRS.data && RRS.key === key && Date.now() - RRS.at < 300000) return rrsDraw();
+    $('rrsBody').innerHTML = '<p class="sub">Loading…</p>';
+    run('repeatStats', token, rg.from, rg.to).then(function (r) {
+      if (r.expired) return expired();
+      if (!r.ok) { $('rrsBody').innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
+      RRS = { data: r, key: key, at: Date.now() }; rrsDraw();
+    }).catch(function (e) { $('rrsBody').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function rrsDraw() {
+    var r = RRS.data, rows = r.rows, pct = function (a, b) { return b ? (Math.round(a / b * 1000) / 10) + '%' : '–'; };
+    var dose = rows.filter(function (x) { return !/^Re-send/.test(x.type) && x.status !== 'Withdrawn'; });
+    var countDose = function (mod) { return dose.filter(function (x) { return x.mod === mod; }).reduce(function (a, x) { return a + (x.source === 'Tech (at upload)' ? (x.exposures || 1) : (x.status === 'Done' ? (x.exposures || 1) : 0)); }, 0); };
+    var studiesRep = function (mod) { var s = {}; dose.forEach(function (x) { if (x.mod === mod && (x.source === 'Tech (at upload)' || x.status === 'Done')) s[x.ref] = 1; }); return Object.keys(s).length; };
+    var reqs = rows.filter(function (x) { return x.source === 'Radiologist request'; }), open = reqs.filter(function (x) { return x.status === 'Requested'; });
+    var tile = function (t, v, s) { return '<div class="dtile"><div class="dt">' + t + '</div><div class="dv">' + v + '</div><div class="ds">' + s + '</div></div>'; };
+    var h = '<div class="dtiles">' +
+      tile('X-ray repeat rate', pct(studiesRep('XR'), r.studies.XR), studiesRep('XR') + ' of ' + r.studies.XR + ' studies repeated · ' + countDose('XR') + ' extra exposure' + (countDose('XR') === 1 ? '' : 's')) +
+      tile('CT repeat rate', pct(studiesRep('CT'), r.studies.CT), studiesRep('CT') + ' of ' + r.studies.CT + ' studies rescanned · ' + countDose('CT') + ' extra scan' + (countDose('CT') === 1 ? '' : 's')) +
+      tile('Radiologist requests', reqs.length, reqs.filter(function (x) { return x.status === 'Done'; }).length + ' repeated · ' + reqs.filter(function (x) { return x.status === 'Unable'; }).length + ' couldn’t · ' + reqs.filter(function (x) { return x.status === 'Withdrawn'; }).length + ' withdrawn · ' + rows.filter(function (x) { return /^Re-send/.test(x.type); }).length + ' re-sends (no dose)') +
+      tile('Logged by technologists', rows.filter(function (x) { return x.source === 'Tech (at upload)'; }).length, 'repeats taken before upload') +
+      tile('Waiting now', open.length, open.length ? 'oldest ' + esc(xrTime(Math.min.apply(null, open.map(function (x) { return x.at; })))) : 'no open requests') + '</div>';
+    // by reason
+    var lab = {}; ['XR', 'CT'].forEach(function (m) { (r.criteria[m] || []).forEach(function (g) { g.items.forEach(function (it) { lab[it[0]] = { t: it[1], g: g.g }; }); }); });
+    var by = function (key) { var o = {}; rows.forEach(function (x) { if (x.status === 'Withdrawn') return; (key(x) || []).forEach(function (k) { if (k) o[k] = (o[k] || 0) + 1; }); }); return Object.keys(o).map(function (k) { return [k, o[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); };
+    var counted = rows.filter(function (x) { return x.status !== 'Withdrawn'; }).length;
+    var table = function (title, list, fmt) { return '<h3 style="margin:16px 0 6px;font-size:15px">' + title + '</h3>' + (list.length ? '<div class="dscroll"><table class="dtab"><tr><th></th><th>Repeats</th><th>Share</th></tr>' + list.map(function (x) { return '<tr><td>' + fmt(x[0]) + '</td><td>' + x[1] + '</td><td>' + pct(x[1], counted) + '</td></tr>'; }).join('') + '</table></div>' : '<p class="sub">None in this period.</p>'); };
+    h += table('By reason', by(function (x) { return x.codes; }), function (k) { var l = lab[k]; return l ? '<b>' + esc(l.g) + '</b> – ' + esc(l.t) : esc(k); });
+    h += table('By technologist', by(function (x) { return [x.tech || '—']; }), esc);
+    h += table('By exam', by(function (x) { return [x.mod + ' · ' + (x.exam || '—')]; }), esc);
+    h += table('Requests by radiologist', by(function (x) { return x.source === 'Radiologist request' ? [x.by || '—'] : []; }), esc);
+    // the log
+    h += '<h3 style="margin:16px 0 6px;font-size:15px">All repeats (' + rows.length + ')</h3>' + (rows.length ? '<div class="dscroll"><table class="dtab dfail"><tr><th>Logged</th><th>Study</th><th>Source</th><th>Type</th><th>Reasons</th><th>By / tech</th><th>Status</th><th></th></tr>' +
+      rows.map(function (x, i) { return '<tr><td>' + esc(xrTime(x.at)) + '</td><td>' + esc(x.mod) + ' · ' + esc(x.exam) + '<div class="ds">' + esc(x.ref) + (x.location ? ' · ' + esc(x.location) : '') + '</div></td><td>' + esc(x.source) + '</td><td>' + esc(x.type) + (x.exposures ? '<div class="ds">' + x.exposures + ' extra</div>' : '') + '</td>' +
+        '<td>' + esc(x.reasons) + (x.views ? '<div class="ds">Repeat: ' + esc(x.views) + '</div>' : '') + '</td><td>' + esc(x.by) + (x.tech && x.tech !== x.by ? '<div class="ds">tech: ' + esc(x.tech) + '</div>' : '') + '</td>' +
+        '<td>' + esc(x.status) + (x.wait != null && x.source === 'Radiologist request' && x.status !== 'Requested' ? '<div class="ds">' + esc(tatFmt(x.wait)) + '</div>' : '') + (x.outcome ? '<div class="ds">' + esc(x.outcome) + '</div>' : '') + '</td>' +
+        '<td>' + (x.mod === 'XR' ? '<button class="link" onclick="rrsOpenCase(' + i + ')">Open</button>' : '') + '</td></tr>'; }).join('') + '</table></div>' : '<p class="sub">No repeats logged in this period. 🎉</p>');
+    $('rrsBody').innerHTML = h;
+  }
+  function tatFmt(min) { min = Math.round(min || 0); return min < 60 ? min + ' min' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'; }
+  function rrsOpenCase(i) { var x = RRS.data && RRS.data.rows[i]; if (x && x.mod === 'XR') { schedView('xrread'); xrOpenStudy(x.ref); } }
+  function rrsCsv() {
+    if (!RRS.data) return;
+    var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var head = ['RepeatID', 'Logged', 'Modality', 'Ref', 'Exam', 'Location', 'Source', 'Type', 'Reasons', 'Codes', 'Views', 'By', 'Tech', 'Status', 'Resolved', 'Exposures', 'WaitMin', 'Outcome'];
+    var lines = [head.join(',')].concat(RRS.data.rows.map(function (x) { return [x.id, new Date(x.at).toISOString(), x.mod, x.ref, x.exam, x.location, x.source, x.type, x.reasons, x.codes.join(' '), x.views, x.by, x.tech, x.status, x.resolvedAt ? new Date(x.resolvedAt).toISOString() : '', x.exposures, x.wait, x.outcome].map(q).join(','); }));
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv' })); a.download = 'repeats_' + RRS.data.from + '_to_' + RRS.data.to + '.csv'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
   /* ---------- radiologist: worklist ---------- */
@@ -1674,7 +1989,8 @@
       r.items.forEach(function (o) {
         var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
         var who = o.status === 'Reading' || o.status === 'Amending' ? (o.readingBy === r.me ? ' · <b>you</b>' : ' · ' + esc(o.readingName))
-          : o.status === 'To read' ? ' · → ' + (o.assignedTo === r.me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) : '';
+          : o.status === 'To read' ? ' · → ' + (o.assignedTo === r.me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) + (o.repeatAt ? ' · 🔁 repeat in' : '')
+          : o.status === 'Repeat requested' ? ' · 🔁 waiting for ' + esc(o.tech || 'the tech') : '';
         el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
           ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') +
           (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + (o.pickup && o.status !== 'Final' ? ' <span class="chipk">🖨 ' + esc(pkLabelMs(o.pickup)) + '</span>' : '') + xrSibChip(o) + '</div></div>' +
@@ -1709,13 +2025,15 @@
       (typeof o.left === 'number' ? '<span class="xrleft">' + (o.left ? o.left + ' more to read' : 'last one') + '</span>' : '') +
       (o.imageIds && o.imageIds.length ? '<button class="xrskip" onclick="dlStudy(\'xr\', XS.acc)" title="Download the images">⬇ Download</button>' : '') +
       (ed && o.status === 'Reading' ? '<button class="xrskip" onclick="xrSkip()" title="Leave this one for later and open the next">Skip ▶</button>' : '');
-    $('xrStrip').innerHTML = o.imageIds.length > 1 ? o.imageIds.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="xrShowImage(' + i + ')">' + (i + 1) + '</button>'; }).join('') : '';
+    var rf = xrRepeatFrom(o);
+    $('xrStrip').innerHTML = o.imageIds.length > 1 ? o.imageIds.map(function (id, i) { return '<button type="button" data-i="' + i + '" onclick="xrShowImage(' + i + ')"' + (rf > -1 && i >= rf ? ' title="Repeat image"' : '') + '>' + (i + 1) + (rf > -1 && i >= rf ? ' 🔁' : '') + '</button>'; }).join('') : '';
     var kv = function (k, v) { return v ? '<div><span>' + esc(k) + '</span>' + esc(v) + '</div>' : ''; };
     var h = '<div class="xrinfo">' + kv('ID no.', p.hospNo) + kv('Date of birth', p.dob) + kv('Civil status', p.civil) + kv('Location', o.location) +
       kv('Requesting physician', p.physician) + kv('Technologist', o.tech) + kv('Uploaded', when(o.created)) +
       (p.address ? '<div class="wide"><span>Address</span>' + esc(p.address) + '</div>' : '') +
       (p.clinical ? '<div class="wide"><span>Chief complaint</span>' + esc(p.clinical) + '</div>' : '') + '</div>';
-    if (o.note) h += '<div class="ctwarn">' + esc(o.note) + '</div>';
+    if (o.note && o.status !== 'Repeat requested') h += '<div class="ctwarn">' + esc(o.note) + '</div>';
+    h += xrRepeatHtml(o);
     if (o.sibs && o.sibs.length) h += '<div class="xrsibs" id="xrSibs"><span>👥 Same patient, same visit – <b>separate report</b> for each:</span>' + o.sibs.map(function (x) {
       return '<button type="button" class="btn alt" onclick="xrOpenSib(\'' + esc(x.acc) + '\')" title="' + esc(x.acc) + '">' + esc(x.exam) + ' · ' + esc(x.status) + ' ▸</button>'; }).join('') + '</div>';
     if (o.canSplit) h += '<div id="xrSplitHost"><button class="link" type="button" onclick="xrSplitBox($(\'xrSplitHost\'), XS, function () { xrOpenStudy(XS.acc); })">✂ Two exams in this study? Split it…</button></div>';
@@ -1727,7 +2045,7 @@
     if (ed && XR_SIG && !XR_SIG.name) h += '<div class="ctwarn">Set up your report signature before finalizing. <button class="link" onclick="xrClose(); setTimeout(function(){ xrSigToggle(true); }, 300)">✍ Set up now</button></div>';
     h += '<label>X-ray report</label>' + rteHtml('xrF', 14, 'e.g. Both lung fields are clear.\nHeart is not enlarged. …', ed) +
       '<label class="crit"><input type="checkbox" id="xrCrit" ' + (ed ? '' : 'disabled') + '><span>Critical finding (communicate per POL-002 §2.3)</span></label>';
-    if (ed) h += '<div class="xrbtns"><button class="btn alt" onclick="xrDraft(false)">Save draft</button><button class="btn alt" onclick="xrPreview()">👁 Preview</button></div>' +
+    if (ed) h += '<div class="xrbtns"><button class="btn alt" onclick="xrDraft(false)">Save draft</button><button class="btn alt" onclick="xrPreview()">👁 Preview</button>' + (o.canRepeat && XR_META.repeat ? '<button class="btn alt" onclick="xrRepeatAsk()" title="The study can’t answer the clinical question – ask the technologist to repeat it (ALARA checklist)">🔁 Request repeat</button>' : '') + '</div>' +
       '<button class="btn" id="xrFin" onclick="xrFinal()">Finalize &amp; sign report</button><div class="sub" id="xrSaved" style="margin:4px 0 0"></div>';
     else if (o.canTakeOver) h += '<button class="btn alt" onclick="xrOpenStudy(\'' + esc(o.acc) + '\', true)">Take over this study</button>';
     else if (o.canAmend) h += '<div class="sub" style="margin-top:8px">Finalized by ' + esc(o.finalName) + ' · ' + esc(when(o.finalAt)) + (o.reportName ? ' · ' + esc(o.reportName) : '') + '</div>' +
@@ -2901,6 +3219,7 @@
   function ctdOn() { return !$('upCt').classList.contains('hidden') && curView === 'xrup'; }
   function ctdInit() {
     pkFill('ctPickup');
+    if (XR_META && XR_META.repeat) rrLogInit('ctRep', 'CT');
     if (CTD.inited) return; CTD.inited = true;
     var c = XR_META.ct;
     $('ctExamSel').innerHTML = ctdExamOpts('');
@@ -3178,6 +3497,12 @@
     if (CTD.busy) return;
     if (CTD.run && (CTD.paused || CTD.run.err)) { CTD.run.err = null; CTD.paused = false; setMsg('ctMsg', 'Uploading…', true); return ctdPump(); }   // resume
     if (CTD.zipErr && !($('ctZipOk') && $('ctZipOk').checked)) { $('ctZipWarn').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('ctMsg', 'A zip could not be opened here – export one study per zip, or tick that it holds only one patient’s study.'); }
+    if (CTD.repeat) {   // 🔁 repeat images for a study already in Drive: no patient form
+      var rf = ctdSelected();
+      if (!rf.length) return setMsg('ctMsg', 'Choose the repeat CT images first.');
+      if (CTD.studies) ctdMultiEnd();
+      return ctdStartUpload({ last: 'REPEAT', first: CTD.repeat.id, exam: CTD.repeat.label, repeatOf: CTD.repeat.id, repExposures: $('ctRepN') ? Number($('ctRepN').value) || 1 : 0 }, rf, CTD.job && CTD.job.uploadId, null);
+    }
     if (CTD.studies) return ctdMultiGo();
     var f = ctdForm(), files = ctdSelected();
     if (!files.length) return setMsg('ctMsg', 'Choose the CT folder or files first.');
@@ -3187,6 +3512,8 @@
     if (f.extras.some(function (x) { return !x.exam; })) return setMsg('ctMsg', 'Choose (or type) every extra CT exam, or remove it.');
     if (!f.indication) return setMsg('ctMsg', 'Enter the indication (clinical history) – it goes on the report.');
     if (!f.assignTo && !(XR_META.ct && XR_META.ct.onDuty)) return setMsg('ctMsg', 'Nobody is on duty for CT – choose the radiologist.');
+    var rl = rrLogRead('ctRep'); if (rl.err) { $('ctRepHost').scrollIntoView({ block: 'center', behavior: 'smooth' }); return setMsg('ctMsg', rl.err); }
+    if (rl.list.length) f.reps = rl.list;
     ctdStartUpload(f, files, CTD.job && CTD.job.uploadId, null);
   }
   function ctdMultiGo() {
@@ -3314,6 +3641,14 @@
         CTD.run = null; CTD.job = null; $('ctProg').classList.add('hidden');
         return ctdMultiNext();
       }
+      if (r.repeat) {
+        $('ctMsg').innerHTML = '✓ Repeat uploaded – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + '). ' + esc(r.assignedName || 'The radiologist') + ' was told; it goes with the same report draft. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>'; $('ctMsg').className = 'msg ok';
+        xrToast('✓ CT repeat uploaded'); CTD.repeat = null; ctRepeatBox();
+        CTD.run = null; CTD.job = null; CTD.all = []; CTD.files = []; CTD.tags = null;
+        try { localStorage.removeItem('ctd_job'); localStorage.removeItem('ctd_ck'); } catch (e) {}
+        ctdSummary(); $('ctProg').classList.add('hidden'); return ctdLoadList();
+      }
+      rrLogReset('ctRep');
       $('ctMsg').innerHTML = '✓ Done – ' + r.files + ' files (' + esc(ctdMB(r.bytes)) + ') are in Drive. <a class="link" target="_blank" rel="noopener" href="' + esc(r.folderUrl) + '">Open the folder</a>' +
         (r.reportId ? '<br>📝 The report draft is in ' + esc(r.assignedName) + '’s list, and they were emailed.' : r.reportErr ? '<br><span class="err">The report draft could not be made: ' + esc(r.reportErr) + '</span> – use “📝 Generate report” in the list below.' : '') +
         (r.more && r.more.length ? '<br>📝 Separate report' + (r.more.length === 1 ? '' : 's') + ' (same images): ' + r.more.map(function (m) { return esc(m.exam) + (m.err ? ' <span class="err">(' + esc(m.err) + ')</span>' : ''); }).join(', ') : '');
@@ -3329,7 +3664,7 @@
   function ctdWakeOff() { try { if (CTD.wake) CTD.wake.release(); } catch (e) {} CTD.wake = null; }
   function ctdButtons() {
     var running = CTD.busy && !CTD.paused, b = $('ctBtn');
-    b.disabled = running; b.textContent = running ? 'Uploading…' : CTD.run && (CTD.paused || CTD.run.err) ? '▶ Resume upload' : 'Upload CT to Drive';
+    b.disabled = running; b.textContent = running ? 'Uploading…' : CTD.run && (CTD.paused || CTD.run.err) ? '▶ Resume upload' : CTD.repeat ? 'Upload the repeat' : 'Upload CT to Drive';
     $('ctPause').classList.toggle('hidden', !running);
     ['ctDir', 'ctFiles'].forEach(function (id) { $(id).disabled = CTD.busy; });
     if (CTD.studies && !running) ctdMultiDraw();
@@ -3344,21 +3679,21 @@
     }).catch(function (e) { box.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
   }
   function ctdRow(x) {
-    var st = x.status === 'Complete' ? '<span class="pill Approved">Complete</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
+    var st = x.status === 'Complete' ? '<span class="pill Approved">' + (x.repeatOf ? 'Repeat in' : 'Complete') + '</span>' : x.status === 'Repeat requested' ? '<span class="pill xrRepeatrequested">Repeat requested</span>' : '<span class="pill Pending">' + esc(x.status) + '</span>';
     return '<div class="xrrow"><div class="xrl"><b>' + esc(x.name) + '</b> · ' + esc(x.exam) + (x.sex || x.age ? ' · ' + esc([x.age, x.sex].filter(Boolean).join(' ')) : '') +
       '<div class="d">' + esc(xrTime(x.created)) + ' · ' + x.files + (x.expected && x.files < x.expected ? ' of ' + x.expected : '') + ' files' + (x.bytes ? ' · ' + esc(ctdMB(x.bytes)) : '') +
       ' · by ' + esc(x.tech) + (x.assignedName ? ' · for ' + esc(x.assignedName) : '') + (x.notes ? ' · ' + esc(x.notes) : '') +
       (x.sibs && x.sibs.length ? ' <span class="chipsib" title="One upload, separate reports – the images are shared">📑 ' + (x.sibs.length + 1) + ' reports · also ' + esc(x.sibs.join(', ')) + '</span>' : '') +
-      '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
+      '<br>' + (x.reportId ? (x.reportFinal ? '✓ Report finalized' : '📝 Report draft with ' + esc(x.assignedName || '—')) : x.status === 'Complete' && !x.repeatOf ? '<span class="err">No report draft' + (x.reportErr ? ': ' + esc(x.reportErr) : '') + '</span>' : '') +
       '</div></div>' + st +
       (x.files ? '<button class="xrdl" onclick="dlStudy(\'ct\', \'' + esc(x.id) + '\', event)" title="Download the CT images (DICOM) as one .zip">⬇ Download</button>' : '') +
       '<a class="link" style="white-space:nowrap" target="_blank" rel="noopener" href="' + esc(x.folderUrl) + '">📂 Drive</a>' +
       (x.reportId && typeof rptOpenDoc === 'function' && (XR_ROLE.rad || XR_ROLE.admin) && curView === 'rpt' ? '<button class="link" style="white-space:nowrap" onclick="rptOpenDoc(\'' + esc(x.reportId) + '\')">📝 Report</button>' : '') +
-      ((x.status === 'Complete' || x.status === 'Incomplete') && !x.reportId ? '<button class="btn ctgen" onclick="ctdMake(\'' + esc(x.id) + '\', this, ' + (x.hasInd ? 1 : 0) + ', \'' + esc(x.contrast || '') + '\')">📝 Generate report</button>' : '') +
+      ((x.status === 'Complete' || x.status === 'Incomplete') && !x.reportId && !x.repeatOf ? '<button class="btn ctgen" onclick="ctdMake(\'' + esc(x.id) + '\', this, ' + (x.hasInd ? 1 : 0) + ', \'' + esc(x.contrast || '') + '\')">📝 Generate report</button>' : '') +
       ((x.mine || XR_ROLE.admin) && !x.reportFinal && x.status !== 'Removed' ? '<select class="ctre" onchange="ctdRe(\'' + esc(x.id) + '\', this)" title="Change the radiologist"><option value="">Change radiologist…</option>' +
         (XR_META.rads || []).filter(function (r) { return r.email !== x.assignedTo; }).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '</select>' : '') +
-      ((x.status === 'Complete' || x.status === 'Incomplete') && (x.mine || XR_ROLE.rad || XR_ROLE.admin) ? '<button class="link" style="white-space:nowrap" title="Two exams in this upload (e.g. CT Brain + CT Chest)? Make a separate report for the other one – same images" onclick="ctdAddExamBox(this, \'' + esc(x.id) + '\', \'' + esc(x.contrast || 'plain') + '\')">➕ Another report…</button>' : '') +
-      ((x.mine && x.status !== 'Complete') || (x.linkOf && (x.mine || XR_ROLE.admin) && !x.reportFinal) ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Remove</button>' : '') + '</div>';
+      ((x.status === 'Complete' || x.status === 'Incomplete') && !x.repeatOf && (x.mine || XR_ROLE.rad || XR_ROLE.admin) ? '<button class="link" style="white-space:nowrap" title="Two exams in this upload (e.g. CT Brain + CT Chest)? Make a separate report for the other one – same images" onclick="ctdAddExamBox(this, \'' + esc(x.id) + '\', \'' + esc(x.contrast || 'plain') + '\')">➕ Another report…</button>' : '') +
+      ((x.mine && x.status !== 'Complete' && x.status !== 'Repeat requested') || (x.linkOf && (x.mine || XR_ROLE.admin) && !x.reportFinal) ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Remove</button>' : '') + (XR_META.repeat ? ctRepeatRowHtml(x) : '') + '</div>';
   }
   /** ➕ Another report for an upload already in Drive: pick the exam (or type it), contrast → a separate draft, same images */
   function ctdAddExamBox(btn, id, con) {
@@ -3456,7 +3791,7 @@
       list.innerHTML = '';
       RPT.list.forEach(function (x) {
         var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
-        el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + (scope === 'pending' && x.created ? tatOf({ created: x.created }, x.modality === 'CT' ? 'CT' : 'US') : '') + '</div></div>' +
+        el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + (x.repeatWait ? ' · <span class="pill xrRepeatrequested">🔁 waiting for repeat</span>' : '') + (scope === 'pending' && x.created ? tatOf({ created: x.created }, x.modality === 'CT' ? 'CT' : 'US') : '') + '</div></div>' +
           '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>' +
           (x.upload ? '<span class="xrdl" role="button" tabindex="0" title="Download the CT images (DICOM)">⬇ Download</span>' : '');
         el.onclick = function () { rptOpenDoc(x.id); };
@@ -3496,6 +3831,7 @@
     if ($('rptDest')) $('rptDest').value = r.modality;
     var h = '';
     if (r.header && r.header.length) h += '<table class="rpthdr">' + r.header.map(function (row) { return '<tr>' + row.map(function (c, i) { return '<td' + (/:\s*$|^(id no|name|age|sex|address|exam|requesting|indication|date|patient location|civil)/i.test(c) ? ' class="k"' : '') + '>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+    if (XR_META.repeat) h += ctRepeatHtml(r);
     if (!r.parsed) {
       h += '<div class="ctwarn">This report has no "FINDINGS" and "IMPRESSION" headings, so it can’t be edited here.' + (r.canFix ? ' <button class="btn alt" type="button" id="rptFixBtn" onclick="rptFix()" style="width:auto;margin:6px 0 0">🔧 Add the headings for me</button><div class="sub" style="margin:4px 0 0">Findings = the text after “IMAGING REPORT”; Impression = the numbered lines at the end. Or edit it in Google Docs' + (ed ? ', then press Finalize.' : '.') + '</div>' : ' Edit it in Google Docs' + (ed ? ', then press Finalize.' : '.')) + '</div>' +
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
@@ -3506,7 +3842,8 @@
         '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed, !!r.tables);
     }
     if (ed) {
-      h += '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button></div>' +
+      h += '<div class="xrbtns">' + (r.parsed ? '<button class="btn alt" onclick="rptSaveDraft(false)">Save draft</button>' : '') + '<button class="btn alt" onclick="rptPreview()">👁 Preview</button>' +
+        (r.ctRepeat && r.ctRepeat.canRequest && XR_META.repeat ? '<button class="btn alt" onclick="ctRepeatAsk()" title="The CT can’t answer the clinical question – ask for a repeat (ALARA checklist)">🔁 Request repeat</button>' : '') + '</div>' +
         '<button class="btn" id="rptFin" onclick="rptFinal()">Finalize &amp; move to the ' + esc(r.modality) + ' folder</button><div class="sub" id="rptSaved" style="margin:4px 0 0"></div>';
       var others = (m.rads || []).filter(function (x) { return x.email !== m.me; });
       if (others.length) h += '<div class="xrasgrow"><span>Send to another radiologist</span><select id="rptSend"><option value="">—</option>' + others.map(function (x) { return '<option value="' + esc(x.email) + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>';
@@ -3646,6 +3983,7 @@
   }
   function rptFinal() {
     var r = RPT.cur, b = $('rptFin'), e = rptEdits();
+    if (r.ctRepeat && r.ctRepeat.waiting) return setMsg('rptMsg', 'A repeat is still pending for this CT – wait for the repeat images, or withdraw the request, before finalizing.');
     if (r.parsed && !rtPlainLines(Array.isArray(e.impression) ? e.impression.join('\n') : e.impression).join('').trim()) return setMsg('rptMsg', 'Write the impression.');
     if (XR_SIG && !XR_SIG.name && r.parsed) { /* signature is only used if the template has {{SIGNATURE}} – not required here */ }
     if (!RPT.sure) { RPT.sure = 1; b.textContent = 'Tap again to finalize'; setTimeout(function () { RPT.sure = 0; if ($('rptFin')) $('rptFin').textContent = 'Finalize & move to the ' + r.modality + ' folder'; }, 5000); return; }
@@ -4018,10 +4356,10 @@
   function expired() { gate('Your session has ended. Log in again in the portal, then open the PACS.', true); }
   function schedView(v) {
     var rd = XR_ROLE.rad || XR_ROLE.admin;
-    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat') && !rd) v = 'xrup'; if (v === 'print' && !(XR_ROLE.tech || rd)) v = 'xrup';
+    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat' || v === 'rep') && !rd) v = 'xrup'; if (v === 'print' && !(XR_ROLE.tech || rd)) v = 'xrup';
     curView = v;
-    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vPrint').classList.toggle('hidden', v !== 'print'); $('vTat').classList.toggle('hidden', v !== 'tat');
-    $('tabTat').classList.toggle('on', v === 'tat');
+    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vPrint').classList.toggle('hidden', v !== 'print'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep');
+    $('tabTat').classList.toggle('on', v === 'tat'); $('tabRep').classList.toggle('on', v === 'rep');
     $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt'); $('tabPrint').classList.toggle('on', v === 'print');
     if (v === 'print') prInit();
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
@@ -4033,6 +4371,7 @@
     if (v === 'xrread') xrLoadWork();
     if (v === 'rpt') rptInit();
     if (v === 'tat') dashOpen();
+    if (v === 'rep') rrsOpen();
   }
   (function start() {
     token = getTok();
@@ -4048,6 +4387,7 @@
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabPrint').classList.toggle('hidden', !(m.role.tech || m.role.admin));
       $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
+      $('tabRep').classList.toggle('hidden', !((m.role.rad || m.role.admin) && m.repeat));
       prnShow(m.printNotice);
       var want = ''; try { want = sessionStorage.getItem('pacs_tab') || ''; } catch (e) {}
       var hx = /^#xr=([A-Z0-9-]+)$/i.exec(location.hash || '');
@@ -4056,6 +4396,7 @@
     }).catch(function (e) { gate('Could not reach the server: ' + ((e && e.message) || e) + '. Check the connection and reload.', false); });
   })();
 </script>
+<div id="rrOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="Request a repeat" onclick="if (event.target === this) rrClose()"><div class="rrcard" id="rrCard"></div></div>
 <div id="tplMgr" class="tplmgr hidden" role="dialog" aria-modal="true" aria-label="Report templates">
   <div class="tplbar"><b>📝 Report templates</b><div class="seg" id="tplMod" style="margin:0"><button type="button" data-v="X-ray" onclick="tplMod('X-ray')">X-ray</button><button type="button" data-v="Ultrasound" onclick="tplMod('Ultrasound')">Ultrasound</button><button type="button" data-v="CT" onclick="tplMod('CT')">CT</button></div>
     <span style="flex:1"></span><button class="btn alt" type="button" onclick="tplClose()" style="width:auto;margin:0">Close</button></div>
