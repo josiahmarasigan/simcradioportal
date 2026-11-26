@@ -396,13 +396,14 @@
     </div>
     <div id="authMsg" class="msg"></div>
     <div id="support" class="support hidden"></div>
+    <p style="text-align:center;margin:10px 0 0"><a class="link manLink" href="https://drive.google.com/drive/folders/196o-rri89xl9V4fGRc0fqXIdpqcoVz1R" target="_blank" rel="noopener" style="text-decoration:none">📖 How to use the portal (user manual)</a></p>
   </div>
 
   <!-- RESULTS -->
   <div id="app" class="hidden">
     <div class="top">
       <div><h1 id="resTitle">Patient Results</h1><div class="sub" id="who" style="margin:0"></div></div>
-      <div><button class="link" onclick="layoutReset()" title="Put the panels back in their original order and size">↺ Reset layout</button><button class="link" onclick="togglePw()">Change password</button><button class="link" onclick="doLogout()">Log out</button></div>
+      <div><a class="link manLink" href="https://drive.google.com/drive/folders/196o-rri89xl9V4fGRc0fqXIdpqcoVz1R" target="_blank" rel="noopener" style="text-decoration:none" title="How to use the portal – opens the user manual">📖 Manual</a><button class="link" onclick="layoutReset()" title="Put the panels back in their original order and size">↺ Reset layout</button><button class="link" onclick="togglePw()">Change password</button><button class="link" onclick="doLogout()">Log out</button></div>
     </div>
     <div id="pwPanel" class="card panel hidden">
       <b>Change password</b>
@@ -1039,6 +1040,7 @@
     }
     if (c.logoUrl) { $('logo').src = c.logoUrl; $('logo').classList.remove('hidden'); }
     var sp = $('support'); sp.textContent = c.support || ''; sp.classList.toggle('hidden', !c.support);
+    if (c.manualUrl !== undefined) Array.prototype.forEach.call(document.querySelectorAll('.manLink'), function (a) { if (/^https:\/\//.test(c.manualUrl)) a.href = c.manualUrl; a.classList.toggle('hidden', !c.manualUrl); });
     $('tabReg').classList.toggle('hidden', !c.registrationOpen);
     Array.prototype.forEach.call(document.querySelectorAll('.mp'), function (e) { e.textContent = c.minPw; });
     if (c.showMax) SHOW_MAX = c.showMax;

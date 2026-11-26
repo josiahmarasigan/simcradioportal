@@ -542,6 +542,7 @@
     <button id="tabPrint" class="hidden" onclick="schedView('print')">🖨 Print</button>
     <button id="tabTat" class="hidden" onclick="schedView('tat')">📊 TAT</button>
   </div>
+  <a class="pback manLink" href="https://drive.google.com/drive/folders/196o-rri89xl9V4fGRc0fqXIdpqcoVz1R" target="_blank" rel="noopener" title="User manual">📖 Manual</a>
   <a class="pback" href="index.html" id="pBack">← Portal</a>
 </div>
 <div class="pwrap">
@@ -1111,7 +1112,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 39;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 40;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -4038,6 +4039,7 @@
     if (!token) return gate('Please log in to the portal first, then open the X-ray PACS from there.', true);
     Promise.all([run('getPublicConfig').catch(function () { return null; }), run('xrMeta', token)]).then(function (res) {
       CONF = res[0] || {}; var m = res[1];
+      if (CONF.manualUrl !== undefined) Array.prototype.forEach.call(document.querySelectorAll('.manLink'), function (a) { if (/^https:\/\//.test(CONF.manualUrl)) a.href = CONF.manualUrl; a.classList.toggle('hidden', !CONF.manualUrl); });
       if (m.expired) return expired();
       if (!m.ok) return gate(m.msg, true);
       XR_META = m; XR_ROLE = m.role;
