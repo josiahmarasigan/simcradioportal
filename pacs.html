@@ -386,7 +386,13 @@
   .xrside textarea { font-size:15px; line-height:1.45; }
   .xrinfo { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; font-size:13.5px; }
   .xrinfo span { display:block; font-size:11.5px; color:var(--muted); } .xrinfo .wide { grid-column:1/-1; }
-  .xrtpl { display:flex; gap:10px; align-items:center; margin-top:10px; } .xrtpl select { flex:1; margin:0; }
+  .xrtpl { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin-top:10px; }
+  .xrtpl select { flex:1 1 240px; min-width:200px; min-height:40px; margin:0; font-weight:600; color:var(--ink); border:1.5px solid var(--brand); border-radius:10px; padding:6px 10px; background:var(--card); }
+  .xrtpl .link { white-space:nowrap; }
+  .wkbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; } #wkMod button { white-space:nowrap; }
+  .wkfold { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; font-size:13px; margin:0 0 8px; } .wkfold:empty { display:none; }
+  .wkfold b { color:var(--muted); font-weight:600; } .wkfold a { white-space:nowrap; }
+  .pill.wkXR { background:color-mix(in srgb,#0ea5e9 18%,transparent); color:inherit; }
   .xrbtns { display:flex; gap:8px; } .xrbtns .btn { flex:1; }
   .xrnext { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin-bottom:6px; } .xrnext .btn { width:auto; margin:0; padding-left:22px; padding-right:22px; }
   .xrskip { width:auto; margin:0; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; cursor:pointer; }
@@ -576,8 +582,7 @@
   <div class="pt">SIMC Radiology PACS<small id="pWho">Radiology Division</small></div>
   <div class="ptabs">
     <button id="tabUp" class="hidden" onclick="schedView('xrup')">📤 Upload</button>
-    <button id="tabRead" class="hidden" onclick="schedView('xrread')">🩻 X-ray <span id="xrBadge" class="badge hidden"></span></button>
-    <button id="tabRpt" class="hidden" onclick="schedView('rpt')">📝 US / CT <span id="rptBadge" class="badge hidden"></span></button>
+    <button id="tabRead" class="hidden" onclick="schedView('xrread')">🗂 Worklist <span id="xrBadge" class="badge hidden"></span></button>
     <button id="tabTat" class="hidden" onclick="schedView('tat')">📊 TAT</button>
     <button id="tabRep" class="hidden" onclick="schedView('rep')">🔁 Repeats</button>
     <button id="tabAr" class="hidden" onclick="schedView('ar')">📄 Accomplishment</button>
@@ -716,10 +721,18 @@
         </div></div>
       </div>
       <div id="vXrRead" class="hidden pcard">
-        <div class="xrnext"><button class="btn" id="xrStart" onclick="xrNext()">▶ Start reading</button>
-          <label class="crit" style="margin:0"><input type="checkbox" id="xrAuto" onchange="xrAutoSet(this.checked)"><span>Open the next X-ray automatically after I finalize</span></label></div>
-        <div class="meta"><select id="xrScope" onchange="xrLoadWork()" style="width:auto"><option value="myopen">To read – mine</option><option value="open">To read – everyone</option><option value="queue">OPD queue (later days)</option><option value="final">Finalized (7 days)</option><option value="mine">My finalized (7 days)</option></select>
-          <span id="xrAllCount" class="sub" style="margin:0"></span><button class="link" onclick="xrLoadWork()">↻ Refresh</button><button class="link" onclick="xrSigToggle()">✍ My report signature</button><button class="link" onclick="tplOpen('X-ray')">📝 Templates</button></div>
+        <div class="wkbar">
+          <div class="seg" id="wkMod" style="margin:0"><button type="button" class="on" data-v="" onclick="wkMod('')">All</button><button type="button" data-v="XR" onclick="wkMod('XR')">🩻 X-ray</button><button type="button" data-v="CT" onclick="wkMod('CT')">CT</button><button type="button" data-v="Ultrasound" onclick="wkMod('Ultrasound')">Ultrasound</button></div>
+          <select id="wkScope" onchange="wkLoad()" aria-label="Show" style="width:auto;margin:0"><option value="mine">To read – mine</option><option value="all">To read – everyone</option><option value="queue">OPD X-ray queue (later days)</option><option value="myfinal">Finalized – mine (7 days)</option><option value="final">Finalized – everyone (7 days)</option><option value="ctimg">CT images (uploads)</option></select>
+          <select id="rptWho" class="hidden" onchange="wkLoad()" aria-label="Radiologist (US / CT)" style="width:auto;margin:0"></select>
+          <button class="link" onclick="wkLoad()">↻ Refresh</button>
+        </div>
+        <div class="wkfold" id="wkFold"></div>
+        <div class="xrnext"><button class="btn" id="xrStart" onclick="xrNext()">▶ Start reading X-rays</button>
+          <label class="crit" style="margin:0"><input type="checkbox" id="xrAuto" onchange="xrAutoSet(this.checked)"><span>Open the next X-ray automatically after I finalize</span></label>
+          <label class="crit" style="margin:0"><input type="checkbox" id="rptAuto" onchange="lsSet('rpt_auto', this.checked ? '1' : '0')"><span>Open the next US / CT report automatically after I finalize</span></label></div>
+        <div class="meta"><span id="xrAllCount" class="sub" style="margin:0"></span><button class="link" onclick="xrSigToggle()">✍ My report signature</button><button class="link" onclick="tplOpen('X-ray')">📝 Templates</button><button class="link" id="rptNewUsBtn" onclick="rptNewUs()">＋ New US report</button></div>
+        <div id="rptNewUs" class="ctbox hidden"></div>
         <div id="xrSigBox" class="ctbox hidden">
           <b>My report signature</b>
           <p class="sub" style="margin:4px 0 0">Printed at the bottom right of your X-ray reports, like the Word template.</p>
@@ -762,20 +775,6 @@
         <div id="arList"></div>
         <div id="arEd"></div>
       </div>
-      <div id="vRpt" class="hidden pcard">
-        <div class="xrnext">
-          <select id="rptScope" onchange="rptLoad()" style="width:auto;margin:0"><option value="pending">To finalize (generated)</option><option value="final">Finalized (recent)</option><option value="ctimg">CT images (uploads)</option></select>
-          <select id="rptMod" onchange="rptLoad()" style="width:auto;margin:0"><option value="">Ultrasound + CT</option><option value="Ultrasound">Ultrasound</option><option value="CT">CT</option></select>
-          <select id="rptWho" class="hidden" onchange="rptLoad()" style="width:auto;margin:0"></select>
-          <button class="link" onclick="rptLoad()">↻ Refresh</button><button class="link" onclick="tplOpen('Ultrasound')">📝 Templates</button>
-          <a id="rptDicom" class="link hidden" target="_blank" rel="noopener">📂 CT DICOM uploads</a>
-          <button class="link" id="rptNewUsBtn" onclick="rptNewUs()">＋ New US report</button>
-        </div>
-        <div id="rptNewUs" class="ctbox hidden"></div>
-        <label class="crit" style="margin:0 0 4px"><input type="checkbox" id="rptAuto" onchange="lsSet('rpt_auto', this.checked ? '1' : '0')"><span>Open the next report automatically after I finalize</span></label>
-        <div id="rptList"></div>
-      </div>
-
 </div>
 <!-- Ultrasound / CT report editor (full screen) -->
 <div id="rptv" class="hidden">
@@ -1125,7 +1124,8 @@
       fr.readAsDataURL(file);
     });
   }
-  function xrSetBadge(n) { var b = $('xrBadge'); b.textContent = n || 0; b.classList.toggle('hidden', !n); }
+  function xrSetBadge(n) { WK.nXr = n || 0; wkBadge(); }
+  function wkBadge() { var b = $('xrBadge'), n = (WK.nXr || 0) + (WK.nRpt || 0); b.textContent = n; b.classList.toggle('hidden', !n); }
 
   /* ---------- tech: upload ---------- */
   function xrUpInit() {
@@ -1165,7 +1165,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 44;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 45;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -2220,35 +2220,118 @@
       b.disabled = false; setMsg('xrSigMsg', r.msg, r.ok); if (r.ok) { XR_SIGNEW = ''; xrLoadSig(); }
     }).catch(function (e) { b.disabled = false; setMsg('xrSigMsg', 'Could not save: ' + ((e && e.message) || e)); });
   }
-  function xrLoadWork(quiet) {
+  /* ---------- 🗂 one worklist: X-ray studies + US / CT report drafts, filtered by modality ---------- */
+  var WK = { mod: '', seq: 0, nXr: 0, nRpt: 0 };
+  function wkToRead() { var v = $('wkScope').value; return v === 'mine' || v === 'all'; }
+  function wkMod(m) {
+    WK.mod = m; try { localStorage.setItem('wk_mod', m); } catch (e) {}
+    Array.prototype.forEach.call($('wkMod').children, function (b) { b.classList.toggle('on', b.getAttribute('data-v') === m); });
+    wkLoad();
+  }
+  function wkOpen() {
+    $('xrAuto').checked = xrAutoOn(); $('rptAuto').checked = rptAutoOn();
+    if (WK.mod === '' && !WK.init) { var m = lsGet('wk_mod'); if (m === 'XR' || m === 'CT' || m === 'Ultrasound') { WK.mod = m; Array.prototype.forEach.call($('wkMod').children, function (b) { b.classList.toggle('on', b.getAttribute('data-v') === m); }); } }
+    WK.init = true;
+    if (RPT.meta) return wkLoad();
+    $('xrWork').innerHTML = '<p class="sub">Loading…</p>';
+    run('rptMeta', token).then(function (m) {
+      if (m.expired) return expired();
+      RPT.meta = m.ok ? m : { rads: [], folders: {} };
+      if (m.ok && m.admin) {
+        $('rptWho').classList.remove('hidden');
+        $('rptWho').innerHTML = (m.rad ? '<option value="">My US / CT reports</option>' : '') + m.rads.map(function (r) { return '<option value="' + esc(r.email) + '">US / CT: ' + esc(r.name) + '</option>'; }).join('');
+      }
+      if (!XTPL) run('xrTemplates', token).then(function (t) { if (t.ok) XTPL = t.items; });
+      wkLoad();
+    }).catch(function () { RPT.meta = { rads: [], folders: {} }; wkLoad(); });
+  }
+  /** 📂 links to the finalized folders: shared X-ray results, the radiologist's own Ultrasound and CT, outside sites, CT uploads. */
+  function wkFolders() {
+    var m = RPT.meta || {}, f = m.folders || {}, who = $('rptWho').classList.contains('hidden') ? '' : $('rptWho').value, us = f.us, ct = f.ct, whoName = '';
+    if (who) { var r = (m.rads || []).filter(function (x) { return x.email === who; })[0]; us = r && r.us; ct = r && r.ct; whoName = r ? ' – ' + r.name : ''; }
+    var a = function (url, label) { return url ? '<a class="link" target="_blank" rel="noopener" href="' + esc(url) + '">📂 ' + esc(label) + '</a>' : ''; }, mod = WK.mod;
+    var h = (mod === '' || mod === 'XR' ? a(f.xr, 'X-ray results') + (f.sites || []).map(function (x) { return a(x.url, x.name + ' (' + x.code + ')'); }).join('') : '') +
+      (mod === '' || mod === 'Ultrasound' ? a(us, (who ? 'Ultrasound' : 'My ultrasound') + whoName) : '') +
+      (mod === '' || mod === 'CT' ? a(ct, (who ? 'CT' : 'My CT') + whoName) + a(m.dicomUrl, 'CT DICOM uploads') : '');
+    $('wkFold').innerHTML = h ? '<b>Finalized folders:</b>' + h : '';
+  }
+  function xrLoadWork(quiet) { return wkLoad(quiet); }
+  function rptLoad() { return wkLoad(true); }
+  function wkLoad(quiet) {
     if (!XR_SIG) xrLoadSig().catch(function () {});
-    $('xrAuto').checked = xrAutoOn();
     if (quiet !== true) XR_SKIP = [];
-    var seq = ++XRSEQ, list = $('xrWork'), sc = $('xrScope').value;
+    var seq = ++WK.seq, list = $('xrWork'), sc = $('wkScope').value, mod = WK.mod, who = $('rptWho').classList.contains('hidden') ? '' : $('rptWho').value;
+    wkFolders();
+    var wantXr = (mod === '' || mod === 'XR') && sc !== 'ctimg', wantRpt = mod !== 'XR' && sc !== 'queue' && sc !== 'ctimg', wantCtd = sc === 'ctimg' && (mod === '' || mod === 'CT');
+    $('xrStart').classList.toggle('hidden', !(mod === '' || mod === 'XR'));
+    $('xrAuto').parentNode.classList.toggle('hidden', !(mod === '' || mod === 'XR'));
+    $('rptAuto').parentNode.classList.toggle('hidden', mod === 'XR');
+    $('rptNewUsBtn').classList.toggle('hidden', mod === 'XR' || mod === 'CT');
+    $('rptWho').classList.toggle('hidden', !(RPT.meta && RPT.meta.admin) || mod === 'XR' || sc === 'queue');
     if (quiet !== true) list.innerHTML = '<p class="sub">Loading…</p>';
-    run('xrWorklist', token, sc, 7).then(function (r) {
-      if (r.expired) return expired();
-      if (seq !== XRSEQ) return;
-      if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
-      xrSetBadge(r.counts.toRead);
-      $('xrAllCount').textContent = (r.counts.toReadAll > r.counts.toRead ? '(' + (r.counts.toReadAll - r.counts.toRead) + ' assigned to others) ' : '') + (r.counts.queued && sc !== 'queue' ? '· ' + r.counts.queued + ' OPD queued for later days' : '');
-      $('xrStart').textContent = r.counts.toRead ? '▶ Start reading (' + r.counts.toRead + ')' : '▶ Start reading';
-      if (!r.items.length) { list.innerHTML = '<p class="sub">' + (sc === 'open' || sc === 'myopen' ? 'Nothing to read. 🎉' : sc === 'queue' ? 'No OPD X-rays waiting for a later day.' : 'Nothing here.') + '</p>'; return; }
-      list.innerHTML = '';
-      r.items.forEach(function (o) {
-        var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
-        var who = o.status === 'Reading' || o.status === 'Amending' ? (o.readingBy === r.me ? ' · <b>you</b>' : ' · ' + esc(o.readingName))
-          : o.status === 'To read' ? ' · → ' + (o.assignedTo === r.me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) + (o.repeatAt ? ' · 🔁 repeat in' : '')
-          : o.status === 'Repeat requested' ? ' · 🔁 waiting for ' + esc(o.tech || 'the tech') : '';
-        el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
-          ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') +
-          (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + xrSibChip(o) + '</div></div>' +
-          xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>' + (o.images ? '<span class="xrdl" role="button" tabindex="0" title="Download the images">⬇ Download</span>' : '');
-        el.onclick = function () { xrOpenStudy(o.acc); };
-        if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('xr', o.acc, e); };
-        list.appendChild(el);
-      });
-    }).catch(function (e) { if (quiet !== true) list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+    var xrSc = { mine: 'myopen', all: 'open', queue: 'queue', myfinal: 'mine', final: 'final' }[sc], rpSc = sc === 'mine' || sc === 'all' ? 'pending' : 'final';
+    var jobs = [
+      wantXr ? run('xrWorklist', token, xrSc, 7) : Promise.resolve(null),
+      wantRpt ? run('rptList', token, rpSc, who) : Promise.resolve(null),
+      wantCtd ? run('ctdList', token, 7) : Promise.resolve(null)];
+    Promise.all(jobs).then(function (res) {
+      if (seq !== WK.seq) return;
+      var xr = res[0], rp = res[1], cd = res[2], errs = [];
+      if ((xr && xr.expired) || (rp && rp.expired) || (cd && cd.expired)) return expired();
+      var rows = [];
+      if (xr) {
+        if (!xr.ok) errs.push('X-ray: ' + xr.msg);
+        else {
+          xrSetBadge(xr.counts.toRead);
+          $('xrAllCount').textContent = (xr.counts.toReadAll > xr.counts.toRead ? 'X-ray: ' + (xr.counts.toReadAll - xr.counts.toRead) + ' assigned to others ' : '') + (xr.counts.queued && sc !== 'queue' ? '· ' + xr.counts.queued + ' OPD queued for later days' : '');
+          $('xrStart').textContent = xr.counts.toRead ? '▶ Start reading X-rays (' + xr.counts.toRead + ')' : '▶ Start reading X-rays';
+          xr.items.forEach(function (o) { rows.push({ kind: 'xr', t: o.finalAt || o.created, pri: o.priority, o: o }); });
+        }
+      } else $('xrAllCount').textContent = '';
+      RPT.list = [];
+      if (rp) {
+        if (!rp.ok) { if (mod !== '' || !/No folders yet/.test(rp.msg || '')) errs.push('US / CT: ' + rp.msg); }
+        else {
+          if (rpSc === 'pending' && !who) { WK.nRpt = rp.mine ? (rp.count || 0) : 0; wkBadge(); }
+          rp.items.filter(function (x) { return !mod || x.modality === mod; }).forEach(function (x) { rows.push({ kind: 'rpt', t: x.created || x.modified, pri: '', o: x }); });
+        }
+      }
+      var fin = sc === 'myfinal' || sc === 'final', rank = function (p) { return p === 'STAT' ? 0 : p === 'Urgent' ? 1 : 2; };
+      rows.sort(function (a, b) { return fin ? b.t - a.t : (rank(a.pri) - rank(b.pri)) || (a.t - b.t); });
+      RPT.list = rows.filter(function (x) { return x.kind === 'rpt'; }).map(function (x) { return x.o; });
+      list.innerHTML = errs.map(function (e) { return '<p class="sub err">' + esc(e) + '</p>'; }).join('');
+      if (cd) {
+        if (!cd.ok) { list.innerHTML += '<p class="sub err">' + esc(cd.msg) + '</p>'; return; }
+        var items = who ? cd.items.filter(function (x) { return x.assignedTo === who; }) : cd.items;
+        list.innerHTML += items.length ? items.map(ctdRow).join('') : '<p class="sub">No CT uploads in the last 7 days.</p>';
+        return;
+      }
+      if (sc === 'ctimg') { list.innerHTML += '<p class="sub">CT images (uploads) – choose All or CT.</p>'; return; }
+      if (!rows.length) { list.innerHTML += '<p class="sub">' + (wkToRead() ? 'Nothing to read. 🎉' : sc === 'queue' ? 'No OPD X-rays waiting for a later day.' : 'Nothing here.') + '</p>'; return; }
+      rows.forEach(function (x) { list.appendChild(x.kind === 'xr' ? xrRowEl(x.o, xr.me) : rptRowEl(x.o, rpSc)); });
+    }).catch(function (e) { if (seq === WK.seq && quiet !== true) list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  function xrRowEl(o, me) {
+    var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
+    var who = o.status === 'Reading' || o.status === 'Amending' ? (o.readingBy === me ? ' · <b>you</b>' : ' · ' + esc(o.readingName))
+      : o.status === 'To read' ? ' · → ' + (o.assignedTo === me ? '<b>you</b>' : esc(o.assignedName || 'anyone')) + (o.repeatAt ? ' · 🔁 repeat in' : '')
+      : o.status === 'Repeat requested' ? ' · 🔁 waiting for ' + esc(o.tech || 'the tech') : '';
+    el.innerHTML = '<div class="xrl"><b>' + esc(o.name) + '</b> · ' + esc(o.age) + ' ' + esc(o.sex) + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + o.images + ' img · ' + esc(o.location || '—') +
+      ' · ' + esc(xrTime(o.created)) + (o.finalAt ? ' · final ' + esc(xrTime(o.finalAt)) + ' by ' + esc(o.finalName) + (o.version > 1 ? ' (amended)' : '') : '') + (o.critical ? ' · <span class="err">critical</span>' : '') +
+      (o.status !== 'Cancelled' ? tatOf(o, 'XR') : '') + (o.readDate ? ' <span class="chipk">OPD · ' + esc(dayLabel(o.readDate)) + '</span>' : '') + xrSibChip(o) + '</div></div>' +
+      '<span class="pill wkXR">X-ray</span>' + xrPill(o.status) + '<span class="sub" style="margin:0">' + who + '</span>' + (o.images ? '<span class="xrdl" role="button" tabindex="0" title="Download the images">⬇ Download</span>' : '');
+    el.onclick = function () { xrOpenStudy(o.acc); };
+    if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('xr', o.acc, e); };
+    return el;
+  }
+  function rptRowEl(x, scope) {
+    var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
+    el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + (x.repeatWait ? ' · <span class="pill xrRepeatrequested">🔁 waiting for repeat</span>' : '') + (scope === 'pending' && x.created ? tatOf({ created: x.created }, x.modality === 'CT' ? 'CT' : 'US') : '') + '</div></div>' +
+      '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>' + (scope === 'final' ? '<span class="pill xrFinal">Final</span>' : '') +
+      (x.upload ? '<span class="xrdl" role="button" tabindex="0" title="Download the CT images (DICOM)">⬇ Download</span>' : '');
+    el.onclick = function () { rptOpenDoc(x.id); };
+    if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('ct', x.upload, e); };
+    return el;
   }
 
   /* ---------- radiologist: reading screen ---------- */
@@ -2291,7 +2374,7 @@
     if (o.status !== 'Final' && o.status !== 'Cancelled' && XR_META && (XR_META.role.rad || XR_META.role.admin))
       h += '<div class="xrasgrow"><span>Assigned to</span><select id="xrReasg"></select></div>';
     if (o.status === 'Amending' && o.amendReason) h += '<div class="ctwarn">Amending: ' + esc(o.amendReason) + '</div>';
-    if (ed) h += '<div class="xrtpl"><select id="xrTpl" onchange="xrUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="xrSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(\'X-ray\')">📝 Edit templates</button></div>';
+    if (ed) h += '<div class="xrtpl"><select id="xrTpl" onchange="xrUseTpl()"><option value="">📋 Insert template…</option></select><button class="link" onclick="xrSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(\'X-ray\')">📝 Edit templates</button></div>';
     if (ed && XR_SIG && !XR_SIG.name) h += '<div class="ctwarn">Set up your report signature before finalizing. <button class="link" onclick="xrClose(); setTimeout(function(){ xrSigToggle(true); }, 300)">✍ Set up now</button></div>';
     h += '<label>X-ray report</label>' + rteHtml('xrF', 14, 'e.g. Both lung fields are clear.\nHeart is not enlarged. …', ed) +
       '<label class="crit"><input type="checkbox" id="xrCrit" ' + (ed ? '' : 'disabled') + '><span>Critical finding (communicate per POL-002 §2.3)</span></label>';
@@ -2330,7 +2413,7 @@
   function xrFillTpl() {
     var s = $('xrTpl'); if (!s || !XTPL) return;
     var sorted = tplAZ(XTPL.filter(function (t) { return !t.modality || t.modality === 'X-ray'; }));
-    s.innerHTML = '<option value="">Insert template…</option>' + sorted.map(function (t, i) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
+    s.innerHTML = '<option value="">📋 Insert template…</option>' + sorted.map(function (t, i) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
   }
 
   /* ================= PRIOR X-RAYS: side by side + "Comparison:" line ================= */
@@ -3964,7 +4047,7 @@
         if (r.expired) return expired();
         go.disabled = false; go.textContent = 'Make the report';
         m.className = 'msg ' + (r.ok ? 'ok' : 'err'); m.textContent = r.msg;
-        if (r.ok) { xrToast(r.msg); setTimeout(function () { if (curView === 'rpt') rptLoad(); else ctdLoadList(); }, 900); }
+        if (r.ok) { xrToast(r.msg); setTimeout(function () { if (curView === 'xrread') wkLoad(true); else ctdLoadList(); }, 900); }
       }).catch(function (e) { go.disabled = false; go.textContent = 'Make the report'; m.className = 'msg err'; m.textContent = (e && e.message) || 'Could not.'; });
     };
   }
@@ -3985,12 +4068,12 @@
       if (r.expired) return expired();
       xrToast(r.msg);
       if (!r.ok) { b.disabled = false; b.textContent = '📝 Generate report'; return; }
-      if (curView === 'rpt') rptLoad(); else ctdLoadList();
+      if (curView === 'xrread') wkLoad(true); else ctdLoadList();
     }).catch(function (e) { b.disabled = false; b.textContent = '📝 Generate report'; xrToast('Could not: ' + ((e && e.message) || e)); });
   }
   function ctdRe(id, sel) {
     var to = sel.value; if (!to) return; sel.disabled = true;
-    run('ctdReassign', token, id, to).then(function (r) { xrToast(r.msg); if (curView === 'rpt') rptLoad(); else ctdLoadList(); }).catch(function (e) { sel.disabled = false; xrToast('Could not: ' + ((e && e.message) || e)); });
+    run('ctdReassign', token, id, to).then(function (r) { xrToast(r.msg); if (curView === 'xrread') wkLoad(true); else ctdLoadList(); }).catch(function (e) { sel.disabled = false; xrToast('Could not: ' + ((e && e.message) || e)); });
   }
   function ctdDel(id) {
     if (!window.confirm('Remove this CT upload? Its folder goes to the Drive trash.')) return;
@@ -4001,63 +4084,15 @@
   /* ================= ULTRASOUND / CT REPORTS (generated Doc → edit → finalize) ================= */
   var RPT = { meta: null, list: [], cur: null, sure: 0, t: null };
   function rptAutoOn() { return lsGet('rpt_auto') !== '0'; }
-  function rptInit() {
-    $('rptAuto').checked = rptAutoOn();
-    if (RPT.meta) return rptLoad();
-    $('rptList').innerHTML = '<p class="sub">Loading…</p>';
-    run('rptMeta', token).then(function (m) {
-      if (m.expired) return expired();
-      if (!m.ok) { $('rptList').innerHTML = '<p class="sub err">' + esc(m.msg) + '</p>'; return; }
-      RPT.meta = m;
-      if (m.admin) {
-        $('rptWho').classList.remove('hidden');
-        $('rptWho').innerHTML = (m.rad ? '<option value="">My reports</option>' : '') + m.rads.map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
-      }
-      if (m.dicomUrl) { $('rptDicom').href = m.dicomUrl; $('rptDicom').classList.remove('hidden'); }
-      if (!XTPL) run('xrTemplates', token).then(function (t) { if (t.ok) XTPL = t.items; });
-      rptLoad();
-    }).catch(function (e) { $('rptList').innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
-  }
-  function rptLoad() {
-    var list = $('rptList'), scope = $('rptScope').value, mod = $('rptMod').value, who = $('rptWho').classList.contains('hidden') ? '' : $('rptWho').value;
-    list.innerHTML = '<p class="sub">Loading…</p>';
-    $('rptMod').classList.toggle('hidden', scope === 'ctimg');
-    if (scope === 'ctimg') {   // CT studies the technologists uploaded (DICOM folders in Drive)
-      run('ctdList', token, 7).then(function (r) {
-        if (r.expired) return expired();
-        if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
-        var items = who ? r.items.filter(function (x) { return x.assignedTo === who; }) : r.items;
-        list.innerHTML = items.length ? items.map(ctdRow).join('') : '<p class="sub">No CT uploads in the last 7 days.</p>';
-      }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
-      return;
-    }
-    run('rptList', token, scope, who).then(function (r) {
-      if (r.expired) return expired();
-      if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
-      RPT.list = r.items.filter(function (x) { return !mod || x.modality === mod; });
-      if (scope === 'pending') { var b = $('rptBadge'); b.textContent = r.count || 0; b.classList.toggle('hidden', !r.count || !r.mine); }
-      if (!RPT.list.length) { list.innerHTML = '<p class="sub">' + (scope === 'pending' ? 'No generated reports waiting. 🎉' : 'Nothing finalized recently.') + '</p>'; return; }
-      list.innerHTML = '';
-      RPT.list.forEach(function (x) {
-        var el = document.createElement('button'); el.type = 'button'; el.className = 'xrrow xrclick';
-        el.innerHTML = '<div class="xrl"><b>' + esc(x.name) + '</b><div class="d">' + esc(xrTime(x.created || x.modified)) + (x.modified && x.created && x.modified - x.created > 60000 ? ' · edited ' + esc(xrTime(x.modified)) : '') + (x.doc ? '' : ' · not a Google Doc') + (x.repeatWait ? ' · <span class="pill xrRepeatrequested">🔁 waiting for repeat</span>' : '') + (scope === 'pending' && x.created ? tatOf({ created: x.created }, x.modality === 'CT' ? 'CT' : 'US') : '') + '</div></div>' +
-          '<span class="pill ' + (x.modality === 'CT' ? 'rptCT' : 'rptUS') + '">' + esc(x.modality) + '</span>' +
-          (x.upload ? '<span class="xrdl" role="button" tabindex="0" title="Download the CT images (DICOM)">⬇ Download</span>' : '');
-        el.onclick = function () { rptOpenDoc(x.id); };
-        if (el.querySelector('.xrdl')) el.querySelector('.xrdl').onclick = function (e) { dlStudy('ct', x.upload, e); };
-        list.appendChild(el);
-      });
-    }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
-  }
   function rptOpenDoc(id) {
     var ov = $('rptv'); ov.classList.remove('hidden'); document.body.classList.add('xrlock');
     $('rptHead').innerHTML = '<b>Opening…</b>'; $('rptBody').innerHTML = '<p class="sub">Reading the report…</p>';
     RPT.cur = null; RPT.sure = 0;
     run('rptOpen', token, id).then(function (r) {
       if (r.expired) return expired();
-      if (!r.ok) { $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button><span class="err">' + esc(r.msg) + '</span>' + (r.url ? ' <a class="link" target="_blank" rel="noopener" href="' + esc(r.url) + '">Open in Drive</a>' : ''); $('rptBody').innerHTML = ''; return; }
+      if (!r.ok) { $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← Worklist</button><span class="err">' + esc(r.msg) + '</span>' + (r.url ? ' <a class="link" target="_blank" rel="noopener" href="' + esc(r.url) + '">Open in Drive</a>' : ''); $('rptBody').innerHTML = ''; return; }
       RPT.cur = r; r.dirty = false; rptDraw();
-    }).catch(function (e) { $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button><span class="err">Could not open: ' + esc((e && e.message) || e) + '</span>'; });
+    }).catch(function (e) { $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← Worklist</button><span class="err">Could not open: ' + esc((e && e.message) || e) + '</span>'; });
   }
   function rptFix() {
     var b = $('rptFixBtn'), id = RPT.cur && RPT.cur.id; if (!id) return;
@@ -4071,7 +4106,7 @@
   function rptDraw() {
     var r = RPT.cur, ed = r.canEdit, m = RPT.meta || {};
     var idx = RPT.list.map(function (x) { return x.id; }).indexOf(r.id), left = idx === -1 ? null : RPT.list.length - idx - 1;
-    $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← List</button>' +
+    $('rptHead').innerHTML = '<button class="xrback" onclick="rptClose()">← Worklist</button>' +
       '<div class="xrpt"><b>' + esc(r.name) + '</b>' + (left !== null && !r.final ? ' <span>' + (left ? left + ' more after this' : 'last one') + '</span>' : '') + '</div>' +
       (r.final ? '<span class="pill xrFinal">Finalized · ' + esc(r.modality) + '</span>' : '<select id="rptDest" title="Finalized folder"><option value="Ultrasound">Ultrasound</option><option value="CT">CT scan</option></select>') +
       (r.uploadId ? '<button class="xrskip" onclick="dlStudy(\'ct\', RPT.cur.uploadId)" title="Download the CT images (DICOM) as one .zip">⬇ Download CT</button>' : '') +
@@ -4086,7 +4121,7 @@
       h += '<div class="ctwarn">This report has no "FINDINGS" and "IMPRESSION" headings, so it can’t be edited here.' + (r.canFix ? ' <button class="btn alt" type="button" id="rptFixBtn" onclick="rptFix()" style="width:auto;margin:6px 0 0">🔧 Add the headings for me</button><div class="sub" style="margin:4px 0 0">Findings = the text after “IMAGING REPORT”; Impression = the numbered lines at the end. Or edit it in Google Docs' + (ed ? ', then press Finalize.' : '.') + '</div>' : ' Edit it in Google Docs' + (ed ? ', then press Finalize.' : '.')) + '</div>' +
         '<pre class="rpttext">' + esc(r.text || '') + '</pre>';
     } else {
-      if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(RPT.cur.modality)">📝 Edit templates</button></div>';
+      if (ed) h += '<div class="xrtpl"><select id="rptTpl" onchange="rptUseTpl()"><option value="">📋 Insert template…</option></select><button class="link" onclick="rptSaveTpl()">Save as my template</button><button class="link" onclick="tplOpen(RPT.cur.modality)">📝 Edit templates</button></div>';
       if (r.preRich !== undefined) h += '<label>Clinical data / Technique</label>' + rteHtml('rptP', 3, 'Technique, clinical history / clinical data, comparison', ed);
       h += '<label>Findings</label>' + rteHtml('rptF', 10, 'One finding per line', ed, !!r.tables) +
         '<label>Impression</label>' + rteHtml('rptI', 4, 'One impression per line', ed, !!r.tables);
@@ -4122,7 +4157,7 @@
     var s = $('rptTpl'); if (!s) return;
     if (!XTPL) { run('xrTemplates', token).then(function (t) { if (t.ok) { XTPL = t.items; rptFillTpl(); } }); return; }
     var mod = RPT.cur.modality;
-    s.innerHTML = '<option value="">Insert ' + esc(mod) + ' template…</option>' + tplAZ(XTPL.filter(function (t) { return t.modality === mod; })).map(function (t) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
+    s.innerHTML = '<option value="">📋 Insert ' + esc(mod) + ' template…</option>' + tplAZ(XTPL.filter(function (t) { return t.modality === mod; })).map(function (t) { return '<option value="' + XTPL.indexOf(t) + '">' + esc(t.name) + (t.mine ? ' (mine)' : '') + '</option>'; }).join('');
   }
   /* ================= 📝 TEMPLATE EDITOR: change your templates (admins: the shared ones too), add new ones ================= */
   var TPLM = { mod: 'X-ray', cur: null, admin: false, dirty: false };
@@ -4243,9 +4278,9 @@
       if (!x.ok) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; return setMsg('rptMsg', x.msg); }
       xrToast('✓ ' + x.msg);
       var i = RPT.list.map(function (y) { return y.id; }).indexOf(r.id); if (i !== -1) RPT.list.splice(i, 1);
-      if (rptAutoOn() && $('rptScope').value === 'pending' && RPT.list[i] ) { r.dirty = false; rptOpenDoc(RPT.list[i].id); }
-      else if (rptAutoOn() && $('rptScope').value === 'pending' && RPT.list.length) { rptOpenDoc(RPT.list[0].id); }
-      else { if (rptAutoOn() && $('rptScope').value === 'pending') xrToast('✓ ' + x.msg + ' All caught up.'); rptClose(true); }
+      if (rptAutoOn() && wkToRead() && RPT.list[i] ) { r.dirty = false; rptOpenDoc(RPT.list[i].id); }
+      else if (rptAutoOn() && wkToRead() && RPT.list.length) { rptOpenDoc(RPT.list[0].id); }
+      else { if (rptAutoOn() && wkToRead()) xrToast('✓ ' + x.msg + ' All caught up.'); rptClose(true); }
     }).catch(function (e2) { b.disabled = false; b.textContent = 'Finalize & move to the ' + r.modality + ' folder'; setMsg('rptMsg', 'Could not finalize: ' + ((e2 && e2.message) || e2) + '. Your text is still here – try again.'); });
   }
   function rptEditDoc() {
@@ -4260,7 +4295,7 @@
   }
   function rptClose(skipSave) {
     var r = RPT.cur;
-    var finish = function () { RPT.cur = null; $('rptv').classList.add('hidden'); document.body.classList.remove('xrlock'); if (curView === 'rpt') rptLoad(); };
+    var finish = function () { RPT.cur = null; $('rptv').classList.add('hidden'); document.body.classList.remove('xrlock'); if (curView === 'xrread') wkLoad(true); };
     if (!skipSave && r && r.canEdit && r.dirty) rptSaveDraft(true).then(finish, finish); else finish();
   }
   document.addEventListener('keydown', function (e) {
@@ -4403,7 +4438,7 @@
       b.disabled = false; b.textContent = 'Make the report draft';
       if (r.expired) return expired();
       setMsg('usMsg', r.msg, r.ok);
-      if (r.ok) { usClear(true); usLoadList(); if (curView === 'rpt') rptLoad(); }
+      if (r.ok) { usClear(true); usLoadList(); if (curView === 'xrread') wkLoad(true); }
     }).catch(function (e) { b.disabled = false; b.textContent = 'Make the report draft'; setMsg('usMsg', 'Could not make the draft: ' + ((e && e.message) || e)); });
   }
   function usClear(keepMsg) {
@@ -4536,24 +4571,23 @@
   /* ---------- page start: same login as the portal ---------- */
   function gate(text, showBtn) {
     $('gate').classList.remove('hidden'); $('gateMsg').textContent = text; $('gateBtn').style.display = showBtn ? '' : 'none';
-    ['vXrUp', 'vXrRead', 'vRpt', 'vTat', 'vRep', 'vAr'].forEach(function (id) { $(id).classList.add('hidden'); });
+    ['vXrUp', 'vXrRead', 'vTat', 'vRep', 'vAr'].forEach(function (id) { $(id).classList.add('hidden'); });
   }
   function expired() { gate('Your session has ended. Log in again in the portal, then open the PACS.', true); }
   function schedView(v) {
     var rd = XR_ROLE.rad || XR_ROLE.admin;
-    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if ((v === 'xrread' || v === 'rpt' || v === 'tat' || v === 'rep' || v === 'ar') && !rd) v = 'xrup'; if (v === 'print') v = XR_ROLE.tech ? 'xrup' : 'xrread';
+    if (v === 'xrup' && !XR_ROLE.tech) v = 'xrread'; if (v === 'rpt') v = 'xrread'; if ((v === 'xrread' || v === 'tat' || v === 'rep' || v === 'ar') && !rd) v = 'xrup'; if (v === 'print') v = XR_ROLE.tech ? 'xrup' : 'xrread';
     curView = v;
-    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vRpt').classList.toggle('hidden', v !== 'rpt'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep'); $('vAr').classList.toggle('hidden', v !== 'ar');
+    $('vXrUp').classList.toggle('hidden', v !== 'xrup'); $('vXrRead').classList.toggle('hidden', v !== 'xrread'); $('vTat').classList.toggle('hidden', v !== 'tat'); $('vRep').classList.toggle('hidden', v !== 'rep'); $('vAr').classList.toggle('hidden', v !== 'ar');
     $('tabTat').classList.toggle('on', v === 'tat'); $('tabRep').classList.toggle('on', v === 'rep'); $('tabAr').classList.toggle('on', v === 'ar');
-    $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread'); $('tabRpt').classList.toggle('on', v === 'rpt');
+    $('tabUp').classList.toggle('on', v === 'xrup'); $('tabRead').classList.toggle('on', v === 'xrread');
     try { sessionStorage.setItem('pacs_tab', v); } catch (e) {}
     if (v === 'xrup') {
       $('upMode').classList.remove('hidden');
       $('upMode').querySelector('[data-v="ct"]').classList.toggle('hidden', !(XR_META && XR_META.ct));
       var um = lsGet('up_mode'); upMode(um === 'ct' || um === 'us' ? um : 'xr');
     }
-    if (v === 'xrread') xrLoadWork();
-    if (v === 'rpt') rptInit();
+    if (v === 'xrread') wkOpen();
     if (v === 'tat') dashOpen();
     if (v === 'rep') rrsOpen();
     if (v === 'ar') arOpen();
@@ -4570,7 +4604,7 @@
       $('gate').classList.add('hidden');
       $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.site ? ' · ' + m.site.name : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
       document.body.classList.toggle('siteuser', !!m.site);
-      $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin)); $('tabRpt').classList.toggle('hidden', !(m.role.rad || m.role.admin));
+      $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabRep').classList.toggle('hidden', !((m.role.rad || m.role.admin) && m.repeat));
       $('tabAr').classList.toggle('hidden', !!m.site || !(m.role.rad || m.role.admin));
