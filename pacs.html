@@ -526,6 +526,9 @@
   #rptv { position:fixed; inset:0; z-index:9000; display:flex; flex-direction:column; background:var(--bg); } #rptv.hidden { display:none; }
   #rptv .xrtop select { width:auto; margin:0; }
   .rptscroll { flex:1; overflow:auto; } .rptbody { max-width:920px; margin:0 auto; padding:14px 16px 40px; }
+  .rptsplit { flex:1; display:flex; min-height:0; } .rptmedia { flex:1; min-width:0; }
+  #rptv.media .rptscroll { flex:none; width:min(600px,46vw); border-left:1px solid var(--line); background:var(--card); }
+  @media (max-width:820px) { .rptsplit { flex-direction:column; overflow:auto; } .rptmedia { flex:none; height:52vh; } #rptv.media .rptscroll { width:auto; border-left:0; overflow:visible; } }
   .rptbody textarea { font-size:15px; line-height:1.5; }
   .rpthdr { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px; background:var(--card); }
   .rpthdr td { border:1px solid var(--line); padding:4px 6px; } .rpthdr td.k { color:var(--muted); font-weight:600; white-space:nowrap; }
@@ -792,7 +795,7 @@
 <!-- Ultrasound / CT report editor (full screen) -->
 <div id="rptv" class="hidden">
   <div class="xrtop" id="rptHead"></div>
-  <div class="rptscroll"><div class="rptbody" id="rptBody"></div></div>
+  <div class="rptsplit"><div class="rptmedia hidden" id="rptMediaPane" aria-label="Ultrasound images and clips"></div><div class="rptscroll"><div class="rptbody" id="rptBody"></div></div></div>
 </div>
 <!-- 👁 preview of an uploaded study -->
 <div id="pv" class="hidden pv">
@@ -1178,7 +1181,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 48;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 49;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -4182,7 +4185,7 @@
     } else h += '<div class="xrbtns"><button class="btn alt" onclick="rptPreview()">📄 View report</button></div>' + (r.final ? '' : '<p class="sub">Only the assigned radiologist can edit and finalize this report.</p>');
     h += '<div class="msg" id="rptMsg"></div>';
     $('rptBody').innerHTML = h;
-    if ($('rptMedia')) rptMediaLoad(r);
+    if ($('rptMedia')) rptMediaLoad(r); else rptMediaOff();
     r.rich = r.findingsRich !== undefined;   // older server: plain lines only
     if (r.parsed) {
       rteInit('rptF', { plain: !r.rich }); rteInit('rptI', { plain: !r.rich });
@@ -4346,7 +4349,7 @@
   }
   function rptClose(skipSave) {
     var r = RPT.cur;
-    var finish = function () { RPT.cur = null; $('rptv').classList.add('hidden'); document.body.classList.remove('xrlock'); if (curView === 'xrread') wkLoad(true); };
+    var finish = function () { RPT.cur = null; rptMediaOff(); $('rptv').classList.add('hidden'); document.body.classList.remove('xrlock'); if (curView === 'xrread') wkLoad(true); };
     if (!skipSave && r && r.canEdit && r.dirty) rptSaveDraft(true).then(finish, finish); else finish();
   }
   document.addEventListener('keydown', function (e) {
@@ -4563,7 +4566,7 @@
     if (US_FILES.some(function (x) { return x.state !== 'done'; }) && !window.confirm('Close without uploading the chosen files?')) return;
     $('usmOv').classList.add('hidden'); $('usmHome').appendChild($('usmUp')); usmClear();
     var rid = USM_ADD && USM_ADD.id; USM_ADD = null;
-    if (RPT.cur && RPT.cur.id === rid && $('rptMedia')) usmLoad().then(function (U) { U.strip($('rptMedia'), rid, { canRemove: true }); });
+    if (RPT.cur && RPT.cur.id === rid && $('rptMedia')) rptMediaLoad(RPT.cur);
   }
   function usmAddGo() {
     var e = usmCheck(); if (e) return setMsg('usmMsg', e);
@@ -4577,10 +4580,30 @@
     });
   }
   /** radiologist's US editor: the strip under the patient table */
+  /** radiologist's US editor: images beside the report (like the X-ray reader); the panel in the report keeps ＋ Add / the 'none' notes */
   function rptMediaLoad(r) {
-    var el = $('rptMedia'); if (!el) return;
-    usmLoad().then(function (U) { U.strip(el, r.id, { canRemove: r.canEdit }); }).catch(function (e) { el.innerHTML = '<p class="sub err">' + esc(e.message) + '</p>'; });
+    var el = $('rptMedia'), pane = $('rptMediaPane'); if (!el) return;
+    rptMediaOff();
+    el.innerHTML = '<p class="sub" style="margin:4px 0">Loading images…</p>';
+    usmLoad().then(function (U) {
+      return U.inline(pane, r.id).then(function (x) {
+        if (RPT.cur !== r) { if (x && x.viewer) x.viewer.stop(); return; }
+        if (!x || !x.ok) { el.innerHTML = '<p class="sub err">' + esc((x && x.msg) || 'Could not load the images.') + '</p>'; return; }
+        if (x.removed) { el.innerHTML = '<p class="sub" style="margin:4px 0">' + U.removedHtml(x) + '</p>'; return; }
+        if (!x.items.length) { el.innerHTML = '<p class="sub" style="margin:4px 0">No images or clips.</p>'; return; }
+        RPT.usmV = x.viewer; pane.classList.remove('hidden'); $('rptv').classList.add('media');
+        var nI = x.items.filter(function (i) { return !i.clip; }).length, nC = x.items.length - nI;
+        el.innerHTML = '<p class="sub" style="margin:2px 0">' + (nI ? nI + ' image' + (nI === 1 ? '' : 's') : '') + (nI && nC ? ' and ' : '') + (nC ? nC + ' clip' + (nC === 1 ? '' : 's') : '') + ' – shown beside the report.' +
+          (x.deleteOn ? ' Kept until ' + new Date(x.deleteOn).toLocaleDateString() + '.' : '') + '</p>';
+      });
+    }).catch(function (e) { el.innerHTML = '<p class="sub err">' + esc(e.message) + '</p>'; });
   }
+  function rptMediaOff() {
+    if (RPT.usmV) { RPT.usmV.stop(); RPT.usmV = null; }
+    var pane = $('rptMediaPane'); if (pane) { pane.classList.add('hidden'); pane.innerHTML = ''; pane.className = 'rptmedia hidden'; pane.removeAttribute('style'); }
+    $('rptv').classList.remove('media');
+  }
+
   function usPlace(where) { var f = $('upUs'); if (where === 'rpt') { $('rptNewUs').appendChild(f); } else $('upUsHome').appendChild(f); }
   function rptNewUs() {
     var box = $('rptNewUs');
