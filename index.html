@@ -334,6 +334,20 @@
     #printArea .pp img { display:block; max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; }
   }
   @page { margin:6mm; }
+
+  /* ⛔ preliminary reports: watermark + no printing, downloading or saving (v54) */
+  #vPrelim { display:none; background:#b91c1c; color:#fff; font-weight:800; text-align:center; padding:7px 10px; font-size:14px; letter-spacing:.3px; }
+  body.prelim-open #vPrelim { display:block; }
+  body.prelim-open #vBody canvas, body.prelim-open #vBody img, body.prelim-img #ivStage img { -webkit-user-select:none; user-select:none; -webkit-user-drag:none; -webkit-touch-callout:none; }
+  .prelimWm { position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; overflow:hidden; z-index:3; }
+  .prelimWm span { transform:rotate(-30deg); color:rgba(239,68,68,.42); font:900 clamp(26px,7vw,88px)/1.1 Arial,sans-serif; text-align:center; white-space:nowrap; text-shadow:0 0 2px rgba(0,0,0,.35); }
+  #prelimToast { position:fixed; left:50%; top:18px; transform:translateX(-50%); z-index:99999; background:#b91c1c; color:#fff; font-weight:700; padding:12px 18px; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.35); max-width:92vw; text-align:center; }
+  @media print {
+    body.prelim-open, body.prelim-img, body.rdlock:not(.printing-file) { background:#fff !important; }
+    body.prelim-open > *, body.prelim-img > *, body.rdlock:not(.printing-file) > *,
+    body.prelim-open #viewer, body.prelim-open #printArea, body.prelim-img #imgv, body.rdlock:not(.printing-file) #viewer { display:none !important; }
+    body.prelim-open::before, body.prelim-img::before, body.rdlock:not(.printing-file)::before { content:'⛔ PRELIMINARY REPORT – PRINTING IS NOT ALLOWED.  Only the final, signed report may be printed.'; display:block !important; font:700 22pt/1.4 Arial,sans-serif; color:#b91c1c; text-align:center; padding:35vh 10mm 0; }
+  }
   .cc { font-size:11px; color:var(--muted); text-align:right; margin-top:2px; min-height:13px; }
   .cc.near { color:#d97706; font-weight:600; }
   textarea.fnn, textarea.fmm, textarea.adt { resize:vertical; }
@@ -933,6 +947,7 @@
 <div id="viewer">
   <div class="box">
     <div class="bar"><b id="vTitle"></b><span><button class="link hidden" id="vImgs" onclick="var a=CUR_IMG;closeViewer();openImages(a)">🖼 Images</button><button class="link hidden" id="vUsm" onclick="usmOpenFor()">🎞 Images &amp; clips</button><button class="link hidden" id="vPrint" onclick="printFile()">🖨 Print</button><a id="dl" class="link hidden" download>Download</a><button class="link" onclick="closeViewer()">Close ✕</button></span></div>
+    <div id="vPrelim">⛔ PRELIMINARY REPORT – NOT FINAL. Printing, downloading and saving are disabled.</div>
     <div class="body" id="vBody"></div>
   </div>
 </div>
@@ -4235,6 +4250,7 @@
   var CUR_FILE = null;
   /** Redraws the file at print quality, one page per sheet, then opens the print dialog. */
   function printFile() {
+    if (PRELIM) return prelimToast();
     if (!CUR_FILE) return;
     var btn = $('vPrint'), area = $('printArea'), f = CUR_FILE;
     btn.disabled = true; btn.textContent = 'Preparing…'; area.innerHTML = '';
@@ -4413,12 +4429,15 @@
       var bin = atob(r.b64), arr = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
       curUrl = URL.createObjectURL(new Blob([arr], { type: r.mime }));
-      CUR_FILE = { arr: arr.slice(0), mime: r.mime, name: r.name };   // own copy: the PDF viewer consumes the original
-      $('vPrint').classList.toggle('hidden', !!r.noDownload || !(r.mime === 'application/pdf' || r.mime.indexOf('image/') === 0));
+      prelimSet(r.prelim);
+      CUR_FILE = r.prelim ? null : { arr: arr.slice(0), mime: r.mime, name: r.name };   // own copy: the PDF viewer consumes the original (none for a preliminary: it cannot be printed)
+      $('vPrint').classList.toggle('hidden', !!r.noDownload || !!r.prelim || !(r.mime === 'application/pdf' || r.mime.indexOf('image/') === 0));
       var body = $('vBody'); body.className = 'body';
-      var dl = $('dl'); dl.href = curUrl; dl.download = r.name; dl.classList.toggle('hidden', !!r.noDownload);
-      if (r.mime.indexOf('image/') === 0) body.innerHTML = '<img src="' + curUrl + '">';
-      else if (r.mime === 'application/pdf') renderPdf(arr, body);
+      var dl = $('dl'); dl.href = curUrl; dl.download = r.name; dl.classList.toggle('hidden', !!r.noDownload || !!r.prelim);
+      if (r.prelim) { dl.removeAttribute('href'); URL.revokeObjectURL(curUrl); curUrl = null; }
+      if (r.mime.indexOf('image/') === 0 && r.prelim) { var u = URL.createObjectURL(new Blob([arr], { type: r.mime })), im = new Image(); im.onload = function () { var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); prelimMark(c); c.style.maxWidth = '100%'; body.innerHTML = ''; body.appendChild(c); URL.revokeObjectURL(u); }; im.src = u; }
+      else if (r.mime.indexOf('image/') === 0) body.innerHTML = '<img src="' + curUrl + '">';
+      else if (r.mime === 'application/pdf') renderPdf(arr, body, !!r.prelim);
       else body.innerHTML = '<p class="sub">Preview not available for this file type. Use Download.</p>';
     }).catch(function () { $('vBody').innerHTML = '<p class="sub err">Could not load file.</p>'; });
   }
@@ -4442,7 +4461,7 @@
     return workerReady;
   }
 
-  function renderPdf(arr, body) {
+  function renderPdf(arr, body, prelim) {
     body.className = 'body pdf';
     body.innerHTML = '<p class="sub">Rendering…</p>';
     ensureWorker().then(function () { return pdfjsLib.getDocument({ data: arr }).promise; }).then(function (pdf) {
@@ -4456,7 +4475,7 @@
           var c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
           c.style.width = (vp.width / ratio) + 'px';
           body.appendChild(c);
-          return page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+          return page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise.then(function () { if (prelim) prelimMark(c); });
         });
       })(p);
       return chain;
@@ -4478,11 +4497,44 @@
     USM_JS.then(function () { window.USM.open(c.id, c.items, 0); }).catch(function () { alert('Could not load the image viewer – check the connection.'); });
   }
   function closeViewer() {
-    CUR_DL = null; CUR_FILE = null; $('vPrint').classList.add('hidden');
+    prelimSet(false); CUR_DL = null; CUR_FILE = null; $('vPrint').classList.add('hidden');
     $('dl').classList.add('hidden');
     $('viewer').style.display = 'none'; $('vBody').innerHTML = ''; $('vBody').className = 'body';
     if (curUrl) { URL.revokeObjectURL(curUrl); curUrl = null; }
   }
+
+  /* ⛔ preliminary reports (v54): big watermark burned into the page image, no Print / Download, Ctrl+P and the browser's print blocked */
+  var PRELIM = false;
+  function prelimSet(on) { PRELIM = !!on; document.body.classList.toggle('prelim-open', PRELIM); }
+  function prelimBlocked() { var b = document.body.classList; return PRELIM || b.contains('prelim-img') || (b.contains('rdlock') && !b.contains('printing-file')); }
+  function prelimToast() {
+    var d = document.getElementById('prelimToast');
+    if (!d) { d = document.createElement('div'); d.id = 'prelimToast'; document.body.appendChild(d); }
+    d.textContent = '⛔ This is a PRELIMINARY report – printing is not allowed. Only the final report may be printed.';
+    clearTimeout(d._t); d.style.display = 'block'; d._t = setTimeout(function () { d.style.display = 'none'; }, 4000);
+  }
+  function prelimMark(c) {   // draws the watermark into the canvas pixels, so a screenshot or saved image still carries it
+    var x = c.getContext('2d'), w = c.width, h = c.height, d = Math.sqrt(w * w + h * h), fs = Math.round(d / 15);
+    x.save(); x.translate(w / 2, h / 2); x.rotate(-Math.atan2(h, w));
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+    x.font = '900 ' + fs + 'px Arial, Helvetica, sans-serif';
+    x.fillStyle = 'rgba(220,38,38,0.30)'; x.strokeStyle = 'rgba(127,29,29,0.40)'; x.lineWidth = Math.max(1, fs / 30);
+    [['PRELIMINARY', -0.62], ['DO NOT PRINT', 0.62]].forEach(function (t) { x.fillText(t[0], 0, t[1] * fs); x.strokeText(t[0], 0, t[1] * fs); });
+    x.font = '800 ' + Math.round(fs * 0.3) + 'px Arial, Helvetica, sans-serif'; x.fillStyle = 'rgba(185,28,28,0.42)';
+    x.fillText('Preliminary report – not final, not for release', 0, 1.5 * fs);
+    x.restore();
+    x.save(); x.fillStyle = 'rgba(185,28,28,0.85)'; var bh = Math.max(14, Math.round(h * 0.022));
+    x.fillRect(0, h - bh, w, bh); x.fillStyle = '#fff'; x.font = '700 ' + Math.round(bh * 0.62) + 'px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('PRELIMINARY REPORT – DO NOT PRINT – NOT A FINAL REPORT', w / 2, h - bh / 2); x.restore();
+  }
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P') && prelimBlocked()) { e.preventDefault(); e.stopImmediatePropagation(); prelimToast(); }
+  }, true);
+  document.addEventListener('contextmenu', function (e) {   // no "Save image as" / "Print" from the right-click menu on a preliminary
+    if (prelimBlocked() && e.target.closest && e.target.closest('#vBody, #ivStage, #viewer')) e.preventDefault();
+  }, true);
+  (function () { var p = window.print; window.print = function () { if (prelimBlocked()) return prelimToast(); return p.apply(window, arguments); }; })();
+  window.prelimToast = prelimToast; window.prelimBlocked = prelimBlocked;
 </script>
 <!-- ================= INSTALLABLE APP (only when opened from GitHub Pages; does nothing inside Apps Script) ================= -->
 <script>

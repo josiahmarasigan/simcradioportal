@@ -108,8 +108,14 @@
     }).catch(function (e) { if (seq === V.seq) box.innerHTML = '<div class="ivmsg">Could not load: ' + esc((e && e.message) || e) + '</div>'; });
   }
   /* ---- one study ---- */
+  function prelimImg(on) {   // ⛔ a study with only a preliminary (initial) reading: watermark over the image, printing blocked (v54)
+    document.body.classList.toggle('prelim-img', !!on);
+    var w = $('ivWm'); if (w) w.parentNode.removeChild(w);
+    if (on && $('ivStage')) { w = document.createElement('div'); w.id = 'ivWm'; w.className = 'prelimWm'; w.innerHTML = '<span>PRELIMINARY<br>DO NOT PRINT</span>'; $('ivStage').appendChild(w); }
+  }
   function openStudy(st) {
     release(); V.st = st; V.i = 0; V.full = false;
+    prelimImg(st.initial && !st.final);
     $('ivListView').style.display = 'none'; $('ivStudyView').style.display = 'flex';
     $('ivTitle').innerHTML = esc(st.name) + '<span>' + esc([st.age, st.sex].filter(Boolean).join(' ')) + ' · ' + esc(st.exam) + ' · ' + esc(when(st.created)) + '</span>';
     $('ivRes').classList.toggle('hidden', !(st.final && st.reportId));
@@ -198,8 +204,8 @@
       openStudy(r.study);
     }).catch(function (e) { msg('Could not load: ' + ((e && e.message) || e)); });
   }
-  function back() { release(); V.st = null; $('ivStudyView').style.display = 'none'; $('ivListView').style.display = 'flex'; if (!V.list.length && $('ivList').innerHTML === '') load(); }
-  function close() { release(); V.st = null; V.list = []; if ($('imgv')) { $('imgv').classList.add('hidden'); $('ivList').innerHTML = ''; } document.body.style.overflow = ''; }
+  function back() { release(); prelimImg(false); V.st = null; $('ivStudyView').style.display = 'none'; $('ivListView').style.display = 'flex'; if (!V.list.length && $('ivList').innerHTML === '') load(); }
+  function close() { release(); prelimImg(false); V.st = null; V.list = []; if ($('imgv')) { $('imgv').classList.add('hidden'); $('ivList').innerHTML = ''; } document.body.style.overflow = ''; }
   function step(d) { if (V.st) show(V.i + d); }
   function invert() { V.inv = !V.inv; $('ivInv').classList.toggle('on', V.inv); paint(); }
   function fullRes() { if (!V.st) return; V.full = true; show(V.i); V.full = false; }
