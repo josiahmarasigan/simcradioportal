@@ -1185,7 +1185,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 52;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 53;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -4645,15 +4645,18 @@
       b.disabled = false; b.textContent = 'Make the report draft';
       if (r.expired) return expired();
       setMsg('usMsg', r.msg, r.ok);
+      // an older Apps Script version ignores the findings: say so and keep the text (it can be added from the list once the server is updated)
+      var notes = (f.techFindings || '').trim(), lost = r.ok && notes && !/findings are in the report/.test(r.msg || '');
+      var warnLost = function () { if (!lost) return; $('usmNotes').value = notes; setMsg('usMsg', '⚠ The draft was made, but the server is an older version and did NOT add your findings. Keep them here and tell the admin to deploy the new Apps Script version; then add them with 📝 Findings in the list below.'); };
       if (r.ok && US_FILES.length && r.reportId) {
         b.disabled = true; b.textContent = 'Uploading images…';
         return usmUpload(r.reportId).then(function (u) {
           b.disabled = false; b.textContent = 'Make the report draft';
           setMsg('usMsg', r.msg + ' ' + u.ok + ' image' + (u.ok === 1 ? '' : 's') + '/clip' + (u.ok === 1 ? '' : 's') + ' uploaded' + (u.fail ? ' – ' + u.fail + ' failed: add them again from the list below (🎞 Images).' : '.'), !u.fail);
-          usClear(true); usmClear(); usLoadList(); if (curView === 'xrread') wkLoad(true);
+          usClear(true); usmClear(); warnLost(); usLoadList(); if (curView === 'xrread') wkLoad(true);
         });
       }
-      if (r.ok) { usClear(true); usmClear(); usLoadList(); if (curView === 'xrread') wkLoad(true); }
+      if (r.ok) { usClear(true); usmClear(); warnLost(); usLoadList(); if (curView === 'xrread') wkLoad(true); }
     }).catch(function (e) { b.disabled = false; b.textContent = 'Make the report draft'; setMsg('usMsg', 'Could not make the draft: ' + ((e && e.message) || e)); });
   }
   function usClear(keepMsg) {
