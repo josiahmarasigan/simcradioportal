@@ -1185,7 +1185,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 51;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 52;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -4077,7 +4077,7 @@
       ((x.mine || XR_ROLE.admin) && !x.reportFinal && x.status !== 'Removed' ? '<select class="ctre" onchange="ctdRe(\'' + esc(x.id) + '\', this)" title="Change the radiologist"><option value="">Change radiologist…</option>' +
         (XR_META.rads || []).filter(function (r) { return r.email !== x.assignedTo; }).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('') + '</select>' : '') +
       ((x.status === 'Complete' || x.status === 'Incomplete') && !x.repeatOf && (x.mine || XR_ROLE.rad || XR_ROLE.admin) ? '<button class="link" style="white-space:nowrap" title="Two exams in this upload (e.g. CT Brain + CT Chest)? Make a separate report for the other one – same images" onclick="ctdAddExamBox(this, \'' + esc(x.id) + '\', \'' + esc(x.contrast || 'plain') + '\')">➕ Another report…</button>' : '') +
-      ((x.mine && x.status !== 'Complete' && x.status !== 'Repeat requested') || (x.linkOf && (x.mine || XR_ROLE.admin) && !x.reportFinal) ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Remove</button>' : '') + (XR_META.repeat ? ctRepeatRowHtml(x) : '') + '</div>';
+(!x.reportFinal && (XR_ROLE.tech || XR_ROLE.admin || x.mine) ? '<button class="link" onclick="ctdDel(\'' + esc(x.id) + '\')">Cancel study</button>' : '') + (XR_META.repeat ? ctRepeatRowHtml(x) : '') + '</div>';
   }
   /** ➕ Another report for an upload already in Drive: pick the exam (or type it), contrast → a separate draft, same images */
   function ctdAddExamBox(btn, id, con) {
@@ -4128,8 +4128,10 @@
     run('ctdReassign', token, id, to).then(function (r) { xrToast(r.msg); if (curView === 'xrread') wkLoad(true); else ctdLoadList(); }).catch(function (e) { sel.disabled = false; xrToast('Could not: ' + ((e && e.message) || e)); });
   }
   function ctdDel(id) {
-    if (!window.confirm('Remove this CT upload? Its folder goes to the Drive trash.')) return;
-    run('ctdRemove', token, id).then(function (r) { xrToast(r.msg); if (r.ok && CTD.job && CTD.job.uploadId === id) ctdForget(); ctdLoadList(); });
+    var why = window.prompt('Cancel this CT study? The images and the report draft go to the Drive trash.\n\nReason (e.g. wrong patient, duplicate, repeat):', '');
+    if (why === null) return;
+    if (why.trim().length < 3) return xrToast('Give a reason for cancelling.');
+    run('ctdRemove', token, id, why.trim()).then(function (r) { xrToast(r.msg); if (r.ok && CTD.job && CTD.job.uploadId === id) ctdForget(); ctdLoadList(); if (curView === 'xrread') wkLoad(true); });
   }
   /* ================= /CT DICOM UPLOAD ================= */
 
@@ -4667,9 +4669,22 @@
       if (!r.items.length) { list.innerHTML = '<p class="sub">No ultrasound drafts made here yet.</p>'; return; }
       list.innerHTML = r.items.map(function (o) {
         return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b>' + (usmOn() || o.status !== 'Final' ? ' <button class="link" type="button" onclick="usmAddOpen(\'' + esc(o.id) + '\', \'' + esc(o.name).replace(/'/g, '') + '\')">' + (o.status === 'Final' ? '🎞 Images' : usmOn() ? '📝 Findings · 🎞 Images' : '📝 Add findings') + '</button>' : '') + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
-          tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location, initialAt: o.initialAt }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
+          tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location, initialAt: o.initialAt }, 'US') + '</div>' + (o.status !== 'Final' && (XR_ROLE.tech || XR_ROLE.admin) ? '<div class="xrbar" data-us="' + esc(o.id) + '"><button type="button" class="btn alt" onclick="usCancelAsk(this)">Cancel study</button></div>' : '') +
+          '</div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
       }).join('');
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
+  }
+  /** Cancel an ultrasound study: first tap asks for the reason, second tap (with a reason) cancels. */
+  function usCancelAsk(b) {
+    var bar = b.parentNode, id = bar.getAttribute('data-us'), why = bar.querySelector('[data-why]');
+    if (!why) { bar.insertAdjacentHTML('beforeend', '<input type="text" data-why maxlength="300" placeholder="Reason (e.g. wrong patient, duplicate, not done)" style="flex:1 1 220px;margin:0">'); b.textContent = 'Tap again to cancel'; bar.querySelector('[data-why]').focus(); return; }
+    if (why.value.trim().length < 3) { why.focus(); return xrToast('Give a reason for cancelling.'); }
+    b.disabled = true; b.textContent = 'Cancelling…';
+    run('usdCancel', token, id, why.value.trim()).then(function (r) {
+      if (r.expired) return expired();
+      xrToast(r.msg); if (!r.ok) { b.disabled = false; b.textContent = 'Tap again to cancel'; return; }
+      usLoadList(); if (curView === 'xrread') wkLoad(true);
+    }).catch(function (e) { b.disabled = false; b.textContent = 'Tap again to cancel'; xrToast('Could not cancel: ' + ((e && e.message) || e)); });
   }
   /* ---- 📊 TAT dashboard (radiologists & admins): one call when the tab is opened, kept 5 minutes ---- */
   var DASH = { data: null, at: 0, key: '' };
