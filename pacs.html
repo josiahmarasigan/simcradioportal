@@ -1181,7 +1181,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 49;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 50;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -4827,7 +4827,7 @@
       if (!m.ok) return gate(m.msg, true);
       XR_META = m; XR_ROLE = m.role;
       $('gate').classList.add('hidden');
-      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.site ? ' · ' + m.site.name : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER;
+      $('pWho').textContent = m.me.name + (m.role.rad ? ' · Radiologist' : m.role.tech ? ' · X-ray technologist' : '') + (m.site ? ' · ' + m.site.name : '') + (m.onDuty ? ' · On duty for X-ray: ' + m.onDuty.name : '') + ' · v' + PACS_VER + (m.me.demo ? ' · DEMO account (not in TAT)' : '');
       document.body.classList.toggle('siteuser', !!m.site);
       $('tabUp').classList.toggle('hidden', !m.role.tech); $('tabRead').classList.toggle('hidden', !(m.role.rad || m.role.admin));
       $('tabTat').classList.toggle('hidden', !(m.role.rad || m.role.admin));
