@@ -701,7 +701,7 @@
         </div>
         <div id="upUsHome"><div id="upUs" class="hidden">
           <div class="xrform">
-            <p class="sub" style="margin:0 0 6px">Fill this in after the scan: a report draft with the patient details and the normal template for the exam goes straight to the radiologist’s list in 📝 US / CT.</p>
+            <p class="sub" style="margin:0 0 6px">Fill this in after the scan: a report draft with the patient details goes straight to the radiologist’s 🗂 Worklist. Type your findings below and they go into the report; leave them empty and the normal template for the exam is used.</p>
             <div class="xrg3">
               <div><label>Last name *</label><input type="text" id="usLast" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
               <div><label>First name *</label><input type="text" id="usFirst" maxlength="60" autocomplete="off" autocapitalize="characters"></div>
@@ -720,11 +720,15 @@
               <div class="xrw2"><label>Radiologist <span class="hint" style="display:inline">(gets the report draft)</span></label><select id="usAssign"></select></div>
             </div>
             <div id="usmHome"><div id="usmUp" class="usmup hidden">
+              <label for="usmNotes">📝 Sonographer's findings <span class="hint" style="display:inline">(optional – goes into the Findings of the report; the radiologist reviews it, writes the impression and finalizes)</span></label>
+              <textarea id="usmNotes" rows="5" maxlength="8000" placeholder="e.g.&#10;Liver: normal in size and echotexture, no focal lesion.&#10;Gallbladder: multiple echogenic foci with posterior acoustic shadowing, largest 1.2 cm.&#10;CBD: 4 mm."></textarea>
+              <div id="usmMediaPart">
               <label>🎞 Images &amp; clips <span class="hint" style="display:inline">(optional – JPG / PNG stills and MP4 / MOV clips from the ultrasound machine)</span></label>
               <div class="xrcam"><label class="btn alt xrcambtn">📷 Take photo<input type="file" accept="image/*" capture="environment" class="hidden" onchange="usmAdd(this.files); this.value=''"></label>
                 <label class="btn alt xrcambtn">🖼 Choose images / clips<input type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.mp4,.mov,.m4v,.webm" multiple class="hidden" onchange="usmAdd(this.files); this.value=''"></label></div>
               <div class="xrthumbs" id="usmThumbs"></div>
               <label class="crit hidden" id="usmPrivWrap"><input type="checkbox" id="usmPriv"><span>🔒 I checked every image and clip: no patient name or ID can be read. Tap an image to blur a name; export clips without the name bar.</span></label>
+              </div>
               <div id="usmMsg" class="msg"></div>
             </div></div>
             <div class="xrbtns"><button class="btn" id="usBtn" onclick="usGo()">Make the report draft</button></div>
@@ -1181,7 +1185,7 @@
      Blur boxes are kept in the photo's own pixels (before rotation / crop), so rotating or re-cropping keeps them in place.
      Auto: an on-device text reader (Tesseract.js, downloaded the first time it is used, then cached) finds printed text –
      name, ID, dates – and blurs it. L / R and view markers stay. The tech must confirm before uploading. */
- var PACS_VER = 50;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
+ var PACS_VER = 51;   // sent with X-ray uploads; the server refuses pages older than CONFIG PACS_MIN_VERSION
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   var OCR = { p: null };
   var BLUR_KEEP = /^(L|R|LT|RT|LEFT|RIGHT|PA|AP|LAT|LATERAL|ERECT|SUPINE|UPRIGHT|DECUB|OBL|OBLIQUE|INSP|EXP)$/i;
@@ -4164,7 +4168,7 @@
     var h = '';
     if (r.header && r.header.length) h += '<table class="rpthdr">' + r.header.map(function (row) { return '<tr>' + row.map(function (c, i) { return '<td' + (/:\s*$|^(id no|name|age|sex|address|exam|requesting|indication|date|patient location|civil)/i.test(c) ? ' class="k"' : '') + '>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
     var usm = usmOn() && (r.modality === 'Ultrasound' || /ultrasound|sonograph/i.test(r.name || ''));
-    if (usm) h += '<div class="usmpanel"><div class="usmh">🎞 Images &amp; clips' + (r.final ? '' : ' <button class="link" type="button" onclick="usmAddOpen(RPT.cur.id, RPT.cur.name)">＋ Add</button>') + '</div><div id="rptMedia"></div></div>';
+    if (usm) h += '<div class="usmpanel"><div class="usmh">🎞 Images &amp; clips' + (r.final ? '' : ' <button class="link" type="button" onclick="usmAddOpen(RPT.cur.id, RPT.cur.name, true)">＋ Add</button>') + '</div><div id="rptMedia"></div></div>';
     if (XR_META.repeat) h += ctRepeatHtml(r);
     h += rptInitHtml(r);
     if (!r.parsed) {
@@ -4463,7 +4467,7 @@
       $('usDob').max = ymdLocal(new Date());
       $('usDob').onchange = function () { $('usAge').disabled = !!this.value; };
     }
-    $('usmUp').classList.toggle('hidden', !usmOn());
+    $('usmUp').classList.remove('hidden'); $('usmMediaPart').classList.toggle('hidden', !usmOn());
     var u2 = (XR_META && XR_META.us) || {}, duty = u2.onDuty, keep = $('usAssign').value;
     $('usAssign').innerHTML = (duty ? '<option value="">On duty for ultrasound: ' + esc(duty.name) + '</option>' : '<option value="">— Nobody on duty for ultrasound: choose —</option>') +
       (XR_META.rads || []).map(function (r) { return '<option value="' + esc(r.email) + '">' + esc(r.name) + '</option>'; }).join('');
@@ -4511,7 +4515,7 @@
   }
   function usmEdit(i) { if (US_FILES[i] && !US_FILES[i].clip && US_FILES[i].state !== 'done') xrEdit(i, US_FILES, function () { $('usmPriv').checked = false; usmDraw(); }); }
   function usmDrop(i) { var x = US_FILES[i]; if (x.url) URL.revokeObjectURL(x.url); US_FILES.splice(i, 1); usmDraw(); }
-  function usmClear() { US_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); US_FILES = []; $('usmPriv').checked = false; usmDraw(); setMsg('usmMsg', ''); }
+  function usmClear() { US_FILES.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); }); US_FILES = []; $('usmPriv').checked = false; $('usmNotes').value = ''; usmDraw(); setMsg('usmMsg', ''); }
   /** Checks before the upload: '' or the message. */
   function usmCheck() {
     if (!US_FILES.length) return '';
@@ -4553,30 +4557,40 @@
     return step(0);
   }
   /* add images to an existing ultrasound report (tech list or radiologist editor) */
-  function usmAddOpen(id, name) {
-    if (!usmOn()) return;
-    USM_ADD = { id: id, name: name || '' };
+  function usmAddOpen(id, name, fromEditor) {
+    USM_ADD = { id: id, name: name || '', editor: !!fromEditor };
     $('usmOvT').textContent = name || 'Ultrasound study';
-    $('usmOvSlot').appendChild($('usmUp')); $('usmUp').classList.remove('hidden'); usmClear();
+    $('usmOvH').textContent = fromEditor ? '🎞 Images & clips' : usmOn() ? '📝 Findings and 🎞 images' : '📝 Sonographer\'s findings';
+    $('usmOvSlot').appendChild($('usmUp')); $('usmUp').classList.remove('hidden'); $('usmMediaPart').classList.toggle('hidden', !usmOn()); usmClear();
+    $('usmNotes').classList.toggle('hidden', !!fromEditor); $('usmNotes').previousElementSibling.classList.toggle('hidden', !!fromEditor);   // the radiologist types in the report itself
     $('usmOv').classList.remove('hidden');
-    usmLoad().then(function (U) { U.strip($('usmOvStrip'), id, { canRemove: true }); }).catch(function (e) { $('usmOvStrip').innerHTML = '<p class="sub err">' + esc(e.message) + '</p>'; });
+    if (usmOn()) usmLoad().then(function (U) { U.strip($('usmOvStrip'), id, { canRemove: true }); }).catch(function (e) { $('usmOvStrip').innerHTML = '<p class="sub err">' + esc(e.message) + '</p>'; });
+    else $('usmOvStrip').innerHTML = '';
   }
   function usmAddClose() {
     if (USM_BUSY) return;
-    if (US_FILES.some(function (x) { return x.state !== 'done'; }) && !window.confirm('Close without uploading the chosen files?')) return;
-    $('usmOv').classList.add('hidden'); $('usmHome').appendChild($('usmUp')); usmClear();
+    if ((US_FILES.some(function (x) { return x.state !== 'done'; }) || $('usmNotes').value.trim()) && !window.confirm('Close without saving what you typed / chose?')) return;
+    $('usmOv').classList.add('hidden'); $('usmNotes').classList.remove('hidden'); $('usmNotes').previousElementSibling.classList.remove('hidden'); $('usmHome').appendChild($('usmUp')); usmClear();
     var rid = USM_ADD && USM_ADD.id; USM_ADD = null;
     if (RPT.cur && RPT.cur.id === rid && $('rptMedia')) rptMediaLoad(RPT.cur);
   }
   function usmAddGo() {
     var e = usmCheck(); if (e) return setMsg('usmMsg', e);
-    if (!US_FILES.length) return setMsg('usmMsg', 'Choose images or clips first.');
-    var b = $('usmOvGo'); b.disabled = true; b.textContent = 'Uploading…';
-    usmUpload(USM_ADD.id).then(function (r) {
-      b.disabled = false; b.textContent = '⬆ Upload';
-      setMsg('usmMsg', r.ok + ' file' + (r.ok === 1 ? '' : 's') + ' uploaded' + (r.fail ? ', ' + r.fail + ' failed – tap Upload to retry' : '.'), !r.fail);
-      if (!r.fail) { usmClear(); setMsg('usmMsg', r.ok + ' file' + (r.ok === 1 ? '' : 's') + ' uploaded.', true); }
-      usmLoad().then(function (U) { U.strip($('usmOvStrip'), USM_ADD.id, { canRemove: true }); });
+    var notes = $('usmNotes').value.trim();
+    if (!US_FILES.length && !notes) return setMsg('usmMsg', 'Type findings or choose images / clips first.');
+    var b = $('usmOvGo'); b.disabled = true; b.textContent = 'Saving…';
+    var np = notes ? run('usAddNotes', token, USM_ADD.id, notes).then(function (x) { if (x.expired) { expired(); throw new Error('Session ended'); } if (!x.ok) throw new Error(x.msg); $('usmNotes').value = ''; return true; }) : Promise.resolve(false);
+    np.then(function (added) {
+      if (!US_FILES.length) { b.disabled = false; b.textContent = '⬆ Save'; setMsg('usmMsg', 'Findings added to the report ✓', true); return null; }
+      b.textContent = 'Uploading…';
+      return usmUpload(USM_ADD.id).then(function (r) { r.notes = added; return r; });
+    }).catch(function (er) { b.disabled = false; b.textContent = '⬆ Save'; setMsg('usmMsg', (er && er.message) || 'Could not save'); return null; }).then(function (r) {
+      if (!r) return;
+      b.disabled = false; b.textContent = '⬆ Save';
+      var pre = r.notes ? 'Findings added to the report. ' : '';
+      setMsg('usmMsg', pre + r.ok + ' file' + (r.ok === 1 ? '' : 's') + ' uploaded' + (r.fail ? ', ' + r.fail + ' failed – tap Save to retry' : '.'), !r.fail);
+      if (!r.fail) { usmClear(); setMsg('usmMsg', pre + r.ok + ' file' + (r.ok === 1 ? '' : 's') + ' uploaded.', true); }
+      if (usmOn()) usmLoad().then(function (U) { U.strip($('usmOvStrip'), USM_ADD.id, { canRemove: true }); });
     });
   }
   /** radiologist's US editor: the strip under the patient table */
@@ -4616,7 +4630,7 @@
       indication: $('usInd').value, priority: $('usPriBar').getAttribute('data-v') || 'Routine', assignTo: $('usAssign').value };
   }
   function usGo() {
-    var f = usForm(), b = $('usBtn');
+    var f = usForm(), b = $('usBtn'); f.techFindings = $('usmNotes').value;
     if (!f.last || !f.first) return setMsg('usMsg', 'Enter the patient’s last and first name.');
     if (!f.dob && !f.hospNo) return setMsg('usMsg', 'Two identifiers are required: enter the date of birth or the hospital number.');
     if (!f.sex) return setMsg('usMsg', 'Choose the sex.');
@@ -4652,7 +4666,7 @@
       if (!r.ok) { list.innerHTML = '<p class="sub err">' + esc(r.msg) + '</p>'; return; }
       if (!r.items.length) { list.innerHTML = '<p class="sub">No ultrasound drafts made here yet.</p>'; return; }
       list.innerHTML = r.items.map(function (o) {
-        return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b>' + (usmOn() ? ' <button class="link" type="button" onclick="usmAddOpen(\'' + esc(o.id) + '\', \'' + esc(o.name).replace(/'/g, '') + '\')">🎞 Images</button>' : '') + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
+        return '<div class="xrrow"><div class="xrl"><b>' + esc(o.name) + '</b>' + (usmOn() || o.status !== 'Final' ? ' <button class="link" type="button" onclick="usmAddOpen(\'' + esc(o.id) + '\', \'' + esc(o.name).replace(/'/g, '') + '\')">' + (o.status === 'Final' ? '🎞 Images' : usmOn() ? '📝 Findings · 🎞 Images' : '📝 Add findings') + '</button>' : '') + '<div class="d">' + xrPri(o.priority) + esc(o.exam) + ' · ' + esc(o.location || '—') + ' · ' + esc(xrTime(o.created)) + ' · → ' + esc(o.assignedName) +
           tatOf({ created: o.created, finalAt: o.finalAt, priority: o.priority, location: o.location, initialAt: o.initialAt }, 'US') + '</div></div><span class="pill ' + (o.status === 'Final' ? 'xrFinal' : 'xrToread') + '">' + (o.status === 'Final' ? 'Final' : 'To finalize') + '</span></div>';
       }).join('');
     }).catch(function (e) { list.innerHTML = '<p class="sub err">Could not load: ' + esc((e && e.message) || e) + '</p>'; });
@@ -4842,9 +4856,9 @@
   })();
 </script>
 <div id="usmOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="Ultrasound images and clips"><div class="rrcard" style="max-width:720px">
-  <h3 style="margin:0 0 2px">🎞 Images &amp; clips</h3><p class="sub" id="usmOvT" style="margin:0 0 8px"></p>
+  <h3 style="margin:0 0 2px" id="usmOvH">🎞 Images &amp; clips</h3><p class="sub" id="usmOvT" style="margin:0 0 8px"></p>
   <div id="usmOvStrip"></div><div id="usmOvSlot"></div>
-  <div class="dctl" style="margin-top:10px"><button class="btn" type="button" id="usmOvGo" onclick="usmAddGo()" style="width:auto;margin:0">⬆ Upload</button><button class="btn alt" type="button" onclick="usmAddClose()" style="width:auto;margin:0">Close</button></div>
+  <div class="dctl" style="margin-top:10px"><button class="btn" type="button" id="usmOvGo" onclick="usmAddGo()" style="width:auto;margin:0">⬆ Save</button><button class="btn alt" type="button" onclick="usmAddClose()" style="width:auto;margin:0">Close</button></div>
 </div></div>
 <div id="arOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="My report settings" onclick="if (event.target === this) arSetClose()"><div class="rrcard" id="arSetCard"></div></div>
 <div id="rrOv" class="rrov hidden" role="dialog" aria-modal="true" aria-label="Request a repeat" onclick="if (event.target === this) rrClose()"><div class="rrcard" id="rrCard"></div></div>
